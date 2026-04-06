@@ -1,0 +1,173 @@
+import React, { useState, useMemo } from 'react';
+import { useApp } from '@/store/AppContext';
+import { MOCK_CONTENT, MOCK_CREATORS, CATEGORIES, formatNumber, formatCurrency } from '@/lib/constants';
+
+export default function Marketplace() {
+  const { searchQuery, setSearchQuery, isAuthenticated, setShowAuthModal, setAuthMode } = useApp();
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'price_low' | 'price_high'>('popular');
+  const [priceFilter, setPriceFilter] = useState<'all' | 'free' | 'paid'>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showCreators, setShowCreators] = useState(false);
+
+  const toggleFavorite = (id: string) => {
+    if (!isAuthenticated) { setAuthMode('login'); setShowAuthModal(true); return; }
+    setFavorites(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+
+  const filtered = useMemo(() => {
+    let items = [...MOCK_CONTENT];
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(i => i.title.toLowerCase().includes(q) || i.creator.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || i.tags.some(t => t.includes(q)));
+    }
+    if (selectedCategory !== 'All') items = items.filter(i => i.type === selectedCategory.toLowerCase() || i.category === selectedCategory);
+    if (priceFilter === 'free') items = items.filter(i => !i.isPaid);
+    if (priceFilter === 'paid') items = items.filter(i => i.isPaid);
+    switch (sortBy) {
+      case 'popular': items.sort((a, b) => b.views - a.views); break;
+      case 'newest': items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
+      case 'price_low': items.sort((a, b) => a.price - b.price); break;
+      case 'price_high': items.sort((a, b) => b.price - a.price); break;
+    }
+    return items;
+  }, [searchQuery, selectedCategory, sortBy, priceFilter]);
+
+  const typeIcon = (type: string) => {
+    switch (type) {
+      case 'music': return 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3';
+      case 'video': return 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z';
+      default: return 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Marketplace</h1>
+          <p className="text-gray-400 mt-1">{filtered.length} items found</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowCreators(!showCreators)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${showCreators ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+            {showCreators ? 'Show Content' : 'Show Creators'}
+          </button>
+          <div className="flex bg-gray-800 rounded-lg p-1">
+            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            </button>
+            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1">
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>{cat}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+            <option value="popular">Most Popular</option>
+            <option value="newest">Newest</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+          </select>
+          <select value={priceFilter} onChange={e => setPriceFilter(e.target.value as typeof priceFilter)} className="bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+            <option value="all">All Prices</option>
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
+      </div>
+
+      {showCreators ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {MOCK_CREATORS.map(creator => (
+            <div key={creator.id} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 hover:border-indigo-500/20 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <img src={creator.avatar} alt="" className="w-12 h-12 rounded-full object-cover" />
+                <div>
+                  <p className="text-sm font-medium text-white">{creator.name}</p>
+                  <p className="text-xs text-gray-400">@{creator.username}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">{creator.bio}</p>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatNumber(creator.followers)} followers</span>
+                <span className="text-emerald-400 font-medium">{creator.category}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(item => (
+            <div key={item.id} className="group bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-indigo-500/20 transition-all hover:-translate-y-0.5">
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute top-2 left-2">
+                  <span className="px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded-full text-[10px] text-white capitalize flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={typeIcon(item.type)} /></svg>
+                    {item.type}
+                  </span>
+                </div>
+                <div className="absolute top-2 right-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.isPaid ? 'bg-emerald-500/80 text-white' : 'bg-indigo-500/80 text-white'}`}>
+                    {item.isPaid ? formatCurrency(item.price) : 'Free'}
+                  </span>
+                </div>
+                <button onClick={() => toggleFavorite(item.id)} className="absolute bottom-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/70 transition-colors">
+                  <svg className={`w-4 h-4 ${favorites.has(item.id) ? 'text-red-400 fill-red-400' : 'text-white'}`} fill={favorites.has(item.id) ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                </button>
+              </div>
+              <div className="p-3">
+                <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <img src={item.creatorAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                  <span className="text-xs text-gray-400">{item.creator}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
+                  <span>{formatNumber(item.views)} views</span>
+                  <span>{formatNumber(item.likes)} likes</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(item => (
+            <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-indigo-500/20 transition-all">
+              <img src={item.thumbnail} alt="" className="w-16 h-12 rounded-lg object-cover" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{item.title}</p>
+                <p className="text-xs text-gray-400">{item.creator} · {item.category}</p>
+              </div>
+              <div className="hidden sm:flex items-center gap-4 text-xs text-gray-400">
+                <span>{formatNumber(item.views)} views</span>
+                <span>{formatNumber(item.likes)} likes</span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${item.isPaid ? 'bg-emerald-500/20 text-emerald-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                {item.isPaid ? formatCurrency(item.price) : 'Free'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {filtered.length === 0 && (
+        <div className="text-center py-20">
+          <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <p className="text-gray-400">No content found matching your criteria</p>
+          <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setPriceFilter('all'); }} className="text-indigo-400 hover:text-indigo-300 text-sm mt-2">Clear filters</button>
+        </div>
+      )}
+    </div>
+  );
+}
