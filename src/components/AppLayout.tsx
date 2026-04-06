@@ -1,391 +1,459 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from './Header';
 import Footer from './Footer';
 import ProductCard from './ProductCard';
-import { IMAGES, MOCK_COMPETITIONS, MOCK_CREATORS, formatCurrency, formatNumber } from '@/lib/constants';
+import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight } from 'lucide-react';
 
-const HERO_IMAGE = IMAGES.hero;
-const ARTIST_IMAGES = IMAGES.creators;
+const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
-const MUSIC_LANGUAGES = [
-  { name: 'Afrobeats', flag: '🇳🇬', count: 1240 },
-  { name: 'Bongo Flava', flag: '🇹🇿', count: 890 },
-  { name: 'Highlife', flag: '🇬🇭', count: 760 },
-  { name: 'Amapiano', flag: '🇿🇦', count: 1100 },
-  { name: 'Benga', flag: '🇰🇪', count: 540 },
-  { name: 'Mbalax', flag: '🇸🇳', count: 320 },
-  { name: 'Afro House', flag: '🌍', count: 980 },
-  { name: 'Hip-Hop', flag: '🌎', count: 2400 },
+const ARTIST_IMAGES = [
+  'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047821550_5abc0a11.png',
+  'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047791621_1ee31d4b.jpg',
+  'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047793741_84240e78.jpg',
+  'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047794965_c692c0d2.jpg',
 ];
 
 const DISTRIBUTION_PLATFORMS = [
-  'Spotify', 'Apple Music', 'YouTube Music', 'TikTok', 'Amazon Music',
-  'Deezer', 'Tidal', 'Audiomack', 'Boomplay', 'Anghami',
-  'SoundCloud', 'Shazam', 'Pandora', 'iHeart Radio', 'Napster',
-  'Beatport', 'Traxsource', 'Juno', '7Digital', 'AWA',
-  'Gracenote', 'MediaNet', 'Slacker', 'Radionomy', 'Zvuk',
-  'NetEase', 'QQ Music', 'Yandex Music', 'KKBOX', 'LINE Music',
+  'Spotify', 'Apple Music', 'YouTube Music', 'Amazon Music', 'TikTok', 'Instagram',
+  'Deezer', 'Tidal', 'Boomplay', 'Audiomack', 'Anghami', 'JioSaavn',
+  'Pandora', 'iHeartRadio', 'SoundCloud', 'Bandcamp', 'Beatport', 'Qobuz',
+  'KKBOX', 'Gaana', 'Napster', 'Tencent Music', 'NetEase', 'Traxsource',
+  'Facebook Music', 'Snapchat Sounds', 'Shazam', 'Ditto', 'Resso'
+];
+
+const STATS = [
+  { icon: Users, label: 'Active Creators', value: '12,500+', color: '#00D9FF' },
+  { icon: Globe, label: 'Countries', value: '140+', color: '#9D4EDD' },
+  { icon: DollarSign, label: 'Creator Payouts', value: '$2.8M+', color: '#00F5A0' },
+  { icon: TrendingUp, label: 'Monthly Streams', value: '45M+', color: '#FFB800' },
 ];
 
 export default function AppLayout() {
-  const navigate = useNavigate();
-  const [collections, setCollections] = useState<{ id: string; handle: string; title: string }[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [newReleases, setNewReleases] = useState<any[]>([]);
-  const [musicProducts, setMusicProducts] = useState<any[]>([]);
-  const [bookProducts, setBookProducts] = useState<any[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        // Fetch collections
-        const { data: colData } = await supabase.from('ecom_collections').select('id, handle, title').order('sort_order');
-        if (colData) setCollections(colData);
+    const fetchData = async () => {
+      const { data: cols } = await supabase
+        .from('ecom_collections')
+        .select('*')
+        .eq('is_visible', true);
+      if (cols) setCollections(cols);
 
-        // Fetch trending products
-        const { data: trending } = await supabase
-          .from('ecom_products')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(8);
-        if (trending) setTrendingProducts(trending);
-
-        // Fetch featured
-        const { data: featured } = await supabase
-          .from('ecom_products')
-          .select('*')
-          .eq('status', 'active')
-          .eq('featured', true)
-          .limit(6);
-        if (featured) setFeaturedProducts(featured.length ? featured : (trending || []).slice(0, 4));
-
-        // New releases
-        const { data: newR } = await supabase
-          .from('ecom_products')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(6);
-        if (newR) setNewReleases(newR);
-
-        // Music products
-        const { data: music } = await supabase
-          .from('ecom_products')
-          .select('*')
-          .ilike('product_type', '%music%')
-          .eq('status', 'active')
-          .limit(6);
-        if (music) setMusicProducts(music);
-
-        // Book products
-        const { data: books } = await supabase
-          .from('ecom_products')
-          .select('*')
-          .ilike('product_type', '%book%')
-          .eq('status', 'active')
-          .limit(4);
-        if (books) setBookProducts(books);
-      } catch (err) {
-        console.error('Error fetching homepage data:', err);
-      } finally {
-        setLoading(false);
+      const trendingCol = cols?.find(c => c.handle === 'trending');
+      if (trendingCol) {
+        const { data: links } = await supabase
+          .from('ecom_product_collections')
+          .select('product_id, position')
+          .eq('collection_id', trendingCol.id)
+          .order('position');
+        if (links && links.length > 0) {
+          const ids = links.map(l => l.product_id);
+          const { data: prods } = await supabase
+            .from('ecom_products')
+            .select('*, variants:ecom_product_variants(*)')
+            .in('id', ids)
+            .eq('status', 'active');
+          const sorted = ids.map(id => prods?.find(p => p.id === id)).filter(Boolean);
+          setTrendingProducts(sorted);
+        }
       }
-    }
+
+      const featuredCol = cols?.find(c => c.handle === 'featured');
+      if (featuredCol) {
+        const { data: links } = await supabase
+          .from('ecom_product_collections')
+          .select('product_id, position')
+          .eq('collection_id', featuredCol.id)
+          .order('position');
+        if (links && links.length > 0) {
+          const ids = links.map(l => l.product_id);
+          const { data: prods } = await supabase
+            .from('ecom_products')
+            .select('*, variants:ecom_product_variants(*)')
+            .in('id', ids)
+            .eq('status', 'active');
+          const sorted = ids.map(id => prods?.find(p => p.id === id)).filter(Boolean);
+          setFeaturedProducts(sorted);
+        }
+      }
+
+      const newCol = cols?.find(c => c.handle === 'new-releases');
+      if (newCol) {
+        const { data: links } = await supabase
+          .from('ecom_product_collections')
+          .select('product_id, position')
+          .eq('collection_id', newCol.id)
+          .order('position');
+        if (links && links.length > 0) {
+          const ids = links.map(l => l.product_id);
+          const { data: prods } = await supabase
+            .from('ecom_products')
+            .select('*, variants:ecom_product_variants(*)')
+            .in('id', ids)
+            .eq('status', 'active');
+          const sorted = ids.map(id => prods?.find(p => p.id === id)).filter(Boolean);
+          setNewReleases(sorted);
+        }
+      }
+
+      setLoading(false);
+    };
     fetchData();
   }, []);
 
-  const navCollections = collections.filter(c =>
-    ['music', 'videos', 'books', 'podcasts', 'talent-arena', 'marketplace', 'competitions'].includes(c.handle)
-  );
+  const contentCollections = collections.filter(c => ['music', 'videos', 'books', 'podcasts'].includes(c.handle));
+
+  const getCollectionIcon = (handle: string) => {
+    switch (handle) {
+      case 'music': return <Music className="w-8 h-8" />;
+      case 'videos': return <Video className="w-8 h-8" />;
+      case 'books': return <BookOpen className="w-8 h-8" />;
+      case 'podcasts': return <Mic className="w-8 h-8" />;
+      default: return <Zap className="w-8 h-8" />;
+    }
+  };
+
+  const getCollectionGradient = (handle: string) => {
+    switch (handle) {
+      case 'music': return 'from-[#9D4EDD] to-[#00D9FF]';
+      case 'videos': return 'from-[#00D9FF] to-[#00F5A0]';
+      case 'books': return 'from-[#FFB800] to-[#FF6B00]';
+      case 'podcasts': return 'from-[#FF006E] to-[#9D4EDD]';
+      default: return 'from-[#00D9FF] to-[#9D4EDD]';
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-white">
+    <div className="min-h-screen bg-[#0A1128]">
       <Header />
 
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center overflow-hidden">
+      <section className="relative pt-28 pb-20 overflow-hidden">
         <div className="absolute inset-0">
-          <img src={HERO_IMAGE} alt="Hero" className="w-full h-full object-cover opacity-30" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F] via-[#0A0A0F]/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-transparent to-transparent" />
+          <img src={HERO_IMAGE} alt="WANKONG" className="w-full h-full object-cover opacity-40" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0A1128]/60 via-[#0A1128]/80 to-[#0A1128]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0A1128] via-transparent to-[#0A1128]/80" />
         </div>
-        <div className="relative max-w-7xl mx-auto px-4 lg:px-8 py-20">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-indigo-600/20 border border-indigo-500/30 rounded-full text-indigo-400 text-xs font-medium">🌍 African Creator Platform</span>
+        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#FFB800]/10 border border-[#FFB800]/30 rounded-full mb-6">
+              <div className="w-2 h-2 bg-[#00F5A0] rounded-full animate-pulse" />
+              <span className="text-[#FFB800] text-sm font-medium">Talent Arena Week 12 — Voting Now Live</span>
             </div>
-            <h1 className="text-5xl lg:text-7xl font-black text-white leading-tight mb-6">
-              Your Music.<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Your Story.</span><br />
-              The World.
+            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-6">
+              Create. Distribute.
+              <br />
+              <span className="bg-gradient-to-r from-[#00D9FF] via-[#9D4EDD] to-[#FFB800] bg-clip-text text-transparent">
+                Get Paid.
+              </span>
             </h1>
-            <p className="text-lg text-gray-300 mb-8 leading-relaxed">
-              Distribute your music to 30+ platforms. Sell books, videos & podcasts globally. Compete and win prizes. WANKONG powers African creators worldwide.
+            <p className="text-xl text-white/60 mb-8 max-w-xl">
+              The global creator economy platform. Upload music, videos, books & podcasts. Distribute to 30+ streaming outlets. Compete in the Talent Arena. Earn royalties worldwide.
             </p>
-            <div className="flex flex-wrap gap-3 mb-10">
-              <button onClick={() => navigate('/dashboard')} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => navigate('/collections/featured')}
+                className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-105 flex items-center gap-2"
+              >
+                <Play className="w-5 h-5" />
                 Start Creating
               </button>
-              <button onClick={() => navigate('/collections/music')} className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors border border-white/20">
-                Explore Music
+              <button
+                onClick={() => navigate('/collections/talent-arena')}
+                className="px-8 py-4 bg-white/10 border border-white/20 text-white font-bold rounded-xl hover:bg-white/20 transition-all flex items-center gap-2"
+              >
+                <Trophy className="w-5 h-5 text-[#FFB800]" />
+                Talent Arena
               </button>
             </div>
-            {/* Stats */}
-            <div className="flex flex-wrap gap-6">
-              {[
-                { label: 'Creators', value: '12K+' },
-                { label: 'Platforms', value: '30+' },
-                { label: 'Countries', value: '42' },
-                { label: 'Paid Out', value: '$2.3M' },
-              ].map(s => (
-                <div key={s.label}>
-                  <p className="text-2xl font-bold text-white">{s.value}</p>
-                  <p className="text-xs text-gray-400">{s.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
-        {/* Artist collage */}
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 hidden lg:grid grid-cols-2 gap-2 p-4 opacity-60">
-          {ARTIST_IMAGES.slice(0, 6).map((img, i) => (
-            <div key={i} className={`relative overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 aspect-video' : 'aspect-square'}`}>
-              <img src={img} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            </div>
-          ))}
+        {/* Stats */}
+        <div className="relative max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {STATS.map((stat, i) => (
+              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-5 text-center hover:bg-white/10 transition-all">
+                <stat.icon className="w-6 h-6 mx-auto mb-2" style={{ color: stat.color }} />
+                <p className="text-2xl md:text-3xl font-black text-white">{stat.value}</p>
+                <p className="text-white/40 text-sm">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Browse by Language */}
-      <section className="py-16 px-4 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Browse by Language</h2>
-            <p className="text-gray-400 mt-1">Discover music from every African musical tradition</p>
-          </div>
-          <Link to="/collections/languages" className="text-sm text-indigo-400 hover:text-indigo-300">View all →</Link>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {MUSIC_LANGUAGES.map(lang => (
-            <Link
-              key={lang.name}
-              to={`/collections/music?language=${encodeURIComponent(lang.name)}`}
-              className="group flex flex-col items-center p-4 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-indigo-500/30 hover:bg-gray-900 transition-all"
-            >
-              <span className="text-2xl mb-2">{lang.flag}</span>
-              <span className="text-xs font-medium text-white text-center">{lang.name}</span>
-              <span className="text-[10px] text-gray-500 mt-0.5">{formatNumber(lang.count)}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Quick Play Music */}
-      {(musicProducts.length > 0 || !loading) && (
-        <section className="py-8 px-4 lg:px-8 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Quick Play</h2>
-            <Link to="/collections/music" className="text-sm text-indigo-400 hover:text-indigo-300">Browse all music →</Link>
-          </div>
-          {musicProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {musicProducts.map(p => (
-                <ProductCard key={p.id} product={{ ...p, image: p.images?.[0] || p.cover_art, price: p.variants?.[0]?.price || p.price, language: p.language }} />
-              ))}
+      {/* Content Categories */}
+      {contentCollections.length > 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-bold text-white">Browse Content</h2>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {IMAGES.albums.map((img, i) => (
-                <Link key={i} to="/collections/music" className="group block bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-indigo-500/30 transition-all">
-                  <div className="aspect-square overflow-hidden"><img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /></div>
-                  <div className="p-2"><p className="text-xs text-gray-400">Music Track {i + 1}</p></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {contentCollections.map(col => (
+                <Link
+                  key={col.id}
+                  to={`/collections/${col.handle}`}
+                  className={`group relative overflow-hidden rounded-2xl p-6 md:p-8 bg-gradient-to-br ${getCollectionGradient(col.handle)} hover:scale-[1.02] transition-all duration-300`}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative">
+                    <div className="text-white/80 mb-3">{getCollectionIcon(col.handle)}</div>
+                    <h3 className="text-white font-bold text-xl mb-1">{col.title}</h3>
+                    <p className="text-white/60 text-sm line-clamp-2">{col.description}</p>
+                    <div className="mt-4 flex items-center gap-1 text-white/80 text-sm font-medium">
+                      Explore <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
-          )}
+          </div>
+        </section>
+      )}
+
+      {/* Fallback Browse Content when no collections */}
+      {contentCollections.length === 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <h2 className="text-3xl font-bold text-white mb-8">Browse Content</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { handle: 'music', title: 'Music', description: 'Tracks, EPs & Albums' },
+                { handle: 'videos', title: 'Videos', description: 'Films & Vlogs' },
+                { handle: 'books', title: 'Books', description: 'eBooks & Literature' },
+                { handle: 'podcasts', title: 'Podcasts', description: 'Shows & Interviews' },
+              ].map(col => (
+                <Link
+                  key={col.handle}
+                  to={`/collections/${col.handle}`}
+                  className={`group relative overflow-hidden rounded-2xl p-6 md:p-8 bg-gradient-to-br ${getCollectionGradient(col.handle)} hover:scale-[1.02] transition-all duration-300`}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative">
+                    <div className="text-white/80 mb-3">{getCollectionIcon(col.handle)}</div>
+                    <h3 className="text-white font-bold text-xl mb-1">{col.title}</h3>
+                    <p className="text-white/60 text-sm">{col.description}</p>
+                    <div className="mt-4 flex items-center gap-1 text-white/80 text-sm font-medium">
+                      Explore <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </section>
       )}
 
       {/* Trending Now */}
-      <section className="py-16 px-4 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Trending Now</h2>
-            <p className="text-gray-400 mt-1">Most popular content this week</p>
-          </div>
-          <Link to="/collections/marketplace" className="text-sm text-indigo-400 hover:text-indigo-300">View all →</Link>
-        </div>
-        {trendingProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {trendingProducts.slice(0, 8).map(p => (
-              <ProductCard key={p.id} product={{ ...p, image: p.images?.[0] || p.cover_art, price: p.variants?.[0]?.price || p.price }} />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...IMAGES.albums, ...IMAGES.thumbnails].slice(0, 8).map((img, i) => (
-              <Link key={i} to="/collections/marketplace" className="group block bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-indigo-500/30 transition-all">
-                <div className="aspect-square overflow-hidden"><img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /></div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-white truncate">Content Item {i + 1}</p>
-                  <p className="text-xs text-gray-400">Various Artists</p>
+      {trendingProducts.length > 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#FFB800]/20 rounded-xl flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-[#FFB800]" />
                 </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Trending Now</h2>
+                  <p className="text-white/40 text-sm">What's hot on WANKONG this week</p>
+                </div>
+              </div>
+              <Link to="/collections/trending" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
               </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Featured Books */}
-      <section className="py-16 px-4 lg:px-8 bg-gray-900/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Featured Books</h2>
-              <p className="text-gray-400 mt-1">Literature from African & global authors</p>
             </div>
-            <Link to="/collections/books" className="text-sm text-indigo-400 hover:text-indigo-300">Browse library →</Link>
-          </div>
-          {bookProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {bookProducts.map(p => (
-                <ProductCard key={p.id} product={{ ...p, image: p.images?.[0] || p.cover_art, price: p.variants?.[0]?.price || p.price }} variant="featured" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {trendingProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {IMAGES.albums.slice(0, 4).map((img, i) => (
-                <Link key={i} to="/collections/books" className="group relative block rounded-2xl overflow-hidden aspect-[3/4] bg-gray-900">
-                  <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <span className="text-[10px] text-white bg-amber-500/80 px-2 py-0.5 rounded-full">Book</span>
-                    <p className="text-white font-semibold mt-1 text-sm">Story {i + 1}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Trending Artists */}
-      <section className="py-16 px-4 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Trending Artists</h2>
-            <p className="text-gray-400 mt-1">Top creators on the platform</p>
           </div>
-          <Link to="/collections/artists" className="text-sm text-indigo-400 hover:text-indigo-300">See all artists →</Link>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-          {MOCK_CREATORS.map(creator => (
-            <Link key={creator.id} to={`/artist/${creator.id}`} className="group flex flex-col items-center text-center p-3 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-indigo-500/30 transition-all">
-              <img src={creator.avatar} alt={creator.name} className="w-14 h-14 rounded-full object-cover mb-2 ring-2 ring-transparent group-hover:ring-indigo-500/50 transition-all" onError={e => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${creator.name}`; }} />
-              <p className="text-xs font-medium text-white truncate w-full">{creator.name}</p>
-              <p className="text-[10px] text-gray-400">{creator.category}</p>
-              <p className="text-[10px] text-indigo-400 mt-0.5">{formatNumber(creator.followers)}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Competitions Highlight */}
-      <section className="py-16 px-4 lg:px-8 bg-gradient-to-br from-indigo-900/20 to-purple-900/20">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Active Competitions</h2>
-              <p className="text-gray-400 mt-1">Compete, get AI scored, win prizes</p>
-            </div>
-            <Link to="/collections/competitions" className="text-sm text-indigo-400 hover:text-indigo-300">View all →</Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {MOCK_COMPETITIONS.filter(c => c.status === 'active').slice(0, 3).map(comp => (
-              <Link key={comp.id} to="/collections/competitions" className="group relative block rounded-2xl overflow-hidden h-48 bg-gray-900">
-                <img src={comp.banner} alt={comp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute top-3 right-3">
-                  <span className="px-2 py-1 bg-emerald-500/80 text-white text-xs rounded-full font-medium">Active</span>
-                </div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <p className="text-white font-bold">{comp.name}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-sm text-emerald-400 font-semibold">{formatCurrency(comp.prizePool)} prize</span>
-                    <span className="text-xs text-gray-300">{comp.entries} entries</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Featured Content */}
       {featuredProducts.length > 0 && (
-        <section className="py-16 px-4 lg:px-8 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">Featured Content</h2>
-            <Link to="/collections/marketplace" className="text-sm text-indigo-400 hover:text-indigo-300">View all →</Link>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {featuredProducts.map(p => (
-              <ProductCard key={p.id} product={{ ...p, image: p.images?.[0] || p.cover_art, price: p.variants?.[0]?.price || p.price }} variant="featured" />
-            ))}
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#9D4EDD]/20 rounded-xl flex items-center justify-center">
+                  <Star className="w-5 h-5 text-[#9D4EDD]" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Featured</h2>
+                  <p className="text-white/40 text-sm">Hand-picked by the WANKONG team</p>
+                </div>
+              </div>
+              <Link to="/collections/featured" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredProducts.slice(0, 3).map(product => (
+                <ProductCard key={product.id} product={product} variant="featured" />
+              ))}
+            </div>
           </div>
         </section>
       )}
 
       {/* Talent Arena CTA */}
-      <section className="py-20 px-4 lg:px-8">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-2 mb-6">
-            <span className="text-lg">🏆</span>
-            <span className="text-purple-400 text-sm font-medium">Talent Arena</span>
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#9D4EDD]/30 via-[#0A1128] to-[#FFB800]/30 border border-white/10 p-8 md:p-12">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFB800]/5 rounded-full -translate-y-48 translate-x-48" />
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FFB800]/20 border border-[#FFB800]/30 rounded-full mb-4">
+                  <Trophy className="w-4 h-4 text-[#FFB800]" />
+                  <span className="text-[#FFB800] text-sm font-semibold">Talent Arena</span>
+                </div>
+                <h2 className="text-4xl font-black text-white mb-4">
+                  Compete. Win. <span className="text-[#FFB800]">Get Discovered.</span>
+                </h2>
+                <p className="text-white/60 mb-6">
+                  Upload your performance, get AI-scored, receive public votes, and compete for cash prizes and global exposure. Weekly winners get featured on our homepage and auto-published to social media.
+                </p>
+                <div className="flex flex-wrap gap-4 mb-6">
+                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                    <div className="w-2 h-2 bg-[#00F5A0] rounded-full" />
+                    AI Vocal Analysis
+                  </div>
+                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                    <div className="w-2 h-2 bg-[#00D9FF] rounded-full" />
+                    Public Voting
+                  </div>
+                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                    <div className="w-2 h-2 bg-[#FFB800] rounded-full" />
+                    Cash Prizes
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/collections/talent-arena')}
+                  className="px-8 py-4 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-[#0A1128] font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  <Trophy className="w-5 h-5" />
+                  Enter Competition
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {ARTIST_IMAGES.map((img, i) => (
+                  <div key={i} className="relative rounded-xl overflow-hidden aspect-[3/4]">
+                    <img src={img} alt={`Artist ${i + 1}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A1128]/80 to-transparent" />
+                    {i === 0 && (
+                      <div className="absolute bottom-2 left-2 px-2 py-1 bg-[#FFB800] text-[#0A1128] text-xs font-bold rounded-full">
+                        Week 12 Winner
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">Compete & Win</h2>
-          <p className="text-gray-400 mb-8 text-lg">AI-powered competitions with cash prizes. Weekly, monthly, and special events for music, video, and more.</p>
-          <Link to="/collections/talent-arena" className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all">
-            Enter Talent Arena
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-          </Link>
         </div>
       </section>
 
-      {/* Distribution platforms */}
-      <section className="py-16 px-4 lg:px-8 bg-gray-900/30">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">Distribute to 30+ Platforms</h2>
-          <p className="text-gray-400 mb-10">Your music everywhere your fans are</p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {DISTRIBUTION_PLATFORMS.map(platform => (
-              <span key={platform} className="px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg">
+      {/* New Releases */}
+      {newReleases.length > 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#00F5A0]/20 rounded-xl flex items-center justify-center">
+                  <Radio className="w-5 h-5 text-[#00F5A0]" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">New Releases</h2>
+                  <p className="text-white/40 text-sm">Fresh content just dropped</p>
+                </div>
+              </div>
+              <Link to="/collections/new-releases" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {newReleases.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Distribution Section */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/10 border border-[#00D9FF]/30 rounded-full mb-4">
+              <Headphones className="w-4 h-4 text-[#00D9FF]" />
+              <span className="text-[#00D9FF] text-sm font-semibold">Music Distribution</span>
+            </div>
+            <h2 className="text-4xl font-black text-white mb-4">
+              Distribute to <span className="text-[#00D9FF]">30+ Platforms</span>
+            </h2>
+            <p className="text-white/50 max-w-2xl mx-auto">
+              Upload once, distribute everywhere. Your music on Spotify, Apple Music, TikTok, and 27+ more platforms. Track royalties in real-time.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {DISTRIBUTION_PLATFORMS.map((platform, i) => (
+              <div
+                key={i}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/50 text-sm hover:bg-white/10 hover:text-white hover:border-[#00D9FF]/30 transition-all cursor-default"
+              >
                 {platform}
-              </span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Creator CTA */}
-      <section className="py-20 px-4 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 rounded-2xl p-10 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Creating?</h2>
-            <p className="text-gray-300 mb-8 max-w-xl mx-auto">Join 12,000+ creators earning from their music, books, videos and more. Get paid worldwide through Stripe, M-Pesa, MTN MoMo and more.</p>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link to="/dashboard" className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
-                Create Your Account
-              </Link>
-              <Link to="/collections/marketplace" className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors border border-white/20">
-                Browse Marketplace
-              </Link>
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#00D9FF]/10 to-[#9D4EDD]/10 border border-white/10 p-8 md:p-16 text-center">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgMHYyaC0ydi0yaDJ6bTIgMGgydjJoLTJ2LTJ6bS0yLTRoMnYyaC0ydi0yem0yIDBoMnYyaC0ydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+            <div className="relative">
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+                Ready to <span className="bg-gradient-to-r from-[#00D9FF] to-[#FFB800] bg-clip-text text-transparent">Monetize</span> Your Creativity?
+              </h2>
+              <p className="text-white/50 text-lg mb-8 max-w-2xl mx-auto">
+                Join 12,500+ creators earning from their content. Upload books, music, videos, and podcasts. Get paid through Stripe or Mobile Money.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <button
+                  onClick={() => navigate('/collections/featured')}
+                  className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
+                >
+                  Explore Content
+                </button>
+                <button
+                  onClick={() => navigate('/collections/music')}
+                  className="px-8 py-4 bg-white/10 border border-white/20 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
+                >
+                  Browse Music
+                </button>
+              </div>
+              <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/30 text-sm">
+                <span>70% Creator Revenue</span>
+                <span>|</span>
+                <span>Instant Digital Delivery</span>
+                <span>|</span>
+                <span>Global Payouts</span>
+                <span>|</span>
+                <span>Mobile Money Support</span>
+              </div>
             </div>
           </div>
         </div>
