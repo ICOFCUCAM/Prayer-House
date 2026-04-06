@@ -1,6 +1,6 @@
 // Image URLs
 export const IMAGES = {
-  hero: 'https://d64gsuwffb70l.cloudfront.net/69bde649669788a66318d897_1774053163391_7571ffd7.png',
+  hero: 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png',
   creators: [
     'https://d64gsuwffb70l.cloudfront.net/69bde649669788a66318d897_1774053194842_4e7d08fa.png',
     'https://d64gsuwffb70l.cloudfront.net/69bde649669788a66318d897_1774053186152_a5879d67.jpg',
