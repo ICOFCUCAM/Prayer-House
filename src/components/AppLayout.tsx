@@ -51,12 +51,88 @@ export default function AppLayout() {
   const [trendingBooks, setTrendingBooks] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Video player state
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+
+  // Audio player state
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(32); // start mid-track for realism
+  const [audioTick, setAudioTick] = useState<ReturnType<typeof setInterval> | null>(null);
+
+  // Live vote counter (Supabase realtime feeds this)
+  const [liveVotes, setLiveVotes] = useState(11612);
+
   const navigate = useNavigate();
   const booksScrollRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapRef = useRef<HTMLDivElement>(null);
+  const [viewCount, setViewCount] = useState(60318);
+  const [confetti, setConfetti] = useState(false);
+  const [tracksDistributed, setTracksDistributed] = useState(1247);
+
+  // Auto-play video when scrolled into view
+  useEffect(() => {
+    if (!videoWrapRef.current || !videoRef.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        videoRef.current?.play().catch(() => {});
+        setVideoPlaying(true);
+      } else {
+        videoRef.current?.pause();
+        setVideoPlaying(false);
+      }
+    }, { threshold: 0.5 });
+    obs.observe(videoWrapRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  // Animate view count every 4s
+  useEffect(() => {
+    const id = setInterval(() => setViewCount(v => v + Math.floor(Math.random() * 4 + 1)), 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Animate tracks distributed counter
+  useEffect(() => {
+    const id = setInterval(() => setTracksDistributed(v => v + 1), 6000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Confetti burst on mount for winner card
+  useEffect(() => {
+    const id = setTimeout(() => setConfetti(true), 800);
+    return () => clearTimeout(id);
+  }, []);
 
   const scrollBooks = (dir: 'left' | 'right') => {
     if (!booksScrollRef.current) return;
     booksScrollRef.current.scrollBy({ left: dir === 'right' ? 600 : -600, behavior: 'smooth' });
+  };
+
+  const toggleAudio = () => {
+    if (audioPlaying) {
+      if (audioTick) clearInterval(audioTick);
+      setAudioTick(null);
+      setAudioPlaying(false);
+    } else {
+      setAudioPlaying(true);
+      const id = setInterval(() => {
+        setAudioProgress(p => {
+          if (p >= 100) { clearInterval(id); setAudioPlaying(false); return 0; }
+          return p + 0.4;
+        });
+      }, 200);
+      setAudioTick(id);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (!videoRef.current) return;
+    if (videoPlaying) { videoRef.current.pause(); setVideoPlaying(false); }
+    else { videoRef.current.play().catch(() => {}); setVideoPlaying(true); }
   };
 
   useEffect(() => {
@@ -148,6 +224,16 @@ export default function AppLayout() {
       setLoading(false);
     };
     fetchData();
+
+    // Realtime: live vote counter for Talent Winner card
+    const voteChannel = supabase
+      .channel('homepage-votes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'competition_votes' }, () => {
+        setLiveVotes(v => v + 1);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(voteChannel); };
   }, []);
 
   const contentCollections = collections.filter(c => ['music', 'videos', 'books', 'podcasts'].includes(c.handle));
@@ -232,6 +318,83 @@ export default function AppLayout() {
         </div>
       </section>
 
+      {/* ── Music by Language ──────────────────────────────────────── */}
+      <section className="py-20 relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(157,78,221,0.07),transparent_70%)]" />
+        <div className="relative max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 rounded-full text-[#9D4EDD] text-sm font-medium mb-4">
+              <Globe className="w-4 h-4" /> Music by Language
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-2">
+              Explore Free Music in Your Language
+            </h2>
+            <p className="text-white/40 text-base">Download gospel & Christian music in your preferred language. Free forever.</p>
+          </div>
+
+          {/* Language grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+            {[
+              { lang: 'English Music',    flag: '🇬🇧', count: '4,200+ tracks' },
+              { lang: 'French Music',     flag: '🇫🇷', count: '1,800+ tracks' },
+              { lang: 'Spanish Music',    flag: '🇪🇸', count: '2,100+ tracks' },
+              { lang: 'Arabic Music',     flag: '🇸🇦', count: '980+ tracks'   },
+              { lang: 'Pidgin Music',     flag: '🌍', count: '640+ tracks'   },
+              { lang: 'Nigerian Music',   flag: '🇳🇬', count: '3,400+ tracks' },
+              { lang: 'Swahili Music',    flag: '🇰🇪', count: '720+ tracks'   },
+              { lang: 'German Music',     flag: '🇩🇪', count: '510+ tracks'   },
+              { lang: 'Yoruba Music',     flag: '🌍', count: '1,200+ tracks' },
+              { lang: 'Portuguese Music', flag: '🇧🇷', count: '890+ tracks'   },
+              { lang: 'Chinese Music',    flag: '🇨🇳', count: '430+ tracks'   },
+              { lang: 'Japanese Music',   flag: '🇯🇵', count: '310+ tracks'   },
+            ].map(({ lang, flag, count }) => (
+              <Link
+                key={lang}
+                to={`/collections/music?lang=${lang.split(' ')[0].toLowerCase()}`}
+                className="group flex items-center justify-between gap-2 bg-white/5 border border-white/10 hover:border-[#9D4EDD]/40 hover:bg-[#9D4EDD]/5 rounded-xl px-4 py-3.5 transition-all"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl shrink-0">{flag}</span>
+                  <div className="min-w-0">
+                    <p className="text-white text-sm font-semibold truncate">{lang}</p>
+                    <p className="text-white/30 text-xs">{count}</p>
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-[#9D4EDD] bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 px-2 py-1 rounded-lg group-hover:bg-[#9D4EDD]/20 transition-colors whitespace-nowrap">
+                  ↓ Free
+                </div>
+              </Link>
+            ))}
+
+            {/* & More card */}
+            <Link
+              to="/collections/music"
+              className="group flex items-center justify-between gap-2 bg-gradient-to-br from-[#9D4EDD]/20 to-[#00D9FF]/10 border border-[#9D4EDD]/30 hover:border-[#9D4EDD]/60 rounded-xl px-4 py-3.5 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🌐</span>
+                <div>
+                  <p className="text-white text-sm font-semibold">& More</p>
+                  <p className="text-white/30 text-xs">Explore all languages</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#9D4EDD] group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          {/* Bottom CTA button */}
+          <div className="text-center">
+            <Link
+              to="/collections/music"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-xl hover:opacity-90 transition-all hover:scale-[1.02] transform"
+            >
+              Download for Free <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Content Categories */}
       {contentCollections.length > 0 && (
         <section className="py-16">
@@ -295,31 +458,342 @@ export default function AppLayout() {
         </section>
       )}
 
-      {/* Trending Now */}
-      {trendingProducts.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#FFB800]/20 rounded-xl flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-[#FFB800]" />
+      {/* ── Trending Now — Rich 2×2 Dashboard ─────────────────────── */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#FFB800]/20 rounded-xl flex items-center justify-center">
+                <Zap className="w-5 h-5 text-[#FFB800]" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">Trending Now</h2>
+                <p className="text-white/40 text-sm">What's hot on WANKONG this week</p>
+              </div>
+            </div>
+            <Link to="/collections/trending" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+              View All <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* 2×2 rich grid */}
+          <div className="grid md:grid-cols-2 gap-4">
+
+            {/* ── Card 1: Featured Global Release (video player) ── */}
+            <div className="bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-colors">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5">
+                <div className="w-5 h-5 rounded-full bg-[#FF6B00] flex items-center justify-center">
+                  <Play className="w-2.5 h-2.5 text-white fill-white" />
                 </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Trending Now</h2>
-                  <p className="text-white/40 text-sm">What's hot on WANKONG this week</p>
+                <span className="text-white font-semibold text-sm">Featured Global Release:</span>
+                <span className="text-white/40 text-xs ml-auto">Watch on WANKONG distribution network</span>
+              </div>
+
+              <div className="grid grid-cols-5">
+                {/* Video panel */}
+                <div ref={videoWrapRef} className="col-span-3 relative bg-black group cursor-pointer" style={{ minHeight: 180 }} onClick={toggleVideo}>
+                  {/* Poster / video element */}
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    style={{ minHeight: 180 }}
+                    poster={ARTIST_IMAGES[1]}
+                    muted
+                    loop
+                    playsInline
+                    onTimeUpdate={e => {
+                      const v = e.currentTarget;
+                      if (v.duration) setVideoProgress((v.currentTime / v.duration) * 100);
+                    }}
+                  />
+                  {/* Dark gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  {/* Play/pause overlay button */}
+                  <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${videoPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
+                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+                      {videoPlaying
+                        ? <div className="flex gap-1"><div className="w-1 h-4 bg-white rounded-full"/><div className="w-1 h-4 bg-white rounded-full"/></div>
+                        : <Play className="w-5 h-5 text-white fill-white ml-0.5" />}
+                    </div>
+                  </div>
+                  {/* Scrubber bar */}
+                  <div className="absolute bottom-0 left-0 right-0 px-3 pb-2">
+                    <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] rounded-full transition-all" style={{ width: `${videoProgress}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-white/50 text-[10px]">0:{String(Math.floor(videoProgress * 2.4)).padStart(2,'0')}</span>
+                      <div className="flex gap-2">
+                        <button onClick={e => { e.stopPropagation(); setVideoModalOpen(true); }} className="text-white/50 hover:text-white transition-colors text-[10px]">⛶</button>
+                        <span className="text-white/50 text-[10px]">4:00</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* LIVE badge when playing */}
+                  {videoPlaying && <div className="absolute top-3 left-3 flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse inline-block"/>LIVE</div>}
+                </div>
+
+                {/* Metrics panel */}
+                <div className="col-span-2 flex flex-col divide-y divide-white/5">
+                  {[
+                    { label: 'META DREAMS', sub: 'Total Streams', value: viewCount.toLocaleString(), accent: '#00D9FF' },
+                    { label: 'META DREAMS', sub: 'Prize Pool',    value: '$1,000', accent: '#FFB800' },
+                  ].map((m, i) => (
+                    <div key={i} className="flex-1 px-4 py-3 flex flex-col justify-center">
+                      <p className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">{m.label}</p>
+                      <p className="text-[10px] text-white/30 mb-1">{m.sub}</p>
+                      <p className="text-xl font-black" style={{ color: m.accent }}>{m.value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <Link to="/collections/trending" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {trendingProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+
+            {/* ── Card 2: Stream Worldwide (audio player) ── */}
+            <div className="bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-colors flex flex-col">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5">
+                <div className="w-5 h-5 rounded-full bg-[#1DB954] flex items-center justify-center">
+                  <Music className="w-2.5 h-2.5 text-white" />
+                </div>
+                <span className="text-white font-semibold text-sm">Stream Worldwide:</span>
+                <span className="text-white/40 text-xs ml-auto">30+ platforms</span>
+              </div>
+
+              <div className="flex-1 p-4 flex flex-col justify-between">
+                {/* Track info row */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1DB954] to-[#00D9FF] flex items-center justify-center shrink-0 shadow-lg shadow-green-500/20">
+                    <Music className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold text-sm truncate">Holy Ground</p>
+                    <p className="text-white/50 text-xs truncate">Grace Adele</p>
+                    <p className="text-white/30 text-xs">Manifesto EP</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[#00F5A0] font-bold text-sm">118</p>
+                    <p className="text-white/30 text-[10px]">plays</p>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="mb-4">
+                  <div
+                    className="h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer mb-1"
+                    onClick={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setAudioProgress(((e.clientX - rect.left) / rect.width) * 100);
+                    }}
+                  >
+                    <div className="h-full bg-gradient-to-r from-[#1DB954] to-[#00D9FF] rounded-full transition-all duration-200" style={{ width: `${audioProgress}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-white/30">
+                    <span>1:{String(Math.floor(audioProgress * 0.6)).padStart(2,'0')}</span>
+                    <span>2:40</span>
+                  </div>
+                </div>
+
+                {/* Playback controls */}
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <button className="text-white/30 hover:text-white transition-colors" onClick={() => setAudioProgress(p => Math.max(0, p - 10))}>⏮</button>
+                  <button
+                    onClick={toggleAudio}
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1DB954] to-[#00D9FF] flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+                  >
+                    {audioPlaying
+                      ? <div className="flex gap-0.5"><div className="w-1 h-3 bg-white rounded-full"/><div className="w-1 h-3 bg-white rounded-full"/></div>
+                      : <Play className="w-4 h-4 text-white fill-white ml-0.5" />}
+                  </button>
+                  <button className="text-white/30 hover:text-white transition-colors" onClick={() => setAudioProgress(p => Math.min(100, p + 10))}>⏭</button>
+                </div>
+
+                {/* Equaliser bars when playing */}
+                {audioPlaying && (
+                  <div className="flex items-end justify-center gap-0.5 h-5 mb-3">
+                    {[3,6,4,8,5,7,3,6,5,4,7,5].map((h, i) => (
+                      <div key={i} className="w-1 rounded-full bg-gradient-to-t from-[#1DB954] to-[#00D9FF] animate-pulse" style={{ height: `${h * 2}px`, animationDelay: `${i * 80}ms` }} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { icon: '🎤', label: 'Get Performance', href: '/talent-arena' },
+                    { icon: '🗳️', label: 'Vote Next Comp', href: '/talent-arena' },
+                    { icon: '🏟️', label: 'Join Arena',  href: '/talent-arena' },
+                  ].map(btn => (
+                    <Link key={btn.label} to={btn.href} className="flex flex-col items-center gap-1 bg-white/5 hover:bg-[#1DB954]/10 border border-white/5 hover:border-[#1DB954]/30 rounded-xl py-2 px-1 transition-all">
+                      <span className="text-base">{btn.icon}</span>
+                      <span className="text-[9px] text-white/50 text-center leading-tight">{btn.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Card 3: Talent Winner of the Week ── */}
+            <div className="relative bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-[#FFB800]/20 transition-colors flex">
+
+              {/* Confetti burst — appears once on mount */}
+              {confetti && (
+                <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                  {[...Array(18)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-1.5 h-1.5 rounded-full opacity-0"
+                      style={{
+                        left: `${10 + (i * 5) % 80}%`,
+                        top: `${5 + (i * 7) % 35}%`,
+                        background: ['#FFB800','#00D9FF','#9D4EDD','#00F5A0','#FF6B00'][i % 5],
+                        animation: `count-up 0.6s ease-out ${i * 55}ms forwards`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Artist photo */}
+              <div className="relative w-36 shrink-0">
+                <img src={ARTIST_IMAGES[0]} alt="Winner" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0D1635]" />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 p-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trophy className="w-4 h-4 text-[#FFB800]" />
+                    <span className="text-[#FFB800] text-xs font-bold uppercase tracking-wide">Talent Winner of the Week</span>
+                  </div>
+
+                  {/* Live vote counter */}
+                  <div className="flex items-baseline gap-4 mb-3">
+                    <div>
+                      <p className="text-2xl font-black text-white tabular-nums">{liveVotes.toLocaleString()}</p>
+                      <p className="text-white/30 text-[10px]">votes · live</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-[#00F5A0]">$4.00</p>
+                      <p className="text-white/30 text-[10px]">earned today</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setVideoModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black font-bold text-xs rounded-xl hover:opacity-90 transition-opacity mb-3 w-full justify-center"
+                  >
+                    <Play className="w-3 h-3 fill-black" /> Watch Performance
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[
+                    { icon: '🎵', label: 'Listen to Performance', href: '/collections/music' },
+                    { icon: '🏟️', label: 'Join Talent Arena', href: '/talent-arena' },
+                  ].map(item => (
+                    <Link key={item.label} to={item.href} className="flex items-center justify-between px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl group transition-colors">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{item.icon}</span>
+                        <span className="text-white/60 text-xs group-hover:text-white transition-colors">{item.label}</span>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white/60 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Card 4: Distribute to 30x Platforms ── */}
+            <div className="relative bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-[#00D9FF]/20 transition-colors">
+              {/* Background art */}
+              <img src={ARTIST_IMAGES[2]} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-20" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#0D1635]/80 via-[#0D1635]/70 to-[#0A1128]" />
+
+              <div className="relative p-5 h-full flex flex-col justify-between">
+                <div>
+                  <p className="text-white/50 text-xs font-medium mb-1 uppercase tracking-widest">Distribute Your Music to</p>
+                  <h3 className="text-3xl font-black text-white mb-1">
+                    <span className="text-[#00D9FF]">30x</span> Platforms
+                  </h3>
+                  <p className="text-white/40 text-xs mb-1">Upload once. Reach everywhere.</p>
+                  <div className="flex items-center gap-1.5 mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00F5A0] animate-pulse inline-block" />
+                    <span className="text-[#00F5A0] text-xs font-medium tabular-nums">{tracksDistributed.toLocaleString()}</span>
+                    <span className="text-white/30 text-xs">tracks distributed today</span>
+                  </div>
+
+                  <ul className="space-y-2 mb-5">
+                    {[
+                      { icon: '💰', label: 'Earn Royalties Globally', href: '/distribute' },
+                      { icon: '🏆', label: 'Enter Competitions',      href: '/talent-arena' },
+                      { icon: '🌍', label: 'Get Discovered Worldwide', href: '/collections/featured' },
+                    ].map(item => (
+                      <li key={item.label}>
+                        <Link to={item.href} className="flex items-center gap-2 text-[#00D9FF] hover:text-white text-sm transition-colors group">
+                          <span className="text-base">{item.icon}</span>
+                          <span className="group-hover:underline">{item.label}</span>
+                          <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Scrolling platform ticker */}
+                <div className="overflow-hidden mb-4">
+                  <div className="flex gap-2 animate-marquee whitespace-nowrap">
+                    {[...DISTRIBUTION_PLATFORMS, ...DISTRIBUTION_PLATFORMS].map((p, i) => (
+                      <span key={i} className="shrink-0 text-[10px] text-white/30 border border-white/10 rounded-full px-2 py-0.5">{p}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Link to="/distribute" className="flex-1 text-center py-2.5 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black font-bold text-xs rounded-xl hover:opacity-90 transition-opacity">
+                    Start Distribution
+                  </Link>
+                  <Link to="/distribute" className="flex-1 text-center py-2.5 bg-white/5 border border-white/10 text-white font-medium text-xs rounded-xl hover:bg-white/10 transition-colors">
+                    Upload Track
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
+
+      {/* Video Modal */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setVideoModalOpen(false)}>
+          <div className="relative w-full max-w-3xl bg-[#0D1635] rounded-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <span className="text-white font-semibold text-sm">Featured Global Release · WANKONG</span>
+              <button onClick={() => setVideoModalOpen(false)} className="text-white/40 hover:text-white text-xl leading-none transition-colors">✕</button>
+            </div>
+            <div className="relative bg-black" style={{ paddingBottom: '56.25%' }}>
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                poster={ARTIST_IMAGES[1]}
+                controls
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-white font-bold text-sm">Meta Dreams</p>
+                <p className="text-white/40 text-xs">Grace Adele · Manifesto EP</p>
+              </div>
+              <Link to="/talent-arena" onClick={() => setVideoModalOpen(false)} className="px-4 py-2 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black font-bold text-xs rounded-xl hover:opacity-90 transition-opacity">
+                Vote in Competition →
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Trending Books ─────────────────────────────────────────── */}
