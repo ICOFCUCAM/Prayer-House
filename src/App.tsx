@@ -26,6 +26,9 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const DmcaPage = lazy(() => import('./pages/DmcaPage'));
 const EbookMarketplacePage = lazy(() => import('./pages/EbookMarketplacePage'));
 const MusicStorePage = lazy(() => import('./pages/MusicStorePage'));
+const DistributeUploadPage = lazy(() => import('./pages/upload/DistributeUploadPage'));
+const TalentArenaUploadPage = lazy(() => import('./pages/talent-arena/TalentArenaUploadPage'));
+const TalentArenaRoomPage = lazy(() => import('./pages/talent-arena/TalentArenaRoomPage'));
 
 const Spinner = () => (
   <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
@@ -50,6 +53,7 @@ export default function App() {
           <Route path="/artist/:id" element={<ArtistProfile />} />
           <Route path="/author/:id" element={<AuthorProfile />} />
           <Route path="/talent-arena" element={<TalentArenaPage />} />
+          <Route path="/talent-arena/room/:roomId" element={<TalentArenaRoomPage />} />
           <Route path="/ebook-marketplace" element={<EbookMarketplacePage />} />
           <Route path="/music-store" element={<MusicStorePage />} />
 
@@ -65,6 +69,8 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/book-upload" element={<ProtectedRoute><BookUploadPage /></ProtectedRoute>} />
           <Route path="/distribute" element={<ProtectedRoute requiredRole={['creator','singer_artist','admin']}><DistributePage /></ProtectedRoute>} />
+          <Route path="/upload/distribute" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
+          <Route path="/talent-arena/upload" element={<ProtectedRoute><TalentArenaUploadPage /></ProtectedRoute>} />
 
           {/* Protected: admin only */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>} />
