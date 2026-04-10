@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase';
 import Header from './Header';
 import Footer from './Footer';
 import ProductCard from './ProductCard';
-import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
+import { usePlayer } from './GlobalPlayer';
 
 const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
@@ -66,6 +67,7 @@ export default function AppLayout() {
   const [liveVotes, setLiveVotes] = useState(11612);
 
   const navigate = useNavigate();
+  const { recentlyPlayed, play: playerPlay } = usePlayer();
   const booksScrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoWrapRef = useRef<HTMLDivElement>(null);
@@ -259,7 +261,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A1128]">
+    <div className="min-h-screen bg-[#0A1128] pb-20">
       <Header />
 
       {/* Hero Section */}
@@ -1136,6 +1138,50 @@ export default function AppLayout() {
           </div>
         </div>
       </section>
+
+      {/* ── Recently Played (from GlobalPlayer history) ───────────── */}
+      {recentlyPlayed.length > 0 && (
+        <section className="py-12">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/5 rounded-xl flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-white/40" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Recently Played</h2>
+                  <p className="text-white/30 text-xs">Pick up where you left off</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {recentlyPlayed.map(track => {
+                const art = track.albumArt || track.cover || '';
+                return (
+                  <button
+                    key={track.id}
+                    onClick={() => playerPlay(track)}
+                    className="shrink-0 w-36 text-left group hover:bg-white/5 rounded-xl p-2 transition-colors"
+                  >
+                    <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-2 bg-white/5">
+                      {art
+                        ? <img src={art} alt={track.title} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center"><Music className="w-8 h-8 text-white/30" /></div>}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#00D9FF] to-[#9D4EDD] flex items-center justify-center shadow-lg">
+                          <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-white text-xs font-semibold truncate">{track.title}</p>
+                    <p className="text-white/40 text-[10px] truncate">{track.artist}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       <Footer />
     </div>
