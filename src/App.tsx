@@ -24,6 +24,8 @@ const PressPage = lazy(() => import('./pages/PressPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const DmcaPage = lazy(() => import('./pages/DmcaPage'));
+const EbookMarketplacePage = lazy(() => import('./pages/EbookMarketplacePage'));
+const MusicStorePage = lazy(() => import('./pages/MusicStorePage'));
 
 const Spinner = () => (
   <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/artist/:id" element={<ArtistProfile />} />
           <Route path="/author/:id" element={<AuthorProfile />} />
           <Route path="/talent-arena" element={<TalentArenaPage />} />
+          <Route path="/ebook-marketplace" element={<EbookMarketplacePage />} />
+          <Route path="/music-store" element={<MusicStorePage />} />
 
           {/* Company pages */}
           <Route path="/about" element={<AboutPage />} />
