@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from './Header';
 import Footer from './Footer';
 import ProductCard from './ProductCard';
-import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight } from 'lucide-react';
+import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
@@ -30,13 +30,34 @@ const STATS = [
   { icon: TrendingUp, label: 'Monthly Streams', value: '45M+', color: '#FFB800' },
 ];
 
+// Fallback books shown when Supabase books collection is empty
+const MOCK_BOOKS = [
+  { id: 'b1', title: 'The Gospel of Grace', author: 'Pastor E. Ofori', price: '$12.99', rating: 5, genre: 'Christian Living', emoji: '✝️', gradient: 'from-[#9D4EDD] to-[#4A1878]', bestseller: true },
+  { id: 'b2', title: 'Kingdom Business Secrets', author: 'Dr. Faith Mensah', price: '$18.99', rating: 4, genre: 'Business', emoji: '👑', gradient: 'from-[#FFB800] to-[#B87000]', bestseller: false },
+  { id: 'b3', title: 'Midnight Prayers', author: 'Rev. Samuel Asante', price: '$9.99', rating: 5, genre: 'Devotional', emoji: '🌙', gradient: 'from-[#00D9FF] to-[#005C6B]', bestseller: true },
+  { id: 'b4', title: 'African Praise Anthology', author: 'Various Authors', price: '$24.99', rating: 4, genre: 'Worship', emoji: '🎵', gradient: 'from-[#FF6B00] to-[#6B2D00]', bestseller: false },
+  { id: 'b5', title: 'The Prophetic Voice', author: 'Apostle Grace Oduya', price: '$15.99', rating: 5, genre: 'Prophecy', emoji: '🔥', gradient: 'from-[#FF006E] to-[#6B002E]', bestseller: false },
+  { id: 'b6', title: 'Healing in His Wings', author: 'Dr. Emmanuel Yaw', price: '$13.99', rating: 4, genre: 'Healing', emoji: '🕊️', gradient: 'from-[#00F5A0] to-[#006640]', bestseller: true },
+  { id: 'b7', title: 'The Digital Christian', author: 'Tech Pastor Kwame', price: '$11.99', rating: 4, genre: 'Technology', emoji: '💻', gradient: 'from-[#00D9FF] to-[#9D4EDD]', bestseller: false },
+  { id: 'b8', title: 'Songs of Ascent', author: 'Choir Master David', price: '$8.99', rating: 5, genre: 'Worship', emoji: '🎼', gradient: 'from-[#9D4EDD] to-[#FF006E]', bestseller: false },
+  { id: 'b9', title: 'Raising Kingdom Kids', author: 'Pastor Mary Adofo', price: '$16.99', rating: 4, genre: 'Parenting', emoji: '👨‍👩‍👧', gradient: 'from-[#FFB800] to-[#FF6B00]', bestseller: false },
+  { id: 'b10', title: 'The Fast That Breaks Chains', author: 'Bishop John Asare', price: '$10.99', rating: 5, genre: 'Fasting & Prayer', emoji: '⚡', gradient: 'from-[#00F5A0] to-[#00D9FF]', bestseller: false },
+];
+
 export default function AppLayout() {
   const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [newReleases, setNewReleases] = useState<any[]>([]);
+  const [trendingBooks, setTrendingBooks] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const booksScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollBooks = (dir: 'left' | 'right') => {
+    if (!booksScrollRef.current) return;
+    booksScrollRef.current.scrollBy({ left: dir === 'right' ? 600 : -600, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,6 +121,27 @@ export default function AppLayout() {
             .eq('status', 'active');
           const sorted = ids.map(id => prods?.find(p => p.id === id)).filter(Boolean);
           setNewReleases(sorted);
+        }
+      }
+
+      // Books — try 'books' collection, fall back to type filter
+      const booksCol = cols?.find((c: any) => c.handle === 'books');
+      if (booksCol) {
+        const { data: bLinks } = await supabase
+          .from('ecom_product_collections')
+          .select('product_id, position')
+          .eq('collection_id', booksCol.id)
+          .order('position')
+          .limit(12);
+        if (bLinks && bLinks.length > 0) {
+          const ids = bLinks.map((l: any) => l.product_id);
+          const { data: bProds } = await supabase
+            .from('ecom_products')
+            .select('*, variants:ecom_product_variants(*)')
+            .in('id', ids)
+            .eq('status', 'active');
+          const sorted = ids.map((id: string) => bProds?.find((p: any) => p.id === id)).filter(Boolean);
+          if (sorted.length > 0) setTrendingBooks(sorted);
         }
       }
 
@@ -279,6 +321,168 @@ export default function AppLayout() {
           </div>
         </section>
       )}
+
+      {/* ── Trending Books ─────────────────────────────────────────── */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#FFB800]/20 rounded-xl flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-[#FFB800]" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">Trending Books</h2>
+                <p className="text-white/40 text-sm">Top reads in the community this week</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {/* Scroll arrows */}
+              <button
+                onClick={() => scrollBooks('left')}
+                aria-label="Scroll left"
+                className="hidden md:flex w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => scrollBooks('right')}
+                aria-label="Scroll right"
+                className="hidden md:flex w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <Link
+                to="/collections/books"
+                className="text-[#FFB800] hover:text-[#FFB800]/70 text-sm font-medium flex items-center gap-1 transition-colors"
+              >
+                See All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Horizontal scroll strip */}
+          <div className="relative">
+            {/* Left fade */}
+            <div className="pointer-events-none absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-[#0A1128] to-transparent z-10" />
+            {/* Right fade */}
+            <div className="pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-[#0A1128] to-transparent z-10" />
+
+            <div
+              ref={booksScrollRef}
+              className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOKS).map((book: any, i: number) => {
+                const isMock = !book.gradient; // real product from Supabase won't have gradient
+                const title = isMock ? book.title : (book.title || 'Untitled');
+                const author = isMock ? book.author : (book.vendor || 'Unknown Author');
+                const price = isMock ? book.price : (book.variants?.[0]?.price ? `$${parseFloat(book.variants[0].price).toFixed(2)}` : 'Free');
+                const rating = isMock ? book.rating : 4;
+                const bestseller = isMock ? book.bestseller : (i < 2);
+
+                return (
+                  <Link
+                    key={book.id || i}
+                    to="/collections/books"
+                    className="shrink-0 w-36 md:w-44 group"
+                  >
+                    {/* Book cover — portrait 2:3 */}
+                    <div className="relative rounded-xl overflow-hidden mb-3 shadow-xl shadow-black/40 group-hover:shadow-[#FFB800]/10 transition-shadow duration-300"
+                      style={{ aspectRatio: '2/3' }}>
+
+                      {/* Cover background */}
+                      {isMock ? (
+                        <div className={`absolute inset-0 bg-gradient-to-br ${book.gradient}`} />
+                      ) : book.images?.[0] ? (
+                        <img src={book.images[0]} alt={title} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#FFB800] to-[#FF6B00]" />
+                      )}
+
+                      {/* Spine shimmer line */}
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-white/20 rounded-l-xl" />
+
+                      {/* Book text overlay (mock only) */}
+                      {isMock && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2 py-3">
+                          <span className="text-3xl mb-2 drop-shadow-lg">{book.emoji}</span>
+                          <span className="text-white font-bold text-[11px] leading-tight drop-shadow">{title}</span>
+                          <span className="text-white/60 text-[9px] mt-1">{book.genre}</span>
+                        </div>
+                      )}
+
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <span className="text-white text-xs font-semibold bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/20">
+                          Read Preview
+                        </span>
+                      </div>
+
+                      {/* Bestseller badge */}
+                      {bestseller && (
+                        <div className="absolute top-2 left-2 bg-[#FFB800] text-[#0A1128] text-[9px] font-black px-1.5 py-0.5 rounded leading-none">
+                          BEST
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-white text-xs font-semibold leading-tight mb-1 line-clamp-2 group-hover:text-[#FFB800] transition-colors">
+                      {title}
+                    </h3>
+
+                    {/* Author */}
+                    <p className="text-white/40 text-[11px] mb-2 truncate">{author}</p>
+
+                    {/* Price + Stars */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#FFB800] font-bold text-sm">{price}</span>
+                      <div className="flex gap-px">
+                        {[1,2,3,4,5].map(s => (
+                          <Star
+                            key={s}
+                            className={`w-2.5 h-2.5 ${s <= rating ? 'fill-[#FFB800] text-[#FFB800]' : 'text-white/20'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+
+              {/* "See All" terminal card */}
+              <Link
+                to="/collections/books"
+                className="shrink-0 w-36 md:w-44 flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[#FFB800]/30 hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5 transition-all group"
+                style={{ aspectRatio: '2/3', minHeight: 180 }}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#FFB800]/10 border border-[#FFB800]/20 flex items-center justify-center group-hover:bg-[#FFB800]/20 transition-colors">
+                  <ArrowRight className="w-5 h-5 text-[#FFB800]" />
+                </div>
+                <span className="text-[#FFB800] text-xs font-medium text-center leading-tight px-2">
+                  Browse All Books
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Genre filter pills */}
+          <div className="flex gap-2 mt-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {['All', 'Devotional', 'Christian Living', 'Worship', 'Business', 'Prophecy', 'Parenting', 'Healing'].map(genre => (
+              <Link
+                key={genre}
+                to={genre === 'All' ? '/collections/books' : `/collections/books?genre=${genre.toLowerCase().replace(/ /g, '-')}`}
+                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all border-white/10 bg-white/5 text-white/50 hover:border-[#FFB800]/40 hover:bg-[#FFB800]/10 hover:text-[#FFB800]"
+              >
+                {genre}
+              </Link>
+            ))}
+          </div>
+
+        </div>
+      </section>
 
       {/* Featured Content */}
       {featuredProducts.length > 0 && (
