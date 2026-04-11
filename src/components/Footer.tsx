@@ -1,94 +1,278 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-export default function Footer() {
+// ── Column data ───────────────────────────────────────────────────────────────
+
+const CREATORS_LINKS = [
+  { label: 'Upload Music',              href: '/upload/distribute' },
+  { label: 'Upload Album',              href: '/upload/distribute' },
+  { label: 'Upload Book',               href: '/authors/dashboard' },
+  { label: 'Upload Audiobook',          href: '/authors/dashboard' },
+  { label: 'Talent Arena',              href: '/talent-arena' },
+  { label: 'Distribution Dashboard',   href: '/distribution/releases' },
+  { label: 'Creator Earnings',          href: '/dashboard/earnings' },
+  { label: 'Creator Memberships',       href: '/dashboard' },
+];
+
+const DISCOVERY_LINKS = [
+  { label: 'Music by Language',   href: '/collections/music' },
+  { label: 'Browse Books',        href: '/collections/books' },
+  { label: 'Audiobooks',          href: '/ebook-marketplace' },
+  { label: 'Videos',              href: '/collections/videos' },
+  { label: 'Podcasts',            href: '/collections/podcasts' },
+  { label: 'Featured Artists',    href: '/collections/music' },
+  { label: 'Competitions',        href: '/collections/talent-arena' },
+];
+
+const SUPPORT_LINKS = [
+  { label: 'Help Center',             href: '/help' },
+  { label: 'Creator Guide',           href: '/help' },
+  { label: 'Distribution Guide',      href: '/distribution-agreement' },
+  { label: 'Competition Rules',       href: '/competition-terms' },
+  { label: 'Community Guidelines',    href: '/community-guidelines' },
+  { label: 'Report Content',          href: '/report' },
+  { label: 'Contact Support',         href: 'mailto:support@wankong.com' },
+];
+
+const LEGAL_LINKS = [
+  { label: 'Terms of Service',              href: '/terms-of-service' },
+  { label: 'Privacy Policy',               href: '/privacy-policy' },
+  { label: 'Cookie Policy',                href: '/cookies' },
+  { label: 'Copyright Policy',             href: '/copyright' },
+  { label: 'Distribution Agreement',       href: '/distribution-agreement' },
+  { label: 'Creator Monetization Policy',  href: '/creator-monetization-policy' },
+  { label: 'Fan Subscription Terms',       href: '/subscription-terms' },
+  { label: 'Competition Terms',            href: '/competition-terms' },
+];
+
+const ECOSYSTEM_LINKS = [
+  { label: 'For Governments',    href: '/partners/government' },
+  { label: 'For Universities',   href: '/partners/universities' },
+  { label: 'For Churches',       href: '/partners/churches' },
+  { label: 'For Publishers',     href: '/partners/publishers' },
+  { label: 'For Record Labels',  href: '/partners/labels' },
+  { label: 'API Access',         href: '/api-access' },
+  { label: 'Mobile App',         href: '/mobile' },
+];
+
+const SOCIAL = [
+  { label: 'YouTube',   icon: '▶', href: '#' },
+  { label: 'TikTok',    icon: '♪', href: '#' },
+  { label: 'Instagram', icon: '◈', href: '#' },
+  { label: 'Facebook',  icon: 'f', href: '#' },
+  { label: 'LinkedIn',  icon: 'in', href: '#' },
+  { label: 'X',         icon: 'X', href: '#' },
+];
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'ar', label: 'عربي' },
+  { code: 'sw', label: 'Kiswahili' },
+  { code: 'yo', label: 'Yorùbá' },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function FooterLink({ href, label }: { href: string; label: string }) {
+  const isExternal = href.startsWith('mailto:') || href.startsWith('http');
+  if (isExternal) {
+    return (
+      <a href={href} className="text-sm text-white/40 hover:text-white transition-colors">
+        {label}
+      </a>
+    );
+  }
   return (
-    <footer className="bg-gray-950 border-t border-gray-800 pt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-4 lg:col-span-1">
+    <Link to={href} className="text-sm text-white/40 hover:text-white transition-colors">
+      {label}
+    </Link>
+  );
+}
+
+function AccordionCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="md:hidden border-b border-white/5" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="flex items-center justify-between py-4 cursor-pointer list-none select-none">
+        <span className="text-white font-semibold text-sm">{title}</span>
+        <span className="text-white/40 text-xs">{open ? '▲' : '▼'}</span>
+      </summary>
+      <ul className="pb-4 space-y-3 pl-1">
+        {links.map(l => (
+          <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function Footer() {
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('wk_lang') ?? 'en'; } catch { return 'en'; }
+  });
+
+  const handleLangChange = (code: string) => {
+    setLang(code);
+    try { localStorage.setItem('wk_lang', code); } catch { /* ignore */ }
+  };
+
+  const year = new Date().getFullYear();
+
+  return (
+    <footer className="bg-[#070D24] border-t border-white/5">
+      {/* ── Main columns ─────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-16 pb-10">
+
+        {/* Desktop 7-col grid */}
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-7 gap-8 mb-12">
+
+          {/* Col 1 — Brand (spans 2 on lg) */}
+          <div className="md:col-span-1 lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">W</span>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00D9FF] to-[#9D4EDD] flex items-center justify-center shrink-0">
+                <span className="text-white font-black text-sm">W</span>
               </div>
-              <span className="text-white font-bold text-lg">WANKONG</span>
+              <span className="text-white font-black text-xl">WANKONG</span>
             </div>
-            <p className="text-sm text-gray-400 leading-relaxed mb-4">
-              The creator platform for African music, books, videos & podcasts. Built for creators worldwide.
+            <p className="text-white/40 text-sm leading-relaxed mb-5">
+              Global creator marketplace for music, books, audiobooks, videos, competitions and multilingual publishing.
             </p>
-            <div className="flex items-center gap-3">
-              {['twitter', 'instagram', 'youtube', 'facebook'].map(s => (
-                <a key={s} href="#" className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-colors capitalize text-xs">
-                  {s[0].toUpperCase()}
+            {/* Social icons */}
+            <div className="flex flex-wrap gap-2">
+              {SOCIAL.map(s => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  aria-label={s.label}
+                  className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/30 hover:bg-white/10 transition-all text-xs font-bold"
+                >
+                  {s.icon}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Browse */}
+          {/* Col 2 — Creators */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Browse</h4>
-            <ul className="space-y-2">
-              {[
-                { label: 'Music', href: '/collections/music' },
-                { label: 'Videos', href: '/collections/videos' },
-                { label: 'Books', href: '/collections/books' },
-                { label: 'Podcasts', href: '/collections/podcasts' },
-                { label: 'Talent Arena', href: '/collections/talent-arena' },
-                { label: 'Trending', href: '/collections/trending' },
-                { label: 'Languages', href: '/collections/languages' },
-              ].map(l => (
-                <li key={l.label}><Link to={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">{l.label}</Link></li>
+            <h4 className="text-white font-semibold text-sm mb-4">Creators</h4>
+            <ul className="space-y-2.5">
+              {CREATORS_LINKS.map(l => (
+                <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
               ))}
             </ul>
           </div>
 
-          {/* For Creators */}
+          {/* Col 3 — Discovery */}
           <div>
-            <h4 className="text-white font-semibold mb-4">For Creators</h4>
-            <ul className="space-y-2">
-              {[
-                { label: 'Dashboard', href: '/dashboard' },
-                { label: 'Upload Content', href: '/book-upload' },
-                { label: 'Competitions', href: '/collections/competitions' },
-                { label: 'Analytics', href: '/dashboard' },
-                { label: 'Wallet', href: '/dashboard' },
-              ].map(l => (
-                <li key={l.label}><Link to={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">{l.label}</Link></li>
+            <h4 className="text-white font-semibold text-sm mb-4">Discovery</h4>
+            <ul className="space-y-2.5">
+              {DISCOVERY_LINKS.map(l => (
+                <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
               ))}
             </ul>
           </div>
 
-          {/* Distribution */}
+          {/* Col 4 — Support */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Distribution</h4>
-            <ul className="space-y-2">
-              {['Spotify', 'Apple Music', 'YouTube Music', 'TikTok', 'Amazon Music', 'Deezer', 'Tidal'].map(p => (
-                <li key={p}><span className="text-sm text-gray-400">{p}</span></li>
+            <h4 className="text-white font-semibold text-sm mb-4">Support</h4>
+            <ul className="space-y-2.5">
+              {SUPPORT_LINKS.map(l => (
+                <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
               ))}
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Col 5 — Legal */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Company</h4>
-            <ul className="space-y-2">
-              {['About', 'Careers', 'Blog', 'Press', 'Contact', 'Privacy Policy', 'Terms of Service'].map(item => (
-                <li key={item}><a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">{item}</a></li>
+            <h4 className="text-white font-semibold text-sm mb-4">Legal</h4>
+            <ul className="space-y-2.5">
+              {LEGAL_LINKS.map(l => (
+                <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Col 6 — Platform & Ecosystem */}
+          <div>
+            <h4 className="text-white font-semibold text-sm mb-4">Platform</h4>
+            <ul className="space-y-2.5">
+              {ECOSYSTEM_LINKS.map(l => (
+                <li key={l.label}><FooterLink href={l.href} label={l.label} /></li>
               ))}
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-gray-500">© 2026 WANKONG. All rights reserved.</p>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">Payments powered by:</span>
-            {['Stripe', 'M-Pesa', 'MTN MoMo', 'Orange'].map(p => (
-              <span key={p} className="px-2 py-1 bg-gray-800 text-gray-400 text-xs rounded">{p}</span>
-            ))}
+        {/* Mobile accordion columns */}
+        <div className="md:hidden mb-8">
+          {/* Brand always visible on mobile */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00D9FF] to-[#9D4EDD] flex items-center justify-center">
+                <span className="text-white font-black text-sm">W</span>
+              </div>
+              <span className="text-white font-black text-lg">WANKONG</span>
+            </div>
+            <p className="text-white/40 text-sm leading-relaxed mb-4">
+              Global creator marketplace for music, books, audiobooks, videos, competitions and multilingual publishing.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SOCIAL.map(s => (
+                <a key={s.label} href={s.href} aria-label={s.label}
+                  className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-white/40 text-xs font-bold hover:text-white transition-colors">
+                  {s.icon}
+                </a>
+              ))}
+            </div>
           </div>
+
+          <AccordionCol title="Creators"          links={CREATORS_LINKS} />
+          <AccordionCol title="Discovery"         links={DISCOVERY_LINKS} />
+          <AccordionCol title="Support"           links={SUPPORT_LINKS} />
+          <AccordionCol title="Legal"             links={LEGAL_LINKS} />
+          <AccordionCol title="Platform"          links={ECOSYSTEM_LINKS} />
+        </div>
+
+        {/* ── Payments strip ─────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-3 py-6 border-t border-white/5">
+          <span className="text-xs text-white/30">Payments powered by:</span>
+          {['Stripe', 'M-Pesa', 'MTN MoMo', 'Orange'].map(p => (
+            <span key={p} className="px-2.5 py-1 bg-white/5 border border-white/10 text-white/40 text-xs rounded-lg">{p}</span>
+          ))}
+        </div>
+
+        {/* ── Bottom strip ───────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6 border-t border-white/5">
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-xs text-white/30">© WANKONG {year}. All rights reserved.</p>
+            <div className="flex items-center gap-3">
+              {[
+                { label: 'Privacy', href: '/privacy-policy' },
+                { label: 'Terms', href: '/terms-of-service' },
+                { label: 'Cookies', href: '/cookies' },
+                { label: 'Security', href: '/help' },
+              ].map(l => (
+                <Link key={l.label} to={l.href} className="text-xs text-white/30 hover:text-white transition-colors">
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Language selector */}
+          <select
+            value={lang}
+            onChange={e => handleLangChange(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white/40 text-xs focus:outline-none focus:border-white/30 cursor-pointer"
+          >
+            {LANGUAGES.map(l => (
+              <option key={l.code} value={l.code}>{l.label}</option>
+            ))}
+          </select>
         </div>
       </div>
     </footer>
