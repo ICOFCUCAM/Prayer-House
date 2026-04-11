@@ -124,36 +124,119 @@ function Overview() {
 
 // ── Users ──────────────────────────────────────────────────────────────────────
 
-function AdminUsers() {
-  const [rows,    setRows]    = useState<{ id: string; email?: string; created_at: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+// ── SECTION 5 — Users Management Panel ────────────────────────────────────────
 
-  useEffect(() => {
-    supabase
+const CREATOR_LEVELS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Global Ambassador'] as const;
+
+interface UserRow {
+  id: string;
+  display_name?: string;
+  suspended?: boolean;
+  created_at: string;
+}
+
+function AdminUsers() {
+  const [rows,    setRows]    = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState('');
+  const [acting,  setActing]  = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
       .from('profiles')
-      .select('id, display_name, created_at')
+      .select('id, display_name, suspended, created_at')
       .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setRows((data ?? []) as { id: string; email?: string; created_at: string }[]);
-        setLoading(false);
-      });
+      .limit(100);
+    setRows((data ?? []) as UserRow[]);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = rows.filter(r => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (r.display_name ?? '').toLowerCase().includes(q) || r.id.includes(q);
+  });
+
+  const toggleSuspend = async (r: UserRow) => {
+    setActing(r.id);
+    const next = !r.suspended;
+    await supabase.from('profiles').update({ suspended: next }).eq('id', r.id);
+    setRows(prev => prev.map(u => u.id === r.id ? { ...u, suspended: next } : u));
+    setActing(null);
+  };
+
+  const assignLevel = async (userId: string, level: string) => {
+    setActing(userId + level);
+    const xpMap: Record<string, number> = { Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000, Diamond: 15000, 'Global Ambassador': 50000 };
+    await supabase.from('creator_levels').upsert([{
+      user_id: userId, level, xp: xpMap[level] ?? 0, updated_at: new Date().toISOString(),
+    }], { onConflict: 'user_id' });
+    setActing(null);
+  };
 
   return (
     <div>
-      <h2 className="text-white font-black text-xl mb-6">Users</h2>
-      {loading ? <p className="text-white/40">Loading…</p> : (
+      <h2 className="text-white font-black text-xl mb-4">Users</h2>
+
+      {/* Search */}
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search by name or ID…"
+        className="w-full mb-5 px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none focus:ring-1 focus:ring-cyan-400/40"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+      />
+
+      {loading ? <p className="text-white/40">Loading…</p> : filtered.length === 0 ? (
+        <div className="text-center py-16 text-white/30">No users found.</div>
+      ) : (
         <div className="space-y-2">
-          {rows.map(r => (
-            <div key={r.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/8 bg-white/3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: `${CYAN}20`, color: CYAN }}>
-                {r.id.slice(0, 1).toUpperCase()}
+          {filtered.map(r => (
+            <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+              {/* Avatar */}
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: `${CYAN}20`, color: CYAN }}>
+                {(r.display_name?.[0] ?? r.id[0]).toUpperCase()}
               </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm truncate">{(r as { display_name?: string }).display_name ?? r.id.slice(0, 12) + '…'}</p>
+                <p className="text-white text-sm font-medium truncate">{r.display_name ?? r.id.slice(0, 14) + '…'}</p>
                 <p className="text-white/30 text-xs">{new Date(r.created_at).toLocaleDateString()}</p>
               </div>
+
+              {/* Suspended badge */}
+              {r.suspended && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: `${RED}15`, color: RED }}>Suspended</span>
+              )}
+
+              {/* Assign Level dropdown */}
+              <select
+                onChange={e => { if (e.target.value) assignLevel(r.id, e.target.value); }}
+                defaultValue=""
+                className="text-xs rounded-lg px-2 py-1.5 outline-none"
+                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}
+                disabled={acting === r.id}
+              >
+                <option value="" disabled>Assign Level</option>
+                {CREATOR_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}
+              </select>
+
+              {/* Suspend / Reactivate */}
+              <button
+                onClick={() => toggleSuspend(r)}
+                disabled={acting === r.id}
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-40"
+                style={r.suspended
+                  ? { background: `${GREEN}15`, color: GREEN, border: `1px solid ${GREEN}30` }
+                  : { background: `${RED}15`, color: RED, border: `1px solid ${RED}30` }
+                }
+              >
+                {acting === r.id ? '…' : r.suspended ? 'Reactivate' : 'Suspend'}
+              </button>
             </div>
           ))}
         </div>
@@ -162,60 +245,442 @@ function AdminUsers() {
   );
 }
 
-// ── Generic table module ───────────────────────────────────────────────────────
+// ── SECTION 6 — Artist Management Panel ───────────────────────────────────────
 
-function GenericModule({
-  title, table, select, columns, colour,
-}: {
-  title: string;
-  table: string;
-  select: string;
-  columns: { key: string; label: string }[];
-  colour: string;
-}) {
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+interface TrackRow {
+  id: string; title: string; artist_id: string; status?: string;
+  copyright_flag?: boolean; created_at: string; artist_name?: string;
+}
+
+function AdminArtists() {
+  const [tracks,  setTracks]  = useState<TrackRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acting,  setActing]  = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase
-      .from(table as 'tracks')
-      .select(select)
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('tracks')
+      .select('id, title, artist_id, status, copyright_flag, created_at')
       .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setRows((data ?? []) as Record<string, unknown>[]);
-        setLoading(false);
-      });
-  }, [table, select]);
+      .limit(60);
+    setTracks((data ?? []) as TrackRow[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setStatus = async (id: string, status: string) => {
+    setActing(id + status);
+    await supabase.from('tracks').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+    setActing(null);
+  };
+
+  const flagCopyright = async (id: string, flag: boolean) => {
+    setActing(id + 'flag');
+    await supabase.from('tracks').update({ copyright_flag: flag }).eq('id', id);
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, copyright_flag: flag } : t));
+    setActing(null);
+  };
+
+  const STATUS_COLOUR: Record<string, string> = { active: GREEN, pending: GOLD, rejected: RED, suspended: ORANGE };
 
   return (
     <div>
-      <h2 className="text-white font-black text-xl mb-6">{title}</h2>
-      {loading ? <p className="text-white/40">Loading…</p> : rows.length === 0 ? (
-        <div className="text-center py-16 text-white/30">No data yet.</div>
+      <h2 className="text-white font-black text-xl mb-6">Artist Releases</h2>
+      {loading ? <p className="text-white/40">Loading…</p> : tracks.length === 0 ? (
+        <div className="text-center py-16 text-white/30">No tracks yet.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8">
-                {columns.map(c => (
-                  <th key={c.key} className="text-left text-white/40 font-semibold py-2 pr-4 text-xs uppercase tracking-wide">{c.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                  {columns.map(c => (
-                    <td key={c.key} className="py-3 pr-4 text-white/70 truncate max-w-[180px]">
-                      {String(row[c.key] ?? '—')}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {tracks.map(t => (
+            <div key={t.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium truncate">{t.title}</p>
+                <p className="text-white/30 text-xs">{new Date(t.created_at).toLocaleDateString()}</p>
+              </div>
+
+              {/* Status badge */}
+              {t.status && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${STATUS_COLOUR[t.status] ?? CYAN}15`, color: STATUS_COLOUR[t.status] ?? CYAN }}>
+                  {t.status.toUpperCase()}
+                </span>
+              )}
+
+              {/* Copyright flag badge */}
+              {t.copyright_flag && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${RED}15`, color: RED }}>⚠ COPYRIGHT</span>
+              )}
+
+              {/* Actions */}
+              <button onClick={() => setStatus(t.id, 'active')}   disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${GREEN}15`, color: GREEN }}>Approve</button>
+              <button onClick={() => setStatus(t.id, 'rejected')} disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${RED}15`, color: RED }}>Reject</button>
+              <button
+                onClick={() => flagCopyright(t.id, !t.copyright_flag)}
+                disabled={!!acting}
+                className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40"
+                style={{ background: `${ORANGE}15`, color: ORANGE }}
+              >
+                {t.copyright_flag ? 'Unflag' : 'Flag ©'}
+              </button>
+            </div>
+          ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── SECTION 7 — Author Management Panel ───────────────────────────────────────
+
+interface TranslationRow { id: string; book_id: string; language: string; status: string; created_at: string; title?: string; }
+interface AudiobookRow   { id: string; title: string; status?: string; narrator?: string; created_at: string; }
+
+function AdminAuthors() {
+  const [tab,          setTab]          = useState<'translations' | 'audiobooks'>('translations');
+  const [translations, setTranslations] = useState<TranslationRow[]>([]);
+  const [audiobooks,   setAudiobooks]   = useState<AudiobookRow[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [acting,       setActing]       = useState<string | null>(null);
+  const [editMeta,     setEditMeta]     = useState<{ id: string; title: string } | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      supabase.from('book_translations').select('id,book_id,language,status,created_at,title').order('created_at', { ascending: false }).limit(50),
+      supabase.from('audiobooks').select('id,title,status,narrator,created_at').order('created_at', { ascending: false }).limit(50),
+    ]).then(([tr, ab]) => {
+      setTranslations((tr.data ?? []) as TranslationRow[]);
+      setAudiobooks((ab.data ?? []) as AudiobookRow[]);
+      setLoading(false);
+    });
+  }, []);
+
+  const approveTranslation = async (id: string) => {
+    setActing(id);
+    await supabase.from('book_translations').update({ status: 'approved' }).eq('id', id);
+    setTranslations(prev => prev.map(t => t.id === id ? { ...t, status: 'approved' } : t));
+    setActing(null);
+  };
+
+  const approveAudiobook = async (id: string) => {
+    setActing(id);
+    await supabase.from('audiobooks').update({ status: 'active' }).eq('id', id);
+    setAudiobooks(prev => prev.map(a => a.id === id ? { ...a, status: 'active' } : a));
+    setActing(null);
+  };
+
+  const saveMetadata = async () => {
+    if (!editMeta) return;
+    setActing(editMeta.id);
+    await supabase.from('audiobooks').update({ title: editMeta.title }).eq('id', editMeta.id);
+    setAudiobooks(prev => prev.map(a => a.id === editMeta.id ? { ...a, title: editMeta.title } : a));
+    setEditMeta(null);
+    setActing(null);
+  };
+
+  const STATUS_COLOUR: Record<string, string> = { done: GREEN, approved: GREEN, queued: GOLD, pending: GOLD, failed: RED, active: GREEN };
+
+  return (
+    <div>
+      <h2 className="text-white font-black text-xl mb-4">Author Content</h2>
+      <div className="flex gap-2 mb-6">
+        {(['translations', 'audiobooks'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize"
+            style={tab === t ? { background: CYAN, color: NAVY } : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          >{t}</button>
+        ))}
+      </div>
+
+      {loading ? <p className="text-white/40">Loading…</p> : (
+        <>
+          {tab === 'translations' && (
+            <div className="space-y-2">
+              {translations.length === 0 ? <p className="text-white/30 text-center py-12">No translations yet.</p> : translations.map(tr => (
+                <div key={tr.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{tr.title ?? tr.book_id.slice(0, 14)}</p>
+                    <p className="text-white/30 text-xs">{tr.language.toUpperCase()} · {new Date(tr.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${STATUS_COLOUR[tr.status] ?? GOLD}15`, color: STATUS_COLOUR[tr.status] ?? GOLD }}>
+                    {tr.status.toUpperCase()}
+                  </span>
+                  {tr.status !== 'approved' && (
+                    <button onClick={() => approveTranslation(tr.id)} disabled={acting === tr.id}
+                      className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40"
+                      style={{ background: `${GREEN}15`, color: GREEN }}>
+                      {acting === tr.id ? '…' : 'Approve'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'audiobooks' && (
+            <div className="space-y-2">
+              {audiobooks.length === 0 ? <p className="text-white/30 text-center py-12">No audiobooks yet.</p> : audiobooks.map(ab => (
+                <div key={ab.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex-1 min-w-0">
+                    {editMeta?.id === ab.id ? (
+                      <input
+                        value={editMeta.title}
+                        onChange={e => setEditMeta({ id: ab.id, title: e.target.value })}
+                        className="w-full bg-white/8 border border-white/15 rounded-lg px-3 py-1.5 text-white text-sm outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="text-white text-sm font-medium truncate">{ab.title}</p>
+                    )}
+                    <p className="text-white/30 text-xs">{ab.narrator ?? 'No narrator'} · {new Date(ab.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${STATUS_COLOUR[ab.status ?? ''] ?? GOLD}15`, color: STATUS_COLOUR[ab.status ?? ''] ?? GOLD }}>
+                    {(ab.status ?? 'pending').toUpperCase()}
+                  </span>
+                  {editMeta?.id === ab.id ? (
+                    <>
+                      <button onClick={saveMetadata} disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: `${GREEN}15`, color: GREEN }}>Save</button>
+                      <button onClick={() => setEditMeta(null)} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      {ab.status !== 'active' && (
+                        <button onClick={() => approveAudiobook(ab.id)} disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${GREEN}15`, color: GREEN }}>Approve</button>
+                      )}
+                      <button onClick={() => setEditMeta({ id: ab.id, title: ab.title })} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: `${CYAN}15`, color: CYAN }}>Edit</button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── SECTION 10 — Reports Panel ─────────────────────────────────────────────────
+
+type ReportReason = 'copyright_claim' | 'guideline_violation' | 'spam_upload' | 'bot_voting' | string;
+
+interface ReportRow {
+  id: string; reason: ReportReason; status: string; content_type?: string;
+  content_id?: string; notes?: string; created_at: string;
+}
+
+function AdminReports() {
+  const [rows,    setRows]    = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting,  setActing]  = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('content_reports')
+      .select('id,reason,status,content_type,content_id,notes,created_at')
+      .order('created_at', { ascending: false })
+      .limit(80);
+    setRows((data ?? []) as ReportRow[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const resolve = async (id: string, resolution: 'resolved' | 'dismissed' | 'escalated') => {
+    setActing(id);
+    await supabase.from('content_reports').update({ status: resolution, resolved_at: new Date().toISOString() }).eq('id', id);
+    setRows(prev => prev.map(r => r.id === id ? { ...r, status: resolution } : r));
+    setActing(null);
+  };
+
+  const REASON_META: Record<string, { label: string; colour: string; icon: string }> = {
+    copyright_claim:      { label: 'Copyright Claim',       colour: ORANGE, icon: '©' },
+    guideline_violation:  { label: 'Guideline Violation',   colour: RED,    icon: '⛔' },
+    spam_upload:          { label: 'Spam Upload',           colour: GOLD,   icon: '🚫' },
+    bot_voting:           { label: 'Bot Voting',            colour: PURPLE, icon: '🤖' },
+  };
+
+  const STATUS_COLOUR: Record<string, string> = { open: GOLD, resolved: GREEN, dismissed: 'rgba(255,255,255,0.3)', escalated: RED };
+
+  return (
+    <div>
+      <h2 className="text-white font-black text-xl mb-6">Reports &amp; Flags</h2>
+      {loading ? <p className="text-white/40">Loading…</p> : rows.length === 0 ? (
+        <div className="text-center py-16 text-white/30">No reports. Platform is clean.</div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map(r => {
+            const meta = REASON_META[r.reason] ?? { label: r.reason, colour: CYAN, icon: '⚠' };
+            return (
+              <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                <span className="text-lg">{meta.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium">{meta.label}</p>
+                  <p className="text-white/30 text-xs">
+                    {r.content_type ? `${r.content_type} · ` : ''}{new Date(r.created_at).toLocaleDateString()}
+                  </p>
+                  {r.notes && <p className="text-white/40 text-xs mt-0.5 truncate">{r.notes}</p>}
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${STATUS_COLOUR[r.status] ?? CYAN}15`, color: STATUS_COLOUR[r.status] ?? CYAN }}>
+                  {r.status.toUpperCase()}
+                </span>
+                {r.status === 'open' && (
+                  <>
+                    <button onClick={() => resolve(r.id, 'resolved')}   disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${GREEN}15`, color: GREEN }}>Resolve</button>
+                    <button onClick={() => resolve(r.id, 'dismissed')}  disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>Dismiss</button>
+                    <button onClick={() => resolve(r.id, 'escalated')}  disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${RED}15`, color: RED }}>Escalate</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SECTION 11 — Earnings Panel ────────────────────────────────────────────────
+
+interface EarningRow {
+  id: string; user_id: string; category: string; amount: number;
+  paid: boolean; created_at: string; display_name?: string;
+}
+
+interface PayoutBatch {
+  id: string; status: string; total_amount: number; creator_count: number; created_at: string;
+}
+
+function AdminEarnings() {
+  const [tab,     setTab]     = useState<'earnings' | 'payouts'>('earnings');
+  const [rows,    setRows]    = useState<EarningRow[]>([]);
+  const [batches, setBatches] = useState<PayoutBatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting,  setActing]  = useState<string | null>(null);
+  const [adjust,  setAdjust]  = useState<{ id: string; amount: string } | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      supabase.from('creator_earnings').select('id,user_id,category,amount,paid,created_at').order('created_at', { ascending: false }).limit(80),
+      supabase.from('creator_withdrawals').select('id,status,amount,created_at').order('created_at', { ascending: false }).limit(40),
+    ]).then(([er, wr]) => {
+      setRows((er.data ?? []) as EarningRow[]);
+      // Map withdrawals as payout batches (each withdrawal = a payout request)
+      setBatches(((wr.data ?? []) as any[]).map((w, i) => ({
+        id: w.id,
+        status: w.status,
+        total_amount: w.amount,
+        creator_count: 1,
+        created_at: w.created_at,
+      })));
+      setLoading(false);
+    });
+  }, []);
+
+  const adjustAmount = async () => {
+    if (!adjust) return;
+    const newAmount = parseFloat(adjust.amount);
+    if (isNaN(newAmount) || newAmount < 0) return;
+    setActing(adjust.id);
+    await supabase.from('creator_earnings').update({ amount: newAmount }).eq('id', adjust.id);
+    setRows(prev => prev.map(r => r.id === adjust.id ? { ...r, amount: newAmount } : r));
+    setAdjust(null);
+    setActing(null);
+  };
+
+  const approvePayout = async (id: string) => {
+    setActing(id);
+    await supabase.from('creator_withdrawals').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', id);
+    setBatches(prev => prev.map(b => b.id === id ? { ...b, status: 'approved' } : b));
+    setActing(null);
+  };
+
+  const rejectPayout = async (id: string) => {
+    setActing(id);
+    await supabase.from('creator_withdrawals').update({ status: 'rejected' }).eq('id', id);
+    setBatches(prev => prev.map(b => b.id === id ? { ...b, status: 'rejected' } : b));
+    setActing(null);
+  };
+
+  const CATEGORY_ICON: Record<string, string> = {
+    music_stream: '🎵', book_sale: '📚', audiobook_play: '🎧',
+    competition_win: '🏆', fan_vote_reward: '❤', distribution_royalty: '💿', translation_sale: '🌍',
+  };
+
+  const PAYOUT_COLOUR: Record<string, string> = { pending: GOLD, approved: GREEN, rejected: RED, processing: CYAN };
+
+  return (
+    <div>
+      <h2 className="text-white font-black text-xl mb-4">Earnings &amp; Payouts</h2>
+      <div className="flex gap-2 mb-6">
+        {(['earnings', 'payouts'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize"
+            style={tab === t ? { background: GOLD, color: NAVY } : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          >{t}</button>
+        ))}
+      </div>
+
+      {loading ? <p className="text-white/40">Loading…</p> : (
+        <>
+          {tab === 'earnings' && (
+            <div className="space-y-2">
+              {rows.length === 0 ? <p className="text-white/30 text-center py-12">No earnings recorded yet.</p> : rows.map(r => (
+                <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <span className="text-lg">{CATEGORY_ICON[r.category] ?? '💰'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium capitalize">{r.category.replace(/_/g, ' ')}</p>
+                    <p className="text-white/30 text-xs">{r.user_id.slice(0, 10)}… · {new Date(r.created_at).toLocaleDateString()}</p>
+                  </div>
+
+                  {adjust?.id === r.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/40 text-sm">$</span>
+                      <input
+                        value={adjust.amount}
+                        onChange={e => setAdjust({ id: r.id, amount: e.target.value })}
+                        className="w-24 bg-white/8 border border-white/15 rounded-lg px-2 py-1 text-white text-sm outline-none"
+                        type="number" step="0.01" min="0" autoFocus
+                      />
+                      <button onClick={adjustAmount} disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: `${GREEN}15`, color: GREEN }}>Save</button>
+                      <button onClick={() => setAdjust(null)} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-bold text-sm" style={{ color: GREEN }}>${Number(r.amount).toFixed(2)}</span>
+                      <button onClick={() => setAdjust({ id: r.id, amount: String(r.amount) })} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold" style={{ background: `${CYAN}15`, color: CYAN }}>Adjust</button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'payouts' && (
+            <div className="space-y-2">
+              {batches.length === 0 ? <p className="text-white/30 text-center py-12">No withdrawal requests yet.</p> : batches.map(b => (
+                <div key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">${Number(b.total_amount).toFixed(2)} withdrawal request</p>
+                    <p className="text-white/30 text-xs">{new Date(b.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${PAYOUT_COLOUR[b.status] ?? GOLD}15`, color: PAYOUT_COLOUR[b.status] ?? GOLD }}>
+                    {b.status.toUpperCase()}
+                  </span>
+                  {b.status === 'pending' && (
+                    <>
+                      <button onClick={() => approvePayout(b.id)} disabled={acting === b.id} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${GREEN}15`, color: GREEN }}>Approve</button>
+                      <button onClick={() => rejectPayout(b.id)}  disabled={acting === b.id} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${RED}15`, color: RED }}>Reject</button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -761,15 +1226,15 @@ export default function AdminDashboardPage() {
         <main className="flex-1 p-6 overflow-auto">
           <Routes>
             <Route path="/"            element={<Overview />} />
-            <Route path="/users"       element={<AdminUsers />} />
-            <Route path="/artists"     element={<GenericModule title="Artists" table="artists" select="id,name,slug,verified,streams,followers,created_at" columns={[{ key: 'name', label: 'Name' }, { key: 'slug', label: 'Slug' }, { key: 'streams', label: 'Streams' }, { key: 'followers', label: 'Followers' }, { key: 'verified', label: 'Verified' }]} colour={CYAN} />} />
-            <Route path="/authors"     element={<GenericModule title="Authors" table="authors" select="id,name,slug,total_downloads,total_earnings,created_at" columns={[{ key: 'name', label: 'Name' }, { key: 'total_downloads', label: 'Downloads' }, { key: 'total_earnings', label: 'Earnings' }]} colour={GOLD} />} />
+            <Route path="/users"        element={<AdminUsers />} />
+            <Route path="/artists"      element={<AdminArtists />} />
+            <Route path="/authors"      element={<AdminAuthors />} />
             <Route path="/competitions" element={<AdminCompetitionPanel />} />
             <Route path="/distribution" element={<AdminDistributionPanel />} />
-            <Route path="/books"       element={<AdminBooks />} />
-            <Route path="/earnings"    element={<GenericModule title="Earnings" table="creator_earnings" select="id,user_id,category,amount,created_at" columns={[{ key: 'user_id', label: 'User' }, { key: 'category', label: 'Category' }, { key: 'amount', label: 'Amount' }, { key: 'created_at', label: 'Date' }]} colour={GREEN} />} />
-            <Route path="/reports"     element={<GenericModule title="Reports" table="content_reports" select="id,reason,status,created_at" columns={[{ key: 'id', label: 'ID' }, { key: 'reason', label: 'Reason' }, { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Date' }]} colour={RED} />} />
-            <Route path="/settings"    element={<AdminSettings />} />
+            <Route path="/books"        element={<AdminBooks />} />
+            <Route path="/earnings"     element={<AdminEarnings />} />
+            <Route path="/reports"      element={<AdminReports />} />
+            <Route path="/settings"     element={<AdminSettings />} />
           </Routes>
         </main>
       </div>
