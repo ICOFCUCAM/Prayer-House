@@ -114,7 +114,7 @@ function SectionHeader({
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {onSeeAll && (
-        <TouchableOpacity onPress={onSeeAll}>
+        <TouchableOpacity onPress={onSeeAll} activeOpacity={0.7}>
           <Text style={styles.seeAll}>See All</Text>
         </TouchableOpacity>
       )}
@@ -134,7 +134,6 @@ function TrackCard({
   const [c1, c2] = gradPair(index);
   return (
     <TouchableOpacity style={styles.trackCard} onPress={onPress} activeOpacity={0.8}>
-      {/* Simulated gradient via two overlaid Views */}
       <View style={[styles.trackCover, { backgroundColor: c1 }]}>
         <View
           style={[
@@ -336,6 +335,10 @@ export default function HomeScreen() {
     });
   };
 
+  const goToTalentArena = () => {
+    // Navigate to Arena tab — handled by bottom tab navigator
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -394,9 +397,11 @@ export default function HomeScreen() {
       />
 
       {/* ── Talent Arena Live ── */}
-      <SectionHeader title="Talent Arena — Live" onSeeAll={() => {}} />
+      <SectionHeader title="Talent Arena — Live" onSeeAll={goToTalentArena} />
       {liveEntries.length === 0 && !loading ? (
-        <Text style={styles.emptyText}>No live competitions right now</Text>
+        <Text style={[styles.emptyText, { paddingHorizontal: 16 }]}>
+          No live competitions right now
+        </Text>
       ) : (
         <FlatList
           data={liveEntries}
@@ -405,7 +410,11 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.hList}
           renderItem={({ item, index }) => (
-            <ArenaCard entry={item} index={index} onPress={() => {}} />
+            <ArenaCard
+              entry={item}
+              index={index}
+              onPress={goToTalentArena}
+            />
           )}
         />
       )}
@@ -499,7 +508,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: 'rgba(255,255,255,0.3)',
-    paddingHorizontal: 4,
     fontSize: 13,
     marginBottom: 8,
   },

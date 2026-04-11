@@ -2,137 +2,200 @@ import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
-const SECTIONS = [
+const TIERS = [
   {
-    id: 'plans',
-    title: '1. Subscription Plans',
-    content: null,
-    types: [
-      {
-        name: 'Free Tier',
-        color: '#6B7280',
-        description: 'Access to limited streaming, community features, and public Talent Arena rooms. Ad-supported. No offline listening.',
-      },
-      {
-        name: 'WANKONG Standard',
-        color: '#00D9FF',
-        description: 'Full streaming library, offline downloads, HD audio quality, eBook reader access. Billed monthly or annually.',
-      },
-      {
-        name: 'WANKONG Pro',
-        color: '#9D4EDD',
-        description: 'Everything in Standard plus creator tools, advanced analytics, priority distribution, reduced platform fees, and early access to new features.',
-      },
-      {
-        name: 'WANKONG Family',
-        color: '#00F5A0',
-        description: 'Up to 6 individual Standard accounts under one billing. Each member maintains a separate profile, playlist, and library.',
-      },
+    name: 'Supporter',
+    price: '$2/mo',
+    color: '#00D9FF',
+    benefits: [
+      'Supporter badge on your profile',
+      'x1.5 vote multiplier on competition entries',
     ],
   },
   {
-    id: 'billing',
-    title: '2. Billing & Payment',
-    content: `Subscriptions are billed in advance on the date you subscribe. Annual subscriptions are charged in full at the start of each billing year.\n\nAccepted payment methods:\n• Major credit/debit cards (Visa, Mastercard, Amex)\n• PayPal\n• Mobile money (M-Pesa, MTN MoMo, Airtel Money — where available)\n• Cryptocurrency (USDT on supported networks)\n\nAll prices are displayed in USD unless you have selected a local currency. Currency conversion rates are determined at the time of transaction. WANKONG does not add currency conversion fees; your bank may.`,
+    name: 'Insider',
+    price: '$5/mo',
+    color: '#9D4EDD',
+    benefits: [
+      'Insider badge on your profile',
+      'x2 vote multiplier on competition entries',
+      'Exclusive content access',
+    ],
   },
   {
-    id: 'trials',
-    title: '3. Free Trials',
-    content: `New subscribers may be eligible for a 30-day free trial of WANKONG Standard or Pro. Trial eligibility is determined at sign-up and is limited to one trial per person, per payment method, and per household.\n\nYour chosen payment method will be charged automatically at the end of the trial period unless you cancel before the trial expires. We will send a reminder email 3 days before your trial ends.`,
+    name: 'VIP',
+    price: '$10/mo',
+    color: '#FFB800',
+    benefits: [
+      'VIP badge on your profile',
+      'x3 vote multiplier on competition entries',
+      'Direct creator messaging',
+    ],
+  },
+  {
+    name: 'Super Fan',
+    price: '$20/mo',
+    color: '#00F5A0',
+    benefits: [
+      'Super Fan badge on your profile',
+      'x5 vote multiplier on competition entries',
+      'All Insider + VIP perks',
+      'Early access to new releases',
+    ],
+  },
+];
+
+const POLICY_SECTIONS = [
+  {
+    id: 'billing',
+    title: '3. Billing Terms',
+    content:
+      'Fan Memberships are billed monthly on the date you originally subscribed. Your subscription automatically renews each month unless cancelled. You will be charged the applicable tier amount on each renewal date. All charges are processed in USD.',
   },
   {
     id: 'cancellation',
-    title: '4. Cancellation & Refunds',
-    content: `You may cancel your subscription at any time via Account Settings → Subscription → Cancel Plan. Cancellation takes effect at the end of your current billing period — you retain access until then.\n\nRefund policy:\n• Monthly subscriptions: No refunds are issued for partial months.\n• Annual subscriptions: A pro-rated refund is available within 14 days of the annual billing date if you have not used more than 5% of your annual term. After 14 days, no refund is issued.\n• Trials: No refund is required for trial periods — simply cancel before the trial ends.\n\nRefund requests must be submitted to billing@wankong.com. Please include your account email and order reference.`,
+    title: '4. Cancellation Policy',
+    content:
+      'You may cancel your Fan Membership subscription at any time from your Account Settings. Cancellation is effective immediately but your access continues until the end of your current billing period. You will not be charged again after cancellation.',
   },
   {
-    id: 'price-changes',
-    title: '5. Price Changes',
-    content: `WANKONG may update subscription pricing. We will notify you by email and in-app notification at least 30 days before any price increase takes effect. If you do not cancel before the new price takes effect, you agree to the updated pricing.\n\nPrice changes do not affect the current billing period — they take effect from your next renewal date.`,
+    id: 'refunds',
+    title: '5. Refund Policy',
+    content:
+      'Fan Membership fees are non-refundable for the current billing period. There are no partial refunds for unused days within a billing cycle. To avoid being charged for the next period, cancel before your next renewal date. Cancellations made after the renewal date apply to the following cycle.',
   },
   {
-    id: 'family-sharing',
-    title: '6. Family Plan Rules',
-    content: `The WANKONG Family plan is intended for members of the same household. WANKONG reserves the right to verify household membership and may convert accounts found to be in violation to individual Standard subscriptions without a refund of the price difference.\n\nEach family member has their own login, library, and listening history. The primary account holder manages billing and can add or remove members at any time.`,
+    id: 'votes',
+    title: '6. Vote Multiplier Rules',
+    content:
+      'Your vote multiplier is applied to all competition votes you cast while your subscription is active. The multiplier reflects the tier you are subscribed to at the time of voting. Multipliers are not retroactive — votes cast before subscribing are not adjusted. Self-voting is prohibited and will result in disqualification regardless of membership tier.',
   },
   {
-    id: 'termination',
-    title: '7. Account Termination',
-    content: `WANKONG may terminate or suspend your subscription if you violate the Community Guidelines, Terms of Service, or this Subscription Terms agreement. In cases of serious violations, no refund will be issued.\n\nIf WANKONG discontinues the subscription service entirely, all active subscribers will receive a pro-rated refund for the unused portion of their subscription term.`,
+    id: 'creator-revenue',
+    title: '7. Creator Revenue',
+    content:
+      '90% of every Fan Membership subscription fee goes directly to the creator you are subscribed to. This revenue share is calculated and disbursed monthly according to the Creator Monetization Policy. Creators must have their payment details set up to receive membership revenue.',
   },
   {
-    id: 'contact',
-    title: '8. Contact',
-    content: `For billing support, contact billing@wankong.com. For general subscription questions, visit our Help Centre at wankong.com/help.`,
+    id: 'platform-fee',
+    title: '8. Platform Fee',
+    content:
+      'WANKONG retains a 10% platform fee from each Fan Membership subscription. This fee covers payment processing, infrastructure, fraud prevention, and platform operations. The platform fee is automatically deducted before creator earnings are calculated.',
+  },
+  {
+    id: 'after-cancel',
+    title: '9. What Happens if You Cancel',
+    content:
+      'When you cancel your Fan Membership, your subscriber benefits continue until the end of your paid billing period. After that period ends, your access to exclusive content is revoked, your subscriber badge is removed from your profile, and your vote multiplier reverts to the standard 1x multiplier.',
+  },
+  {
+    id: 'disputes',
+    title: '10. Disputes',
+    content:
+      'For billing disputes, incorrect charges, or subscription issues, contact our support team at subscriptions@wankong.com. Include your account email and a description of the issue. We aim to resolve all disputes within 5 business days.',
   },
 ];
 
 export default function SubscriptionTermsPage() {
-  const [active, setActive] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#0A1128]">
+    <div className="min-h-screen bg-[#0A1128] text-white flex flex-col">
       <Header />
 
-      <div className="max-w-4xl mx-auto px-4 lg:px-8 py-16">
-        <div className="mb-10">
-          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-gray-400 text-sm px-4 py-1.5 rounded-full mb-5">
-            Legal
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="border-b border-white/10 py-16">
+          <div className="max-w-4xl mx-auto px-4 lg:px-8">
+            <p className="text-[#9D4EDD] text-sm font-semibold uppercase tracking-widest mb-3">Legal</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Subscription Terms</h1>
+            <p className="text-white/60 text-lg">Last updated: April 2026</p>
+            <p className="mt-6 text-white/80 text-lg leading-relaxed">
+              WANKONG Fan Memberships let you support your favourite creators and unlock exclusive benefits. These terms
+              govern how memberships work, how you are billed, and your rights as a subscriber.
+            </p>
           </div>
-          <h1 className="text-4xl font-black text-white mb-3">Subscription Terms</h1>
-          <p className="text-gray-400">Last updated: April 11, 2026</p>
-        </div>
+        </section>
 
-        <div className="bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 rounded-2xl p-5 mb-10 text-sm text-gray-300 leading-relaxed">
-          These terms govern your WANKONG subscription, including billing cycles, cancellation rights, refund eligibility, and plan-specific rules.
-        </div>
+        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-16 space-y-16">
 
-        <div className="space-y-2">
-          {SECTIONS.map(s => (
-            <div key={s.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <button
-                onClick={() => setActive(active === s.id ? null : s.id)}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/5 transition-colors"
-              >
-                <span className="font-medium text-white text-sm">{s.title}</span>
-                <span className="text-gray-400 text-xs">{active === s.id ? '▲' : '▼'}</span>
-              </button>
+          {/* 1. Overview */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4 text-[#9D4EDD]">1. Overview</h2>
+            <p className="text-white/75 leading-relaxed">
+              WANKONG Fan Memberships let you support your favourite creators and unlock exclusive benefits. When you
+              subscribe to a creator&apos;s Fan Membership, you gain access to tier-specific perks including badges,
+              enhanced voting power, exclusive content, and direct messaging — depending on the tier you choose.
+            </p>
+          </section>
 
-              {active === s.id && (
-                <div className="px-6 pb-6">
-                  {s.content && (
-                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{s.content}</p>
-                  )}
-
-                  {(s as any).types && (
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      {(s as any).types.map((t: any) => (
-                        <div
-                          key={t.name}
-                          className="bg-white/5 border border-white/10 rounded-xl p-4"
-                          style={{ borderLeftColor: t.color, borderLeftWidth: 3 }}
-                        >
-                          <h3 className="font-semibold text-sm mb-2" style={{ color: t.color }}>{t.name}</h3>
-                          <p className="text-gray-300 text-xs leading-relaxed">{t.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+          {/* 2. Membership Tiers */}
+          <section>
+            <h2 className="text-2xl font-bold mb-6 text-[#9D4EDD]">2. Membership Tiers</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {TIERS.map((tier) => (
+                <div
+                  key={tier.name}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col hover:border-white/20 transition-colors"
+                  style={{ borderTopColor: tier.color, borderTopWidth: 3 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-white">{tier.name}</h3>
+                    <span
+                      className="text-xs font-bold px-2 py-1 rounded-full"
+                      style={{ backgroundColor: `${tier.color}20`, color: tier.color }}
+                    >
+                      {tier.price}
+                    </span>
+                  </div>
+                  <ul className="space-y-2 flex-1">
+                    {tier.benefits.map((benefit) => (
+                      <li key={benefit} className="flex gap-2 text-sm text-white/70">
+                        <span className="flex-shrink-0 mt-0.5" style={{ color: tier.color }}>&#10003;</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
+          </section>
 
-        <div className="mt-10 text-center">
-          <p className="text-gray-500 text-sm">
-            Billing questions? Contact{' '}
-            <a href="mailto:billing@wankong.com" className="text-[#9D4EDD] hover:underline">
-              billing@wankong.com
+          {/* Policy sections as accordion */}
+          <section className="space-y-2">
+            {POLICY_SECTIONS.map((s) => (
+              <div key={s.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setOpenSection(openSection === s.id ? null : s.id)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/5 transition-colors"
+                >
+                  <span className="font-medium text-white text-sm">{s.title}</span>
+                  <span className="text-white/40 text-xs ml-4 flex-shrink-0">
+                    {openSection === s.id ? '▲' : '▼'}
+                  </span>
+                </button>
+                {openSection === s.id && (
+                  <div className="px-6 pb-6">
+                    <p className="text-white/65 text-sm leading-relaxed">{s.content}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+
+          {/* Contact */}
+          <section className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-center">
+            <p className="text-white/70 text-sm mb-2">Subscription or billing questions?</p>
+            <a
+              href="mailto:subscriptions@wankong.com"
+              className="text-[#9D4EDD] hover:underline font-semibold"
+            >
+              subscriptions@wankong.com
             </a>
-          </p>
+          </section>
+
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
