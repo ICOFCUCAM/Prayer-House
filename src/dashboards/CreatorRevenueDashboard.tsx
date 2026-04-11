@@ -16,13 +16,13 @@ interface CategoryMeta {
 }
 
 const CATEGORY_META: Record<string, CategoryMeta> = {
-  music_stream:        { label: 'Music Streams',         icon: '🎵', color: '#9D4EDD' },
-  book_sale:           { label: 'Book Sales',             icon: '📚', color: '#00D9FF' },
-  audiobook_play:      { label: 'Audiobook Plays',        icon: '🎧', color: '#00F5A0' },
-  competition_win:     { label: 'Competition Wins',       icon: '🏆', color: '#FFB800' },
-  fan_vote_reward:     { label: 'Fan Vote Rewards',       icon: '❤',  color: '#FF6B00' },
-  distribution_royalty:{ label: 'Distribution Royalties', icon: '💿', color: '#00D9FF' },
-  translation_sale:    { label: 'Translation Sales',      icon: '🌍', color: '#9D4EDD' },
+  music_stream:         { label: 'Music Streams',          icon: '🎵', color: '#9D4EDD' },
+  book_sale:            { label: 'Book Sales',              icon: '📚', color: '#00D9FF' },
+  audiobook_play:       { label: 'Audiobook Plays',         icon: '🎧', color: '#00F5A0' },
+  competition_win:      { label: 'Competition Wins',        icon: '🏆', color: '#FFB800' },
+  fan_vote_reward:      { label: 'Fan Vote Rewards',        icon: '❤',  color: '#FF6B00' },
+  distribution_royalty: { label: 'Distribution Royalties',  icon: '💿', color: '#00D9FF' },
+  translation_sale:     { label: 'Translation Sales',       icon: '🌍', color: '#9D4EDD' },
 };
 
 const PERIOD_LABELS: Record<Period, string> = {
@@ -33,7 +33,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_META) as (keyof typeof CATEGORY_META)[];
 
-function getPeriodStartDate(period: Period): string | null {
+function getPeriodStart(period: Period): string | null {
   const now = new Date();
   if (period === 'month') {
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -62,13 +62,13 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
     setLoading(true);
     setError(null);
 
-    const fetchEarnings = async () => {
+    (async () => {
       let query = supabase
         .from('creator_earnings')
         .select('category, amount')
         .eq('user_id', userId);
 
-      const since = getPeriodStartDate(period);
+      const since = getPeriodStart(period);
       if (since) query = query.gte('created_at', since);
 
       const { data, error: fetchErr } = await query;
@@ -80,35 +80,31 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
         return;
       }
 
-      // Group by category
+      // Group by category, ensure all 7 appear
       const grouped: Record<string, number> = {};
       for (const row of data ?? []) {
         grouped[row.category] = (grouped[row.category] ?? 0) + Number(row.amount);
       }
 
-      // Ensure all 7 categories appear (even if zero)
       const result: Earning[] = ALL_CATEGORIES.map(cat => ({
         category: cat,
         amount: grouped[cat] ?? 0,
       }));
 
-      // Add any unknown categories
+      // Include any unknown categories
       for (const [cat, amt] of Object.entries(grouped)) {
-        if (!CATEGORY_META[cat]) {
-          result.push({ category: cat, amount: amt });
-        }
+        if (!CATEGORY_META[cat]) result.push({ category: cat, amount: amt });
       }
 
       result.sort((a, b) => b.amount - a.amount);
       setEarnings(result);
       setLoading(false);
-    };
+    })();
 
-    fetchEarnings();
     return () => { cancelled = true; };
   }, [userId, period]);
 
-  const total = earnings.reduce((sum, e) => sum + e.amount, 0);
+  const total = earnings.reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="min-h-screen bg-[#0A1128] text-white p-6">
@@ -126,7 +122,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
             </div>
           </div>
 
-          {/* Period tabs */}
+          {/* Period tabs: 'month' | 'quarter' | 'all' */}
           <div className="flex gap-1 bg-[#1A2240] rounded-xl p-1">
             {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
               <button
@@ -145,7 +141,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
           </div>
         </div>
 
-        {/* Total earnings card */}
+        {/* Total earnings card — large gold text */}
         <div className="bg-[#1A2240] rounded-2xl p-6 flex items-center justify-between">
           <div>
             <p className="text-gray-400 text-sm font-medium">Total Earnings</p>
@@ -159,7 +155,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
           </div>
         </div>
 
-        {/* Category breakdown */}
+        {/* 7 category rows */}
         <div className="bg-[#1A2240] rounded-2xl p-6 flex flex-col gap-4">
           <h2 className="text-white font-semibold text-base">Earnings by Category</h2>
 
@@ -182,6 +178,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
                 return (
                   <div key={category} className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-4">
+                      {/* Icon + label */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-base"
@@ -193,6 +190,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
                           {meta.label}
                         </span>
                       </div>
+                      {/* Amount + % */}
                       <div className="flex flex-col items-end flex-shrink-0">
                         <span className="text-[#FFB800] font-bold text-sm">
                           ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -200,7 +198,7 @@ const CreatorRevenueDashboard: React.FC<CreatorRevenueDashboardProps> = ({ userI
                         <span className="text-gray-500 text-xs">{pct.toFixed(1)}%</span>
                       </div>
                     </div>
-                    {/* CSS percentage bar */}
+                    {/* CSS width % bar */}
                     <div className="h-1.5 bg-[#0A1128] rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
