@@ -144,6 +144,84 @@ export async function subscribeToNotifications(userId: string): Promise<void> {
     .subscribe();
 
   activeChannels.push(releasesChannel);
+
+  // ── Membership Subscribers ───────────────────────────────────────────────────
+  // Fires when a fan subscribes to this creator's membership plan
+  const membersChannel = supabase
+    .channel(`members-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'membership_subscribers',
+        filter: `creator_id=eq.${userId}`,
+      },
+      (payload) => {
+        const tier = (payload.new as Record<string, unknown>)?.tier as string | undefined;
+        scheduleLocalNotification(
+          'New Subscriber!',
+          `A fan just joined your ${tier ?? 'membership'} plan.`
+        );
+      }
+    )
+    .subscribe();
+
+  activeChannels.push(membersChannel);
+
+  // ── Canvas / Motion Artwork Generated ────────────────────────────────────────
+  // Fires when a Canvas or Apple Motion asset is ready for a release
+  const canvasChannel = supabase
+    .channel(`canvas-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'distribution_canvas_assets',
+      },
+      (payload) => {
+        const assetType = (payload.new as Record<string, unknown>)?.asset_type as string | undefined;
+        if (assetType) {
+          const label = assetType === 'spotify_canvas' ? 'Spotify Canvas'
+            : assetType === 'apple_motion' ? 'Apple Motion Artwork'
+            : 'Promo clip';
+          scheduleLocalNotification(
+            `${label} Ready`,
+            `Your ${label} has been generated and is ready to download.`
+          );
+        }
+      }
+    )
+    .subscribe();
+
+  activeChannels.push(canvasChannel);
+
+  // ── Book Translation Completed ────────────────────────────────────────────────
+  // Fires when a translation job transitions to 'done' status
+  const translationChannel = supabase
+    .channel(`translation-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'book_translations',
+      },
+      (payload) => {
+        const row = payload.new as Record<string, unknown>;
+        if (row?.status === 'done') {
+          const lang = (row.language as string | undefined) ?? 'a new language';
+          scheduleLocalNotification(
+            'Translation Complete!',
+            `Your book has been translated to ${lang} and is now live.`
+          );
+        }
+      }
+    )
+    .subscribe();
+
+  activeChannels.push(translationChannel);
 }
 
 /**

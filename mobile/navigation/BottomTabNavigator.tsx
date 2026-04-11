@@ -10,6 +10,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LanguageScreen from '../screens/LanguageScreen';
 import EarningsScreen from '../screens/EarningsScreen';
+import MembershipScreen from '../screens/MembershipScreen';
 
 export type HomeStackParamList = {
   HomeMain: undefined;
@@ -32,6 +33,7 @@ export type LibraryStackParamList = {
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   Earnings: undefined;
+  Membership: undefined;
 };
 
 const HomeStack = createStackNavigator<HomeStackParamList>();
@@ -120,6 +122,11 @@ function ProfileStackNavigator() {
         name="Earnings"
         component={EarningsScreen}
         options={{ title: 'Earnings' }}
+      />
+      <ProfileStack.Screen
+        name="Membership"
+        component={MembershipScreen}
+        options={{ title: 'Memberships' }}
       />
     </ProfileStack.Navigator>
   );

@@ -6,6 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, formatCount, getLevelColour } from '../utils/formatters';
+import { Platform } from 'react-native';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -50,17 +51,33 @@ function getXPProgress(current: string, xp: number) {
 // ── Login form ─────────────────────────────────────────────────────────────────
 
 function LoginView() {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
+  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [oauthLoading,setOAuthLoading]= useState<'google'|'apple'|null>(null);
+  const [error,       setError]       = useState('');
 
   const handleSignIn = async () => {
     if (!email || !password) { setError('Please enter email and password'); return; }
     setLoading(true); setError('');
-    const { error: e } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: e } = await signIn(email, password);
     if (e) setError(e.message);
     setLoading(false);
+  };
+
+  const handleGoogle = async () => {
+    setOAuthLoading('google'); setError('');
+    const { error: e } = await signInWithGoogle();
+    if (e) setError(e.message);
+    setOAuthLoading(null);
+  };
+
+  const handleApple = async () => {
+    setOAuthLoading('apple'); setError('');
+    const { error: e } = await signInWithApple();
+    if (e) setError(e.message);
+    setOAuthLoading(null);
   };
 
   return (
@@ -72,6 +89,36 @@ function LoginView() {
       <Text style={styles.loginSub}>Access your creator dashboard</Text>
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+      {/* OAuth buttons */}
+      <TouchableOpacity
+        style={styles.oauthBtn}
+        onPress={handleGoogle}
+        disabled={!!oauthLoading}
+      >
+        {oauthLoading === 'google'
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.oauthBtnText}>🌐  Continue with Google</Text>}
+      </TouchableOpacity>
+
+      {Platform.OS === 'ios' && (
+        <TouchableOpacity
+          style={[styles.oauthBtn, styles.appleBtn]}
+          onPress={handleApple}
+          disabled={!!oauthLoading}
+        >
+          {oauthLoading === 'apple'
+            ? <ActivityIndicator color="#000" />
+            : <Text style={[styles.oauthBtnText, { color: '#000' }]}>🍎  Continue with Apple</Text>}
+        </TouchableOpacity>
+      )}
+
+      {/* Divider */}
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or email</Text>
+        <View style={styles.dividerLine} />
+      </View>
 
       <TextInput
         style={styles.input}
@@ -93,7 +140,7 @@ function LoginView() {
       <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color="#0A1128" /> : <Text style={styles.signInBtnText}>Sign In</Text>}
       </TouchableOpacity>
-      <Text style={styles.socialNote}>Google & Apple login coming soon</Text>
+      <Text style={styles.socialNote}>Phone login — coming soon</Text>
     </View>
   );
 }
@@ -111,7 +158,7 @@ function StatCard({ label, value, colour }: { label: string; value: string; colo
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: { navigation?: any }) {
   const { user, signOut } = useAuth();
   const [levelData,   setLevelData]   = useState<CreatorLevel | null>(null);
   const [earnings,    setEarnings]    = useState<EarningRow[]>([]);
@@ -229,6 +276,25 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Quick links */}
+      <TouchableOpacity
+        style={styles.navBtn}
+        onPress={() => navigation?.navigate('Earnings')}
+      >
+        <Text style={styles.navBtnIcon}>💰</Text>
+        <Text style={styles.navBtnText}>Earnings Dashboard</Text>
+        <Text style={styles.navBtnArrow}>›</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.navBtn}
+        onPress={() => navigation?.navigate('Membership')}
+      >
+        <Text style={styles.navBtnIcon}>💎</Text>
+        <Text style={styles.navBtnText}>Memberships</Text>
+        <Text style={styles.navBtnArrow}>›</Text>
+      </TouchableOpacity>
+
       {/* Sign out */}
       <TouchableOpacity style={styles.signOutBtn} onPress={signOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
@@ -251,6 +317,12 @@ const styles = StyleSheet.create({
   input:             { width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: '#fff', fontSize: 15, marginBottom: 12 },
   signInBtn:         { width: '100%', backgroundColor: CYAN, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
   signInBtnText:     { color: NAVY, fontWeight: '800', fontSize: 16 },
+  oauthBtn:          { width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  appleBtn:          { backgroundColor: '#fff' },
+  oauthBtnText:      { color: '#fff', fontWeight: '700', fontSize: 15 },
+  dividerRow:        { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 16, gap: 10 },
+  dividerLine:       { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  dividerText:       { color: 'rgba(255,255,255,0.3)', fontSize: 12 },
   socialNote:        { color: 'rgba(255,255,255,0.3)', fontSize: 12, marginTop: 20 },
   avatarSection:     { alignItems: 'center', paddingVertical: 24 },
   avatar:            { width: 80, height: 80, borderRadius: 40, backgroundColor: PURPLE, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
@@ -276,6 +348,10 @@ const styles = StyleSheet.create({
   earnAmount:        { color: GREEN, fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
   statusBadge:       { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   statusText:        { fontWeight: '700', fontSize: 12 },
+  navBtn:            { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  navBtnIcon:        { fontSize: 18, marginRight: 12 },
+  navBtnText:        { flex: 1, color: '#fff', fontWeight: '600', fontSize: 14 },
+  navBtnArrow:       { color: 'rgba(255,255,255,0.3)', fontSize: 20 },
   signOutBtn:        { borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   signOutText:       { color: 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 14 },
 });
