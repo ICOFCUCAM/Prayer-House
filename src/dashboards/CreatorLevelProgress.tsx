@@ -2,21 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Zap, Star, Loader2 } from 'lucide-react';
 
+// ── Level configuration ──────────────────────────────────────────────────────
+
 interface LevelThreshold {
   level: string;
   minXP: number;
   color: string;
 }
 
+// Bronze=0, Silver=500, Gold=2000, Platinum=5000, Diamond=10000, GlobalAmbassador=25000
 const LEVEL_THRESHOLDS: LevelThreshold[] = [
-  { level: 'Bronze',          minXP: 0,     color: '#CD7F32' },
-  { level: 'Silver',          minXP: 500,   color: '#C0C0C0' },
-  { level: 'Gold',            minXP: 2000,  color: '#FFB800' },
-  { level: 'Platinum',        minXP: 5000,  color: '#E5E4E2' },
-  { level: 'Diamond',         minXP: 10000, color: '#00D9FF' },
-  { level: 'GlobalAmbassador',minXP: 25000, color: '#9D4EDD' },
+  { level: 'Bronze',           minXP: 0,     color: '#CD7F32' },
+  { level: 'Silver',           minXP: 500,   color: '#C0C0C0' },
+  { level: 'Gold',             minXP: 2000,  color: '#FFB800' },
+  { level: 'Platinum',         minXP: 5000,  color: '#E5E4E2' },
+  { level: 'Diamond',          minXP: 10000, color: '#00D9FF' },
+  { level: 'GlobalAmbassador', minXP: 25000, color: '#9D4EDD' },
 ];
 
+// XP per category action
 const XP_PER_CATEGORY: Record<string, number> = {
   music_stream:         1,
   book_sale:            10,
@@ -47,20 +51,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   translation_sale:     '#9D4EDD',
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 interface RecentEarning {
   id: string;
   category: string;
   amount: number;
   created_at: string;
-}
-
-function getLevelColor(level: string): string {
-  return LEVEL_THRESHOLDS.find(t => t.level === level)?.color ?? '#CD7F32';
-}
-
-function getNextLevel(currentMinXP: number): LevelThreshold | null {
-  const idx = LEVEL_THRESHOLDS.findIndex(t => t.minXP === currentMinXP);
-  return LEVEL_THRESHOLDS[idx + 1] ?? null;
 }
 
 function getCurrentThreshold(xp: number): LevelThreshold {
@@ -69,6 +66,19 @@ function getCurrentThreshold(xp: number): LevelThreshold {
     if (xp >= t.minXP) current = t;
   }
   return current;
+}
+
+function getNextThreshold(current: LevelThreshold): LevelThreshold | null {
+  const idx = LEVEL_THRESHOLDS.findIndex(t => t.level === current.level);
+  return LEVEL_THRESHOLDS[idx + 1] ?? null;
+}
+
+function getLevelEmoji(level: string): string {
+  const map: Record<string, string> = {
+    Bronze: '🥉', Silver: '🥈', Gold: '🥇',
+    Platinum: '💎', Diamond: '💠', GlobalAmbassador: '🌟',
+  };
+  return map[level] ?? '🏅';
 }
 
 function timeAgo(dateStr: string): string {
@@ -80,6 +90,8 @@ function timeAgo(dateStr: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
   userId: string;
@@ -95,7 +107,7 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
     if (!userId) return;
     let cancelled = false;
 
-    const load = async () => {
+    (async () => {
       setLoading(true);
 
       const [levelRes, earningsRes] = await Promise.all([
@@ -121,19 +133,18 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
 
       setRecentEarnings((earningsRes.data ?? []) as RecentEarning[]);
       setLoading(false);
-    };
+    })();
 
-    load();
     return () => { cancelled = true; };
   }, [userId]);
 
   const currentThreshold = getCurrentThreshold(xp);
-  const nextThreshold = getNextLevel(currentThreshold.minXP);
+  const nextThreshold = getNextThreshold(currentThreshold);
   const xpInLevel = xp - currentThreshold.minXP;
   const xpNeeded = nextThreshold ? nextThreshold.minXP - currentThreshold.minXP : 1;
   const progressPct = nextThreshold ? Math.min(100, (xpInLevel / xpNeeded) * 100) : 100;
-  const levelColor = getLevelColor(level);
-  const isMaxLevel = level === 'GlobalAmbassador';
+  const isMaxLevel = currentThreshold.level === 'GlobalAmbassador';
+  const levelColor = currentThreshold.color;
 
   if (loading) {
     return (
@@ -158,7 +169,7 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
           </div>
         </div>
 
-        {/* Level card */}
+        {/* Level card — current level name colour-coded */}
         <div className="bg-[#1A2240] rounded-2xl p-6 flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <div>
@@ -166,7 +177,11 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
               {isMaxLevel ? (
                 <span
                   className="text-2xl font-black"
-                  style={{ background: 'linear-gradient(135deg,#9D4EDD,#FFB800,#00D9FF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                  style={{
+                    background: 'linear-gradient(135deg,#9D4EDD,#FFB800,#00D9FF)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
                 >
                   {level}
                 </span>
@@ -177,19 +192,19 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
               )}
             </div>
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-black shadow-lg"
-              style={{ background: isMaxLevel ? 'linear-gradient(135deg,#9D4EDD,#FFB800)' : `${levelColor}22`, border: `2px solid ${levelColor}55` }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg"
+              style={{
+                background: isMaxLevel
+                  ? 'linear-gradient(135deg,#9D4EDD,#FFB800)'
+                  : `${levelColor}22`,
+                border: `2px solid ${levelColor}55`,
+              }}
             >
-              {level === 'Bronze' && '🥉'}
-              {level === 'Silver' && '🥈'}
-              {level === 'Gold' && '🥇'}
-              {level === 'Platinum' && '💎'}
-              {level === 'Diamond' && '💠'}
-              {level === 'GlobalAmbassador' && '🌟'}
+              {getLevelEmoji(level)}
             </div>
           </div>
 
-          {/* XP progress bar */}
+          {/* XP progress bar toward next level */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-300 font-semibold">{xp.toLocaleString()} XP</span>
@@ -210,6 +225,7 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
                 }}
               />
             </div>
+            {/* XP number / XP needed */}
             {nextThreshold ? (
               <p className="text-gray-500 text-xs text-right">
                 {(nextThreshold.minXP - xp).toLocaleString()} XP needed for {nextThreshold.level}
@@ -222,7 +238,7 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
           </div>
         </div>
 
-        {/* Recent XP section */}
+        {/* Recent XP section — last 10 creator_earnings */}
         <div className="bg-[#1A2240] rounded-2xl p-6 flex flex-col gap-4">
           <h2 className="text-white font-semibold flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#FFB800]" />
@@ -237,7 +253,9 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
                 const icon = CATEGORY_ICONS[earning.category] ?? '💡';
                 const color = CATEGORY_COLORS[earning.category] ?? '#6b7280';
                 const xpEarned = XP_PER_CATEGORY[earning.category] ?? 0;
-                const label = earning.category.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const label = earning.category
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, c => c.toUpperCase());
 
                 return (
                   <div
@@ -253,7 +271,9 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
                       </div>
                       <div className="flex flex-col gap-0.5">
                         <span className="text-gray-200 text-sm font-medium">{label}</span>
-                        <span className="text-gray-500 text-xs">{timeAgo(earning.created_at)} · ${earning.amount.toFixed(2)}</span>
+                        <span className="text-gray-500 text-xs">
+                          {timeAgo(earning.created_at)} · ${Number(earning.amount).toFixed(2)}
+                        </span>
                       </div>
                     </div>
                     <span className="text-[#00D9FF] font-bold text-sm">+{xpEarned} XP</span>
@@ -264,7 +284,7 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
           )}
         </div>
 
-        {/* How to earn XP */}
+        {/* "How to earn XP" section — all 7 actions */}
         <div className="bg-[#1A2240] rounded-2xl p-6 flex flex-col gap-4">
           <h2 className="text-white font-semibold flex items-center gap-2">
             <Star className="w-4 h-4 text-[#00D9FF]" />
@@ -303,8 +323,11 @@ const CreatorLevelProgress: React.FC<Props> = ({ userId }) => {
             {LEVEL_THRESHOLDS.map(t => (
               <div
                 key={t.level}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${level === t.level ? 'border-opacity-60' : 'border-opacity-20'}`}
-                style={{ borderColor: t.color, background: `${t.color}11` }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+                style={{
+                  borderColor: `${t.color}${currentThreshold.level === t.level ? '99' : '33'}`,
+                  background: `${t.color}11`,
+                }}
               >
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.color }} />
                 <div className="min-w-0">
