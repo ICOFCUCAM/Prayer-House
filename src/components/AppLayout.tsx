@@ -508,11 +508,11 @@ export default function AppLayout() {
               </div>
             </div>
 
-            {/* CARD 2 — Stream Worldwide */}
+            {/* CARD 2 — Audio Player / Talent Arena CTA */}
             <div className="bg-[#0D1635] border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-colors flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-3">
                 <Music className="w-4 h-4 text-[#1DB954]" />
-                <span className="text-white text-xs font-semibold">Stream Worldwide</span>
+                <span className="text-white text-xs font-semibold">Now Playing</span>
               </div>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1DB954] to-[#00D9FF] flex items-center justify-center shrink-0">
@@ -528,60 +528,93 @@ export default function AppLayout() {
                     : <Play className="w-3 h-3 text-white fill-white ml-0.5" />}
                 </button>
               </div>
-              <div className="h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer"
+              <div className="h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer mb-2"
                 onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setAudioProgress(((e.clientX - r.left) / r.width) * 100); }}>
                 <div className="h-full bg-gradient-to-r from-[#1DB954] to-[#00D9FF]" style={{ width: `${audioProgress}%` }} />
               </div>
               {audioPlaying && (
-                <div className="flex items-end justify-center gap-0.5 h-4 mt-2">
+                <div className="flex items-end justify-center gap-0.5 h-4 mb-2">
                   {[3,5,4,7,5,6,3,5].map((h, i) => (
                     <div key={i} className="w-1 rounded-full bg-gradient-to-t from-[#1DB954] to-[#00D9FF] animate-pulse" style={{ height: `${h * 2}px`, animationDelay: `${i * 80}ms` }} />
                   ))}
                 </div>
               )}
+              <div className="flex flex-col gap-1.5 mt-auto">
+                <Link to="/dashboard/artist/upload-performance"
+                  className="text-center py-1.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white text-[10px] font-bold rounded-xl hover:opacity-90 transition-opacity">
+                  Get Performance
+                </Link>
+                <div className="flex gap-1.5">
+                  <Link to="/talent-arena"
+                    className="flex-1 text-center py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-semibold rounded-xl hover:bg-white/10 transition-colors">
+                    Vote Next Comp
+                  </Link>
+                  <Link to="/talent-arena"
+                    className="flex-1 text-center py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-semibold rounded-xl hover:bg-white/10 transition-colors">
+                    Join Arena
+                  </Link>
+                </div>
+              </div>
             </div>
 
-            {/* CARD 3 — Talent Winner */}
-            <div className="bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-[#FFB800]/30 transition-colors flex">
-              <div className="relative w-24 shrink-0">
+            {/* CARD 3 — Talent Arena Winner */}
+            <div className="bg-[#0D1635] border border-white/10 rounded-2xl overflow-hidden hover:border-[#FFB800]/30 transition-colors flex flex-col">
+              <div className="relative h-28 shrink-0 overflow-hidden">
                 <img src={ARTIST_IMAGES[0]} alt="Winner" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex-1 p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Trophy className="w-4 h-4 text-[#FFB800]" />
-                  <span className="text-[#FFB800] text-[10px] font-bold uppercase">Winner</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0D1635] to-transparent" />
+                <div className="absolute top-2 left-2 flex items-center gap-1 bg-[#FFB800]/90 text-black text-[9px] font-black px-2 py-0.5 rounded-full">
+                  <Trophy className="w-2.5 h-2.5" /> WINNER
                 </div>
-                <p className="text-white text-lg font-black tabular-nums">{liveVotes.toLocaleString()}</p>
-                <p className="text-white/30 text-[10px] mb-2">votes live</p>
+                {confetti && (
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="absolute w-1.5 h-1.5 rounded-full opacity-80 animate-bounce"
+                        style={{ left: `${10 + i * 12}%`, top: `${20 + (i % 3) * 20}%`, background: ['#FFB800','#00D9FF','#FF6B00','#00F5A0','#9D4EDD','#FF006E','#FFB800','#00D9FF'][i], animationDelay: `${i * 150}ms`, animationDuration: '1.2s' }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 p-3 flex flex-col justify-between">
+                <div>
+                  <p className="text-white text-base font-black tabular-nums">{liveVotes.toLocaleString()}</p>
+                  <p className="text-white/30 text-[10px] mb-0.5">votes live · $500 prize</p>
+                  <p className="text-[#00F5A0] text-[10px] font-bold">Earnings: $320 earned</p>
+                </div>
                 <button
                   onClick={() => setVideoModalOpen(true)}
-                  className="text-[#FFB800] text-xs font-semibold hover:underline"
+                  className="mt-2 w-full py-1.5 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black text-[10px] font-bold rounded-lg hover:opacity-90 transition-opacity"
                 >
                   Watch Performance →
                 </button>
               </div>
             </div>
 
-            {/* CARD 4 — Distribution */}
+            {/* CARD 4 — Distribution Engine */}
             <div className="bg-[#0D1635] border border-white/10 rounded-2xl p-4 hover:border-[#00D9FF]/30 transition-colors flex flex-col justify-between">
               <div>
-                <p className="text-white/40 text-[10px] uppercase mb-1">Distribution Network</p>
+                <p className="text-white/40 text-[10px] uppercase mb-1">Distribution Engine</p>
                 <h3 className="text-xl font-black text-white">30+ Platforms</h3>
-                <p className="text-white/40 text-xs mb-3">Upload once. Reach everywhere.</p>
+                <p className="text-white/40 text-xs mb-2">Upload once. Reach everywhere.</p>
                 <p className="text-[#00F5A0] text-sm font-bold tabular-nums">{tracksDistributed.toLocaleString()}</p>
                 <p className="text-white/30 text-[10px]">tracks distributed today</p>
               </div>
-              <div className="overflow-hidden my-3">
+              <div className="overflow-hidden my-2">
                 <div className="flex gap-2 animate-marquee whitespace-nowrap">
                   {[...DISTRIBUTION_PLATFORMS, ...DISTRIBUTION_PLATFORMS].map((p, i) => (
                     <span key={i} className="shrink-0 text-[10px] text-white/30 border border-white/10 rounded-full px-2 py-0.5">{p}</span>
                   ))}
                 </div>
               </div>
-              <Link to="/upload/distribute"
-                className="text-center py-2 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black text-xs font-bold rounded-xl hover:opacity-90 transition-opacity">
-                Start Distribution
-              </Link>
+              <div className="flex flex-col gap-1.5">
+                <Link to="/upload/distribute"
+                  className="text-center py-1.5 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black text-[10px] font-bold rounded-xl hover:opacity-90 transition-opacity">
+                  Start Distribution
+                </Link>
+                <Link to="/upload/distribute"
+                  className="text-center py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-semibold rounded-xl hover:bg-white/10 transition-colors">
+                  Upload Track
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -870,7 +903,7 @@ export default function AppLayout() {
                 <p className="text-white/40 text-xs">Listen while you move</p>
               </div>
             </div>
-            <Link to="/ebook-marketplace" className="text-[#00D9FF] text-sm hover:underline">See All Books</Link>
+            <Link to="/collections/audiobooks" className="text-[#00D9FF] text-sm hover:underline">See All Audiobooks</Link>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {[
@@ -1049,6 +1082,87 @@ export default function AppLayout() {
                 <span>Mobile Money Support</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Language Ecosystem Discovery ─────────────────────────── */}
+      <section className="py-16 bg-[#080e22]">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/10 border border-[#00D9FF]/20 rounded-full text-[#00D9FF] text-xs font-semibold mb-4">
+              <Globe className="w-3.5 h-3.5" /> Language Ecosystem
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
+              Browse by <span className="bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] bg-clip-text text-transparent">Language</span>
+            </h2>
+            <p className="text-white/40 text-sm max-w-xl mx-auto">
+              Music, books, audiobooks and videos across 18 languages from creators worldwide.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                type: 'Music', icon: '🎵', color: '#9D4EDD', href: '/collections/music',
+                langs: [
+                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
+                  { code: 'es', flag: '🇪🇸', name: 'Spanish' }, { code: 'yo', flag: '🌍', name: 'Yoruba' },
+                  { code: 'sw', flag: '🇰🇪', name: 'Swahili' }, { code: 'ar', flag: '🇸🇦', name: 'Arabic' },
+                ],
+              },
+              {
+                type: 'Books', icon: '📚', color: '#FFB800', href: '/collections/books',
+                langs: [
+                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
+                  { code: 'de', flag: '🇩🇪', name: 'German' }, { code: 'pt', flag: '🇧🇷', name: 'Portuguese' },
+                  { code: 'ar', flag: '🇸🇦', name: 'Arabic' }, { code: 'zh', flag: '🇨🇳', name: 'Chinese' },
+                ],
+              },
+              {
+                type: 'Audiobooks', icon: '🎧', color: '#FF6B00', href: '/collections/audiobooks',
+                langs: [
+                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
+                  { code: 'sw', flag: '🇰🇪', name: 'Swahili' }, { code: 'yo', flag: '🌍', name: 'Yoruba' },
+                  { code: 'zu', flag: '🇿🇦', name: 'Zulu' }, { code: 'ru', flag: '🇷🇺', name: 'Russian' },
+                ],
+              },
+              {
+                type: 'Videos', icon: '🎬', color: '#00F5A0', href: '/collections/videos',
+                langs: [
+                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
+                  { code: 'no', flag: '🇳🇴', name: 'Norwegian' }, { code: 'ja', flag: '🇯🇵', name: 'Japanese' },
+                  { code: 'pcm', flag: '🇳🇬', name: 'Pidgin' }, { code: 'lug', flag: '🇺🇬', name: 'Luganda' },
+                ],
+              },
+            ].map(col => (
+              <div key={col.type} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-all">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-2xl">{col.icon}</span>
+                  <h3 className="text-white font-bold">{col.type} by Language</h3>
+                </div>
+                <div className="space-y-2 mb-4">
+                  {col.langs.map(l => (
+                    <Link
+                      key={l.code}
+                      to={`${col.href}?lang=${l.code}`}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
+                    >
+                      <span className="text-base">{l.flag}</span>
+                      <span className="text-white/70 text-sm group-hover:text-white transition-colors flex-1">{l.name}</span>
+                      <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white/50 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
+                <Link
+                  to={col.href}
+                  className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-xs font-bold transition-all"
+                  style={{ background: `${col.color}22`, color: col.color, border: `1px solid ${col.color}44` }}
+                >
+                  Browse All {col.type} <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>

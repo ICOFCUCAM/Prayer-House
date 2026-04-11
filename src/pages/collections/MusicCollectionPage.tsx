@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { SUPPORTED_LANGUAGES } from '@/pipelines/translation/LanguageMapping';
+import { Download, Play } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,13 +100,16 @@ function TrackCard({ track, onPlay }: { track: Track; onPlay: (t: Track) => void
 
 export default function MusicCollectionPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
+  // Read `lang` param from URL so /collections/music?lang=fr works
+  const urlLang = searchParams.get('lang') ?? 'all';
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(urlLang);
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -151,8 +155,22 @@ export default function MusicCollectionPage() {
     debounceRef.current = setTimeout(() => setSearch(val), 400);
   };
 
+  // Sync URL param → state
+  useEffect(() => {
+    setSelectedLanguage(urlLang);
+  }, [urlLang]);
+
+  const handleLanguageSelect = (code: string) => {
+    setSelectedLanguage(code);
+    if (code === 'all') {
+      searchParams.delete('lang');
+    } else {
+      searchParams.set('lang', code);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
+
   const handlePlay = (track: Track) => {
-    // Dispatch to GlobalPlayer store or just navigate
     if (track.audio_url) {
       window.dispatchEvent(new CustomEvent('wankong:play', { detail: track }));
     }
@@ -180,6 +198,60 @@ export default function MusicCollectionPage() {
         </div>
       </div>
 
+      {/* ── Language Discovery Grid ──────────────────────────────── */}
+      <section className="py-10 bg-[#080e22] border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Music by Language</h2>
+              <p className="text-white/40 text-sm">Discover music across cultures worldwide</p>
+            </div>
+            {selectedLanguage !== 'all' && (
+              <button
+                onClick={() => handleLanguageSelect('all')}
+                className="text-[#00D9FF] text-sm hover:underline"
+              >
+                Show All Languages
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {SUPPORTED_LANGUAGES.map(lang => {
+              const isActive = selectedLanguage === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageSelect(lang.code)}
+                  className={[
+                    'group flex flex-col items-center gap-2 p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer text-left',
+                    isActive
+                      ? 'border-[#00D9FF] bg-[#00D9FF]/10 shadow-[0_0_16px_rgba(0,217,255,0.2)]'
+                      : 'border-white/10 bg-white/5 hover:border-[#9D4EDD]/40 hover:bg-[#9D4EDD]/5',
+                  ].join(' ')}
+                  aria-pressed={isActive}
+                >
+                  <span className="text-3xl leading-none">{lang.flag}</span>
+                  <span className={`text-xs font-semibold text-center leading-tight ${isActive ? 'text-[#00D9FF]' : 'text-white'}`}>
+                    {lang.name}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-[#00D9FF] text-[#0A1128]' : 'bg-white/10 text-white/50'}`}>
+                    {lang.trackCount}
+                  </span>
+                  <div className="flex gap-1 mt-0.5">
+                    <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded ${isActive ? 'bg-[#00F5A0]/20 text-[#00F5A0]' : 'bg-white/5 text-white/30'}`}>
+                      <Play className="w-2 h-2" /> Play
+                    </span>
+                    <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded ${isActive ? 'bg-[#9D4EDD]/20 text-[#9D4EDD]' : 'bg-white/5 text-white/30'}`}>
+                      <Download className="w-2 h-2" /> DL
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
 
         {/* Search */}
@@ -194,10 +266,19 @@ export default function MusicCollectionPage() {
             placeholder="Search songs, artists..."
             className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-[#00D9FF]/40"
           />
+          {selectedLanguage !== 'all' && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              <span className="text-xs px-2.5 py-1 bg-[#00D9FF]/20 text-[#00D9FF] rounded-full font-semibold border border-[#00D9FF]/30">
+                {SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.flag}{' '}
+                {SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name}
+              </span>
+              <button onClick={() => handleLanguageSelect('all')} className="text-white/40 hover:text-white text-sm">✕</button>
+            </div>
+          )}
         </div>
 
         {/* Genre chips */}
-        <div className="flex gap-2 mb-5 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
           {GENRES.map(g => (
             <button
               key={g}
@@ -209,33 +290,6 @@ export default function MusicCollectionPage() {
               }`}
             >
               {g}
-            </button>
-          ))}
-        </div>
-
-        {/* Language pills */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-          <button
-            onClick={() => setSelectedLanguage('all')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              selectedLanguage === 'all'
-                ? 'bg-[#00D9FF] text-[#0A1128]'
-                : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-            }`}
-          >
-            🌍 All Languages
-          </button>
-          {SUPPORTED_LANGUAGES.map(lang => (
-            <button
-              key={lang.code}
-              onClick={() => setSelectedLanguage(lang.code)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                selectedLanguage === lang.code
-                  ? 'bg-[#00D9FF] text-[#0A1128]'
-                  : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-              }`}
-            >
-              {lang.flag} {lang.name}
             </button>
           ))}
         </div>

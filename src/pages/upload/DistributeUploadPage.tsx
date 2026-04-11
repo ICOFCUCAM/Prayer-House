@@ -39,15 +39,37 @@ function validateAudioFormat(file: File) {
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
+// ── Album track type ──────────────────────────────────────────────────────────
+interface AlbumTrack {
+  id: string;
+  title: string;
+  audioFile: File | null;
+  duration_s: number;
+  explicit: boolean;
+}
+
 export default function DistributeUploadPage() {
   const navigate  = useNavigate();
   const audioRef  = useRef<HTMLInputElement>(null);
   const artRef    = useRef<HTMLInputElement>(null);
+  const albumAudioRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep]           = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [done,       setDone]      = useState(false);
   const [error,      setError]     = useState('');
+
+  // Release mode: single or album/ep
+  const [releaseMode, setReleaseMode] = useState<'single' | 'album'>('single');
+
+  // Album tracks (for album/ep mode — up to 50 tracks)
+  const [albumTracks, setAlbumTracks] = useState<AlbumTrack[]>([
+    { id: '1', title: '', audioFile: null, duration_s: 0, explicit: false },
+  ]);
+  const [albumTitle,    setAlbumTitle]    = useState('');
+  const [albumArtist,   setAlbumArtist]   = useState('');
+  const [albumGenre,    setAlbumGenre]    = useState('');
+  const [albumLanguage, setAlbumLanguage] = useState('English');
 
   // Step 1 — track files
   const [audioFile,    setAudioFile]    = useState<File | null>(null);
@@ -214,8 +236,214 @@ export default function DistributeUploadPage() {
           ))}
         </div>
 
-        {/* ── STEP 0 — Upload ──────────────────────────────────────── */}
+        {/* ── Release Mode Selector ────────────────────────────────── */}
         {step === 0 && (
+          <div className="mb-6">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-3">Release Type</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'single', label: 'Single / EP', desc: '1 track — fastest to distribute', icon: '🎵' },
+                { id: 'album',  label: 'Album',        desc: 'Up to 50 tracks with track list', icon: '💿' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setReleaseMode(opt.id as 'single' | 'album')}
+                  className={[
+                    'flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all',
+                    releaseMode === opt.id
+                      ? 'border-[#9D4EDD] bg-[#9D4EDD]/10'
+                      : 'border-white/10 bg-white/5 hover:border-white/20',
+                  ].join(' ')}
+                >
+                  <span className="text-2xl mt-0.5">{opt.icon}</span>
+                  <div>
+                    <p className={`font-bold text-sm ${releaseMode === opt.id ? 'text-[#9D4EDD]' : 'text-white'}`}>{opt.label}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── ALBUM MODE — Track List Manager ──────────────────────── */}
+        {step === 0 && releaseMode === 'album' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black text-white">Upload Album</h2>
+            <p className="text-gray-400 text-sm">Add up to 50 tracks. One shared artwork for the full album.</p>
+
+            {/* Album info */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Album Title *</label>
+                <input value={albumTitle} onChange={e => setAlbumTitle(e.target.value)}
+                  placeholder="Album title" className={inputCls} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Artist Name *</label>
+                <input value={albumArtist} onChange={e => setAlbumArtist(e.target.value)}
+                  placeholder="Artist name" className={inputCls} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Genre *</label>
+                <select value={albumGenre} onChange={e => setAlbumGenre(e.target.value)} className={selectCls}>
+                  <option value="">Select genre…</option>
+                  {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Language</label>
+                <select value={albumLanguage} onChange={e => setAlbumLanguage(e.target.value)} className={selectCls}>
+                  {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Album artwork */}
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">Album Cover Artwork</p>
+              <div
+                onClick={() => artRef.current?.click()}
+                className="w-40 h-40 rounded-2xl border-2 border-dashed border-white/10 hover:border-[#9D4EDD]/40 cursor-pointer overflow-hidden bg-[#0D1B3E] flex items-center justify-center transition-colors"
+              >
+                <input ref={artRef} type="file" className="hidden" accept="image/*"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setArtFile(f); setArtPreview(URL.createObjectURL(f)); } }}
+                />
+                {artPreview
+                  ? <img src={artPreview} alt="" className="w-full h-full object-cover" />
+                  : <div className="text-center p-4"><ImageIcon className="w-8 h-8 text-gray-600 mx-auto mb-1" /><p className="text-[10px] text-gray-500">3000×3000px</p></div>}
+              </div>
+            </div>
+
+            {/* Track list */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-bold">Tracks ({albumTracks.length}/50)</h3>
+                {albumTracks.length < 50 && (
+                  <button
+                    onClick={() => setAlbumTracks(prev => [
+                      ...prev,
+                      { id: String(Date.now()), title: '', audioFile: null, duration_s: 0, explicit: false },
+                    ])}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#9D4EDD]/10 border border-[#9D4EDD]/30 text-[#9D4EDD] text-xs font-semibold rounded-xl hover:bg-[#9D4EDD]/20 transition-colors"
+                  >
+                    + Add Track
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {albumTracks.map((at, idx) => (
+                  <div key={at.id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                    <span className="text-gray-500 text-sm font-bold w-6 text-center shrink-0">{idx + 1}</span>
+                    <input
+                      value={at.title}
+                      onChange={e => setAlbumTracks(prev => prev.map(t => t.id === at.id ? { ...t, title: e.target.value } : t))}
+                      placeholder={`Track ${idx + 1} title`}
+                      className="flex-1 bg-[#0A1128] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-[#9D4EDD]/40"
+                    />
+                    <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-[#0A1128] cursor-pointer hover:border-[#9D4EDD]/40 transition-colors shrink-0">
+                      <input
+                        type="file"
+                        accept=".wav,.flac,.mp3"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          if (!validateAudioFormat(f)) { setError('Only WAV, FLAC or MP3.'); return; }
+                          setAlbumTracks(prev => prev.map(t => t.id === at.id ? { ...t, audioFile: f } : t));
+                        }}
+                      />
+                      <Music className={`w-3.5 h-3.5 ${at.audioFile ? 'text-[#00D9FF]' : 'text-gray-500'}`} />
+                      <span className={`text-xs ${at.audioFile ? 'text-[#00D9FF]' : 'text-gray-500'}`}>
+                        {at.audioFile ? at.audioFile.name.slice(0, 16) + '…' : 'Audio'}
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                      <input type="checkbox" checked={at.explicit}
+                        onChange={e => setAlbumTracks(prev => prev.map(t => t.id === at.id ? { ...t, explicit: e.target.checked } : t))}
+                        className="accent-[#9D4EDD]" />
+                      <span className="text-[10px] text-gray-500">E</span>
+                    </label>
+                    {albumTracks.length > 1 && (
+                      <button
+                        onClick={() => setAlbumTracks(prev => prev.filter(t => t.id !== at.id))}
+                        className="text-gray-600 hover:text-red-400 transition-colors text-sm shrink-0"
+                        aria-label="Remove track"
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Album submit */}
+            <button
+              onClick={async () => {
+                if (!albumTitle.trim()) return setError('Album title required.');
+                if (!albumArtist.trim()) return setError('Artist name required.');
+                if (!albumGenre) return setError('Please select a genre.');
+                const missingAudio = albumTracks.some(t => !t.audioFile);
+                if (missingAudio) return setError('Please upload audio for all tracks.');
+                const missingTitles = albumTracks.some(t => !t.title.trim());
+                if (missingTitles) return setError('Please enter a title for all tracks.');
+
+                setSubmitting(true);
+                setError('');
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) throw new Error('Not authenticated');
+
+                  // Upload artwork
+                  let artworkUrl = '';
+                  if (artFile) {
+                    const path = `${user.id}/albums/${Date.now()}_cover.${artFile.name.split('.').pop()}`;
+                    const { error: ae } = await supabase.storage.from('cover_artworks').upload(path, artFile);
+                    if (ae) throw ae;
+                    const { data: { publicUrl } } = supabase.storage.from('cover_artworks').getPublicUrl(path);
+                    artworkUrl = publicUrl;
+                  }
+
+                  // Create album record
+                  const { data: albumRow, error: albumErr } = await supabase
+                    .from('albums')
+                    .insert({ artist_id: user.id, title: albumTitle, genre: albumGenre, language: albumLanguage, artwork_url: artworkUrl, total_tracks: albumTracks.length, status: 'pending_review' })
+                    .select('id').single();
+                  if (albumErr) throw albumErr;
+
+                  // Upload and insert each track
+                  for (let i = 0; i < albumTracks.length; i++) {
+                    const at = albumTracks[i];
+                    if (!at.audioFile) continue;
+                    const audioPath = `${user.id}/albums/${albumRow.id}/track_${i + 1}_${Date.now()}.${at.audioFile.name.split('.').pop()}`;
+                    const { error: ue } = await supabase.storage.from('music_uploads').upload(audioPath, at.audioFile);
+                    if (ue) throw ue;
+                    const { data: { publicUrl: audioUrl } } = supabase.storage.from('music_uploads').getPublicUrl(audioPath);
+                    await supabase.from('tracks').insert({
+                      artist_id: user.id, title: at.title, genre: albumGenre, language: albumLanguage,
+                      explicit: at.explicit, audio_url: audioUrl, artwork_url: artworkUrl,
+                      album_id: albumRow.id, track_number: i + 1, release_type: 'album',
+                      status: 'pending_review',
+                    });
+                  }
+
+                  setDone(true);
+                } catch (e: any) {
+                  setError(e.message ?? 'Album upload failed.');
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              disabled={submitting}
+              className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {submitting ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Uploading Album…</> : <><Upload className="w-4 h-4" /> Submit Album for Review</>}
+            </button>
+          </div>
+        )}
+
+        {/* ── STEP 0 — Upload ──────────────────────────────────────── */}
+        {step === 0 && releaseMode === 'single' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-white">Upload Your Track</h2>
 
