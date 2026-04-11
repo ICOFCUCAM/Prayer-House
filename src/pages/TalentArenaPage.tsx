@@ -252,7 +252,7 @@ export default function TalentArenaPage() {
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden border-b border-white/5">
-        <div className={`absolute inset-0 bg-gradient-to-br ${heroBgs[heroBg]} transition-all duration-[3000ms]`} />
+        <div className={`absolute inset-0 bg-gradient-to-br ${heroBgs[heroBg]} transition-all`} style={{ transitionDuration: '3000ms' }} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(157,78,221,0.18),transparent_55%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(0,217,255,0.12),transparent_55%)]" />
 
