@@ -243,27 +243,22 @@ export default function FeaturedPerformancesGrid() {
 
   // ── Dot indicator ─────────────────────────────────────────────────────
 
-  const totalPages = mergedVideos.length > 0 ? Math.ceil(mergedVideos.length / GRID_VISIBLE) : 0;
+  const totalPages  = mergedVideos.length > 0 ? Math.ceil(mergedVideos.length / GRID_VISIBLE) : 0;
   const currentPage = totalPages > 0 ? Math.floor(displayOffset / GRID_VISIBLE) % totalPages : 0;
 
   return (
-    <section
-      className="py-20 relative overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,#0A1128 0%,#0D1635 50%,#090F24 100%)' }}
-    >
-      {/* Background glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,217,255,0.05),transparent_70%)] pointer-events-none" />
+    <section className="py-16">
 
-      <div className="relative max-w-7xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4">
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#00D9FF]/10 border border-[#00D9FF]/25 rounded-full mb-3">
               <Globe className="w-3.5 h-3.5 text-[#00D9FF]" />
               <span className="text-[#00D9FF] text-xs font-semibold uppercase tracking-wider">Global Stage</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-black text-white leading-tight">
+            <h2 className="text-2xl font-black text-white leading-tight">
               Featured Performances
             </h2>
             <p className="text-white/40 text-sm mt-1.5 max-w-lg">
@@ -292,23 +287,29 @@ export default function FeaturedPerformancesGrid() {
           </div>
         </div>
 
-        {/* ── Grid ───────────────────────────────────────────────── */}
+        {/* ── Horizontal scroll strip ────────────────────────────── */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            className="flex gap-4 overflow-x-auto pb-4 mb-6"
+            style={{ scrollbarWidth: 'none' }}
+          >
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-2xl aspect-video bg-white/5 animate-pulse border border-white/8" />
+              <div
+                key={i}
+                className="w-[260px] h-[160px] flex-shrink-0 rounded-2xl bg-white/5 animate-pulse border border-white/8"
+              />
             ))}
           </div>
         ) : (
-          /* Mobile: horizontal swipe / Desktop: 3-col grid */
           <div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8
-                        sm:overflow-visible overflow-x-auto snap-x snap-mandatory
-                        flex sm:grid"
+            className="flex gap-4 overflow-x-auto pb-4 mb-6 snap-x snap-mandatory"
             style={{ scrollbarWidth: 'none' }}
           >
             {visibleCards.map(card => (
-              <div key={card.id} className="snap-center min-w-[85vw] sm:min-w-0">
+              <div
+                key={card.id}
+                className="w-[260px] flex-shrink-0 snap-center"
+              >
                 <SocialVideoCard card={card} onClick={setActiveCard} />
               </div>
             ))}
