@@ -405,7 +405,7 @@ export default function AppLayout() {
             ].map(({ lang, flag }) => (
               <Link
                 key={lang}
-                to={`/collections/music?lang=${lang.toLowerCase()}`}
+                to={`/music/language/${lang.toLowerCase()}`}
                 className="group flex items-center justify-between gap-2 bg-white/5 border border-white/10 hover:border-[#9D4EDD]/40 hover:bg-[#9D4EDD]/5 rounded-lg px-3 py-2 transition-all"
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -1205,7 +1205,7 @@ export default function AppLayout() {
                   {col.langs.map(l => (
                     <Link
                       key={l.code}
-                      to={`${col.href}?lang=${l.code}`}
+                      to={col.type === 'Music' ? `/music/language/${l.name.toLowerCase()}` : `${col.href}?lang=${l.code}`}
                       className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
                     >
                       <span className="text-base">{l.flag}</span>

@@ -35,6 +35,7 @@ const ArtistPublicPage          = lazy(() => import('./pages/artists/ArtistPubli
 const AuthorDashboardPage       = lazy(() => import('./pages/authors/AuthorDashboardPage'));
 const EarningsDashboardPage     = lazy(() => import('./pages/dashboard/EarningsDashboardPage'));
 const MusicCollectionPage       = lazy(() => import('./pages/collections/MusicCollectionPage'));
+const LanguageMusicPage         = lazy(() => import('./pages/collections/LanguageMusicPage'));
 const BooksCollectionPage       = lazy(() => import('./pages/collections/BooksCollectionPage'));
 const VideosCollectionPage      = lazy(() => import('./pages/collections/VideosCollectionPage'));
 const PodcastsCollectionPage    = lazy(() => import('./pages/collections/PodcastsCollectionPage'));
@@ -141,6 +142,7 @@ export default function App() {
 
           {/* ── Phase 2 — Public collections & artist pages ────────────────── */}
           <Route path="/artists/:slug"            element={<ArtistPublicPage />} />
+          <Route path="/music/language/:language"  element={<LanguageMusicPage />} />
           <Route path="/collections/music"        element={<MusicCollectionPage />} />
           <Route path="/collections/books"        element={<BooksCollectionPage />} />
           <Route path="/collections/videos"       element={<VideosCollectionPage />} />
