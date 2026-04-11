@@ -3,7 +3,8 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Users, Music, BookOpen, Trophy, Radio,
   DollarSign, AlertTriangle, Settings, BarChart2,
-  ChevronRight, Shield, LogOut,
+  ChevronRight, Shield, LogOut, Mail, Copy, RefreshCw,
+  Trash2, UserPlus, CheckCircle, Clock, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -218,28 +219,316 @@ function GenericModule({
   );
 }
 
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface AdminInvite {
+  id:         string;
+  email:      string;
+  role:       string;
+  token:      string;
+  accepted:   boolean;
+  created_at: string;
+}
+
+type InviteRole =
+  | 'moderator' | 'competition_admin' | 'distribution_admin'
+  | 'publishing_admin' | 'finance_admin' | 'support_admin';
+
+const INVITE_ROLES: { value: InviteRole; label: string }[] = [
+  { value: 'moderator',          label: 'Moderator'           },
+  { value: 'competition_admin',  label: 'Competition Admin'   },
+  { value: 'distribution_admin', label: 'Distribution Admin'  },
+  { value: 'publishing_admin',   label: 'Publishing Admin'    },
+  { value: 'finance_admin',      label: 'Finance Admin'       },
+  { value: 'support_admin',      label: 'Support Admin'       },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function inviteExpired(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() > 7 * 24 * 60 * 60 * 1000;
+}
+
+function inviteLink(token: string): string {
+  return `${window.location.origin}/admin/invite/${token}`;
+}
+
+/** Stub: log invite link; wire up real SMTP later */
+function sendInviteEmail(email: string, role: string, token: string) {
+  const link = inviteLink(token);
+  console.info(`[INVITE] To: ${email} | Role: ${role} | Link: ${link}`);
+}
+
+// ── Invite status badge ────────────────────────────────────────────────────────
+
+function InviteStatus({ invite }: { invite: AdminInvite }) {
+  if (invite.accepted)           return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GREEN}15`, color: GREEN }}><CheckCircle className="w-3 h-3" /> Accepted</span>;
+  if (inviteExpired(invite.created_at)) return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${RED}15`, color: RED }}><XCircle className="w-3 h-3" /> Expired</span>;
+  return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GOLD}15`, color: GOLD }}><Clock className="w-3 h-3" /> Pending</span>;
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────────
 
 function AdminSettings() {
+  const { user, adminRole } = useAuth();
+  const isSuperAdmin = adminRole === 'super_admin';
+
+  // ── Invite form state ───────────────────────────────────────────────────
+  const [inviteEmail,  setInviteEmail]  = useState('');
+  const [inviteRole,   setInviteRole]   = useState<InviteRole>('moderator');
+  const [sending,      setSending]      = useState(false);
+  const [inviteMsg,    setInviteMsg]    = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // ── Invite list state ───────────────────────────────────────────────────
+  const [invites,      setInvites]      = useState<AdminInvite[]>([]);
+  const [loadingList,  setLoadingList]  = useState(true);
+  const [copiedToken,  setCopiedToken]  = useState<string | null>(null);
+
+  const loadInvites = useCallback(async () => {
+    setLoadingList(true);
+    const { data } = await supabase
+      .from('admin_invites')
+      .select('id,email,role,token,accepted,created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setInvites((data ?? []) as AdminInvite[]);
+    setLoadingList(false);
+  }, []);
+
+  useEffect(() => { if (isSuperAdmin) loadInvites(); }, [isSuperAdmin, loadInvites]);
+
+  // ── Send invite ─────────────────────────────────────────────────────────
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setSending(true);
+    setInviteMsg(null);
+
+    const token = crypto.randomUUID();
+    const { error } = await supabase.from('admin_invites').insert({
+      email:      inviteEmail.trim().toLowerCase(),
+      role:       inviteRole,
+      token,
+      accepted:   false,
+      invited_by: user?.id,
+    });
+
+    if (error) {
+      setInviteMsg({ type: 'err', text: `Failed: ${error.message}` });
+    } else {
+      sendInviteEmail(inviteEmail, inviteRole, token);
+      setInviteMsg({ type: 'ok', text: `Invite sent to ${inviteEmail}` });
+      setInviteEmail('');
+      loadInvites();
+    }
+    setSending(false);
+  };
+
+  // ── Resend (new token) ──────────────────────────────────────────────────
+  const handleResend = async (invite: AdminInvite) => {
+    const newToken = crypto.randomUUID();
+    const { error } = await supabase
+      .from('admin_invites')
+      .update({ token: newToken, created_at: new Date().toISOString() })
+      .eq('id', invite.id);
+    if (!error) {
+      sendInviteEmail(invite.email, invite.role, newToken);
+      loadInvites();
+    }
+  };
+
+  // ── Delete invite ───────────────────────────────────────────────────────
+  const handleDelete = async (id: string) => {
+    await supabase.from('admin_invites').delete().eq('id', id);
+    setInvites(prev => prev.filter(i => i.id !== id));
+  };
+
+  // ── Copy link ───────────────────────────────────────────────────────────
+  const handleCopy = async (token: string) => {
+    await navigator.clipboard.writeText(inviteLink(token));
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
+  };
+
   return (
-    <div>
-      <h2 className="text-white font-black text-xl mb-6">Admin Settings</h2>
-      <div className="space-y-4">
-        {[
-          { label: 'Platform Mode', value: 'Production' },
-          { label: 'Maintenance Mode', value: 'Off' },
-          { label: 'New User Registrations', value: 'Enabled' },
-          { label: 'Competition Voting', value: 'Enabled' },
-          { label: 'Distribution Queue', value: 'Active' },
-        ].map(s => (
-          <div key={s.label} className="flex items-center justify-between px-4 py-4 rounded-xl border border-white/8 bg-white/3">
-            <span className="text-white/70 text-sm">{s.label}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: `${GREEN}15`, color: GREEN }}>
-              {s.value}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div className="space-y-8">
+      <h2 className="text-white font-black text-xl">Admin Settings</h2>
+
+      {/* ── Platform config ──────────────────────────────────────────────── */}
+      <section>
+        <h3 className="text-white/50 font-semibold text-xs uppercase tracking-wider mb-3">Platform</h3>
+        <div className="space-y-2">
+          {[
+            { label: 'Platform Mode',            value: 'Production' },
+            { label: 'Maintenance Mode',         value: 'Off' },
+            { label: 'New User Registrations',   value: 'Enabled' },
+            { label: 'Competition Voting',       value: 'Enabled' },
+            { label: 'Distribution Queue',       value: 'Active' },
+          ].map(s => (
+            <div key={s.label} className="flex items-center justify-between px-4 py-3.5 rounded-xl border border-white/8 bg-white/3">
+              <span className="text-white/70 text-sm">{s.label}</span>
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: `${GREEN}15`, color: GREEN }}>
+                {s.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Invite panel (super_admin only) ──────────────────────────────── */}
+      {isSuperAdmin && (
+        <>
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="w-5 h-5" style={{ color: CYAN }} />
+              <h3 className="text-white font-bold text-base">Invite New Admin</h3>
+            </div>
+
+            <form
+              onSubmit={handleSendInvite}
+              className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4"
+            >
+              {inviteMsg && (
+                <div
+                  className="px-4 py-3 rounded-xl text-sm"
+                  style={{
+                    background: inviteMsg.type === 'ok' ? `${GREEN}12` : `${RED}12`,
+                    color:      inviteMsg.type === 'ok' ? GREEN : RED,
+                    border:     `1px solid ${inviteMsg.type === 'ok' ? GREEN : RED}30`,
+                  }}
+                >
+                  {inviteMsg.text}
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-white/40 text-xs mb-1.5">Email address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="admin@example.com"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/25 text-sm focus:outline-none focus:border-white/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white/40 text-xs mb-1.5">Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value as InviteRole)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-white/30 cursor-pointer"
+                  >
+                    {INVITE_ROLES.map(r => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={sending}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity disabled:opacity-40"
+                style={{ background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})` }}
+              >
+                <Mail className="w-4 h-4" />
+                {sending ? 'Sending…' : 'Send Invite'}
+              </button>
+            </form>
+          </section>
+
+          {/* ── Invite status table ─────────────────────────────────────── */}
+          <section>
+            <h3 className="text-white font-bold text-base mb-4">Invite Status</h3>
+
+            {loadingList ? (
+              <p className="text-white/30 text-sm">Loading…</p>
+            ) : invites.length === 0 ? (
+              <div className="text-center py-10 text-white/25 text-sm rounded-2xl border border-white/8 bg-white/3">
+                No invites sent yet.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/8 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/8" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <th className="text-left text-white/40 font-semibold py-3 px-4 text-xs uppercase tracking-wide">Email</th>
+                      <th className="text-left text-white/40 font-semibold py-3 px-4 text-xs uppercase tracking-wide">Role</th>
+                      <th className="text-left text-white/40 font-semibold py-3 px-4 text-xs uppercase tracking-wide">Status</th>
+                      <th className="text-left text-white/40 font-semibold py-3 px-4 text-xs uppercase tracking-wide">Sent</th>
+                      <th className="py-3 px-4" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invites.map(inv => {
+                      const expired = inviteExpired(inv.created_at);
+                      return (
+                        <tr key={inv.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                          <td className="py-3 px-4 text-white/80 text-sm">{inv.email}</td>
+                          <td className="py-3 px-4 text-white/50 text-xs capitalize">
+                            {inv.role.replace(/_/g, ' ')}
+                          </td>
+                          <td className="py-3 px-4"><InviteStatus invite={inv} /></td>
+                          <td className="py-3 px-4 text-white/30 text-xs">
+                            {new Date(inv.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1 justify-end">
+                              {/* Copy link */}
+                              {!inv.accepted && (
+                                <button
+                                  onClick={() => handleCopy(inv.token)}
+                                  title="Copy invite link"
+                                  className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/8 transition-colors"
+                                >
+                                  {copiedToken === inv.token
+                                    ? <CheckCircle className="w-4 h-4" style={{ color: GREEN }} />
+                                    : <Copy className="w-4 h-4" />}
+                                </button>
+                              )}
+                              {/* Resend (only if not accepted) */}
+                              {!inv.accepted && (
+                                <button
+                                  onClick={() => handleResend(inv)}
+                                  title="Resend invite"
+                                  className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/8 transition-colors"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </button>
+                              )}
+                              {/* Delete */}
+                              <button
+                                onClick={() => handleDelete(inv.id)}
+                                title="Delete invite"
+                                className="p-1.5 rounded-lg hover:bg-white/8 transition-colors"
+                                style={{ color: `${RED}80` }}
+                                onMouseEnter={e => (e.currentTarget.style.color = RED)}
+                                onMouseLeave={e => (e.currentTarget.style.color = `${RED}80`)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {/* Non-super_admin sees a note */}
+      {!isSuperAdmin && (
+        <div className="rounded-2xl border border-white/8 bg-white/3 p-6 text-center">
+          <Shield className="w-8 h-8 mx-auto mb-3 text-white/20" />
+          <p className="text-white/40 text-sm">Only super admins can invite new administrators.</p>
+        </div>
+      )}
     </div>
   );
 }

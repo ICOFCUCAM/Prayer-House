@@ -68,6 +68,7 @@ const AuthorDashboardNewPage = lazy(() => import('./pages/dashboard/AuthorDashbo
 
 // ── Phase 4 — Admin ────────────────────────────────────────────────────────────
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
+const AcceptInvitePage   = lazy(() => import('./pages/admin/AcceptInvitePage'));
 
 // ── Spinner ────────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,9 @@ export default function App() {
           <Route path="/distribution/releases" element={
             <ProtectedRoute><ReleasesPage /></ProtectedRoute>
           } />
+
+          {/* ── Admin invite accept (public — token is the auth) */}
+          <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
 
           {/* ── Phase 4 — Admin (all sub-routes handled inside AdminDashboardPage) */}
           <Route path="/admin/*"            element={
