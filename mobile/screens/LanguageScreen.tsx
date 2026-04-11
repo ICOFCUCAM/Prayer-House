@@ -14,13 +14,28 @@ interface Book        { id: string; title: string; price: number; }
 interface Audiobook   { id: string; title: string; narrator: string; }
 interface Performance { id: string; title: string; performer_name?: string; votes_count: number; }
 
-// ── Flag map ───────────────────────────────────────────────────────────────────
+// ── Language metadata ──────────────────────────────────────────────────────────
 
-const FLAG: Record<string, string> = {
-  en: '🇬🇧', fr: '🇫🇷', es: '🇪🇸', ar: '🇸🇦',
-  sw: '🇰🇪', de: '🇩🇪', no: '🇳🇴', sv: '🇸🇪',
-  pt: '🇧🇷', ru: '🇷🇺', zh: '🇨🇳', yo: '🌍',
-  ig: '🇳🇬', ha: '🇳🇬', pid: '🌍', bm: '🌍',
+const LANG_META: Record<string, { name: string; flag: string }> = {
+  en:  { name: 'English',    flag: '🇬🇧' },
+  fr:  { name: 'French',     flag: '🇫🇷' },
+  es:  { name: 'Spanish',    flag: '🇪🇸' },
+  ar:  { name: 'Arabic',     flag: '🇸🇦' },
+  sw:  { name: 'Swahili',    flag: '🇰🇪' },
+  de:  { name: 'German',     flag: '🇩🇪' },
+  no:  { name: 'Norwegian',  flag: '🇳🇴' },
+  sv:  { name: 'Swedish',    flag: '🇸🇪' },
+  pt:  { name: 'Portuguese', flag: '🇧🇷' },
+  ru:  { name: 'Russian',    flag: '🇷🇺' },
+  zh:  { name: 'Chinese',    flag: '🇨🇳' },
+  ja:  { name: 'Japanese',   flag: '🇯🇵' },
+  yo:  { name: 'Yoruba',     flag: '🇳🇬' },
+  ig:  { name: 'Igbo',       flag: '🇳🇬' },
+  ha:  { name: 'Hausa',      flag: '🇳🇬' },
+  pid: { name: 'Pidgin',     flag: '🌍' },
+  bm:  { name: 'Bambara',    flag: '🌍' },
+  lg:  { name: 'Luganda',    flag: '🇺🇬' },
+  zu:  { name: 'Zulu',       flag: '🇿🇦' },
 };
 
 const GRADIENTS = [
@@ -59,12 +74,17 @@ function EmptyState({ label }: { label: string }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 interface Props {
-  route: { params: { language: string; languageName: string } };
+  route: { params: { language: string } };
 }
 
 export default function LanguageScreen({ route }: Props) {
-  const { language, languageName } = route.params;
+  const { language } = route.params;
   const { play } = useGlobalPlayer();
+
+  const langKey = language.toLowerCase();
+  const meta = LANG_META[langKey] ?? { name: language, flag: '🌍' };
+  const languageName = meta.name;
+  const flag = meta.flag;
 
   const [tracks,       setTracks]       = useState<Track[]>([]);
   const [books,        setBooks]        = useState<Book[]>([]);
