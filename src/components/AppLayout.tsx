@@ -781,185 +781,6 @@ export default function AppLayout() {
         </div>
       </section>
 
-      {/* Featured Content */}
-      {featuredProducts.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#9D4EDD]/20 rounded-xl flex items-center justify-center">
-                  <Star className="w-5 h-5 text-[#9D4EDD]" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Featured</h2>
-                  <p className="text-white/40 text-sm">Hand-picked by the WANKONG team</p>
-                </div>
-              </div>
-              <Link to="/collections/featured" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredProducts.slice(0, 3).map(product => (
-                <ProductCard key={product.id} product={product} variant="featured" />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Talent Arena CTA */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#9D4EDD]/30 via-[#0A1128] to-[#FFB800]/30 border border-white/10 p-8 md:p-12">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFB800]/5 rounded-full -translate-y-48 translate-x-48" />
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FFB800]/20 border border-[#FFB800]/30 rounded-full mb-4">
-                  <Trophy className="w-4 h-4 text-[#FFB800]" />
-                  <span className="text-[#FFB800] text-sm font-semibold">Talent Arena</span>
-                </div>
-                <h2 className="text-4xl font-black text-white mb-4">
-                  Compete. Win. <span className="text-[#FFB800]">Get Discovered.</span>
-                </h2>
-                <p className="text-white/60 mb-6">
-                  Upload your performance, get AI-scored, receive public votes, and compete for cash prizes and global exposure. Weekly winners get featured on our homepage and auto-published to social media.
-                </p>
-                <div className="flex flex-wrap gap-4 mb-6">
-                  <div className="flex items-center gap-2 text-white/60 text-sm">
-                    <div className="w-2 h-2 bg-[#00F5A0] rounded-full" />
-                    AI Vocal Analysis
-                  </div>
-                  <div className="flex items-center gap-2 text-white/60 text-sm">
-                    <div className="w-2 h-2 bg-[#00D9FF] rounded-full" />
-                    Public Voting
-                  </div>
-                  <div className="flex items-center gap-2 text-white/60 text-sm">
-                    <div className="w-2 h-2 bg-[#FFB800] rounded-full" />
-                    Cash Prizes
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate('/collections/talent-arena')}
-                  className="px-8 py-4 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-[#0A1128] font-bold rounded-xl hover:opacity-90 transition-all flex items-center gap-2"
-                >
-                  <Trophy className="w-5 h-5" />
-                  Enter Competition
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {ARTIST_IMAGES.map((img, i) => (
-                  <div key={i} className="relative rounded-xl overflow-hidden aspect-[3/4]">
-                    <img src={img} alt={`Artist ${i + 1}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A1128]/80 to-transparent" />
-                    {i === 0 && (
-                      <div className="absolute bottom-2 left-2 px-2 py-1 bg-[#FFB800] text-[#0A1128] text-xs font-bold rounded-full">
-                        Week 12 Winner
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* New Releases */}
-      {newReleases.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#00F5A0]/20 rounded-xl flex items-center justify-center">
-                  <Radio className="w-5 h-5 text-[#00F5A0]" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">New Releases</h2>
-                  <p className="text-white/40 text-sm">Fresh content just dropped</p>
-                </div>
-              </div>
-              <Link to="/collections/new-releases" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {newReleases.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Distribution Section */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/10 border border-[#00D9FF]/30 rounded-full mb-4">
-              <Headphones className="w-4 h-4 text-[#00D9FF]" />
-              <span className="text-[#00D9FF] text-sm font-semibold">Music Distribution</span>
-            </div>
-            <h2 className="text-4xl font-black text-white mb-4">
-              Distribute to <span className="text-[#00D9FF]">30+ Platforms</span>
-            </h2>
-            <p className="text-white/50 max-w-2xl mx-auto">
-              Upload once, distribute everywhere. Your music on Spotify, Apple Music, TikTok, and 27+ more platforms. Track royalties in real-time.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            {DISTRIBUTION_PLATFORMS.map((platform, i) => (
-              <div
-                key={i}
-                className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/50 text-sm hover:bg-white/10 hover:text-white hover:border-[#00D9FF]/30 transition-all cursor-default"
-              >
-                {platform}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Creator CTA */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#00D9FF]/10 to-[#9D4EDD]/10 border border-white/10 p-8 md:p-16 text-center">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgMHYyaC0ydi0yaDJ6bTIgMGgydjJoLTJ2LTJ6bS0yLTRoMnYyaC0ydi0yem0yIDBoMnYyaC0ydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-            <div className="relative">
-              <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-                Ready to <span className="bg-gradient-to-r from-[#00D9FF] to-[#FFB800] bg-clip-text text-transparent">Monetize</span> Your Creativity?
-              </h2>
-              <p className="text-white/50 text-lg mb-8 max-w-2xl mx-auto">
-                Join 12,500+ creators earning from their content. Upload books, music, videos, and podcasts. Get paid through Stripe or Mobile Money.
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <button
-                  onClick={() => navigate('/collections/featured')}
-                  className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
-                >
-                  Explore Content
-                </button>
-                <button
-                  onClick={() => navigate('/collections/music')}
-                  className="px-8 py-4 bg-white/10 border border-white/20 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
-                >
-                  Browse Music
-                </button>
-              </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/30 text-sm">
-                <span>70% Creator Revenue</span>
-                <span>|</span>
-                <span>Instant Digital Delivery</span>
-                <span>|</span>
-                <span>Global Payouts</span>
-                <span>|</span>
-                <span>Mobile Money Support</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── Featured Artists ─────────────────────────────────────── */}
       <section className="py-12 bg-[#0D1535]">
         <div className="max-w-7xl mx-auto px-4">
@@ -1011,7 +832,7 @@ export default function AppLayout() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Top Creators This Week</h2>
-                <p className="text-white/40 text-xs">Ranked by earnings & engagement</p>
+                <p className="text-white/40 text-xs">Ranked by earnings &amp; engagement</p>
               </div>
             </div>
             <Link to="/dashboard/earnings" className="text-[#00D9FF] text-sm hover:underline">Leaderboard</Link>
@@ -1107,6 +928,128 @@ export default function AppLayout() {
                 <span className="text-[10px] bg-[#9D4EDD]/20 text-[#9D4EDD] px-1.5 py-0.5 rounded mt-1 inline-block">{perf.lang}</span>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Content */}
+      {featuredProducts.length > 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#9D4EDD]/20 rounded-xl flex items-center justify-center">
+                  <Star className="w-5 h-5 text-[#9D4EDD]" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Featured</h2>
+                  <p className="text-white/40 text-sm">Hand-picked by the WANKONG team</p>
+                </div>
+              </div>
+              <Link to="/collections/featured" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredProducts.slice(0, 3).map(product => (
+                <ProductCard key={product.id} product={product} variant="featured" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* New Releases */}
+      {newReleases.length > 0 && (
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#00F5A0]/20 rounded-xl flex items-center justify-center">
+                  <Radio className="w-5 h-5 text-[#00F5A0]" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white">New Releases</h2>
+                  <p className="text-white/40 text-sm">Fresh content just dropped</p>
+                </div>
+              </div>
+              <Link to="/collections/new-releases" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {newReleases.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Distribution Section */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/10 border border-[#00D9FF]/30 rounded-full mb-4">
+              <Headphones className="w-4 h-4 text-[#00D9FF]" />
+              <span className="text-[#00D9FF] text-sm font-semibold">Music Distribution</span>
+            </div>
+            <h2 className="text-4xl font-black text-white mb-4">
+              Distribute to <span className="text-[#00D9FF]">30+ Platforms</span>
+            </h2>
+            <p className="text-white/50 max-w-2xl mx-auto">
+              Upload once, distribute everywhere. Your music on Spotify, Apple Music, TikTok, and 27+ more platforms. Track royalties in real-time.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {DISTRIBUTION_PLATFORMS.map((platform, i) => (
+              <div
+                key={i}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/50 text-sm hover:bg-white/10 hover:text-white hover:border-[#00D9FF]/30 transition-all cursor-default"
+              >
+                {platform}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Creator CTA */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#00D9FF]/10 to-[#9D4EDD]/10 border border-white/10 p-8 md:p-16 text-center">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgMHYyaC0ydi0yaDJ6bTIgMGgydjJoLTJ2LTJ6bS0yLTRoMnYyaC0ydi0yem0yIDBoMnYyaC0ydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+            <div className="relative">
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+                Ready to <span className="bg-gradient-to-r from-[#00D9FF] to-[#FFB800] bg-clip-text text-transparent">Monetize</span> Your Creativity?
+              </h2>
+              <p className="text-white/50 text-lg mb-8 max-w-2xl mx-auto">
+                Join 12,500+ creators earning from their content. Upload books, music, videos, and podcasts. Get paid through Stripe or Mobile Money.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <button
+                  onClick={() => navigate('/collections/featured')}
+                  className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
+                >
+                  Explore Content
+                </button>
+                <button
+                  onClick={() => navigate('/collections/music')}
+                  className="px-8 py-4 bg-white/10 border border-white/20 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
+                >
+                  Browse Music
+                </button>
+              </div>
+              <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/30 text-sm">
+                <span>70% Creator Revenue</span>
+                <span>|</span>
+                <span>Instant Digital Delivery</span>
+                <span>|</span>
+                <span>Global Payouts</span>
+                <span>|</span>
+                <span>Mobile Money Support</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
