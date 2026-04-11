@@ -56,6 +56,8 @@ export default function AppLayout() {
   const [trendingBooks, setTrendingBooks] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
+  const [topCreators, setTopCreators] = useState<any[]>([]);
 
   // Video player state
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -225,6 +227,30 @@ export default function AppLayout() {
           const sorted = ids.map((id: string) => bProds?.find((p: any) => p.id === id)).filter(Boolean);
           if (sorted.length > 0) setTrendingBooks(sorted);
         }
+      }
+
+      // Featured Artists — verified, ordered by stream count; falls back to mock below
+      const { data: liveArtists } = await supabase
+        .from('artists')
+        .select('name, genre, slug, streams_count, country_code, verified')
+        .order('streams_count', { ascending: false })
+        .limit(6);
+      if (liveArtists && liveArtists.length > 0) setFeaturedArtists(liveArtists);
+
+      // Top Creators This Week — top 3 by XP, enriched with artist name
+      const { data: liveCreators } = await supabase
+        .from('creator_levels')
+        .select('user_id, level, xp')
+        .order('xp', { ascending: false })
+        .limit(3);
+      if (liveCreators && liveCreators.length > 0) {
+        const uids = liveCreators.map((c: any) => c.user_id);
+        const { data: artistNames } = await supabase
+          .from('artists')
+          .select('user_id, name')
+          .in('user_id', uids);
+        const nameMap = Object.fromEntries((artistNames ?? []).map((a: any) => [a.user_id, a.name]));
+        setTopCreators(liveCreators.map((c: any) => ({ ...c, name: nameMap[c.user_id] ?? 'Creator' })));
       }
 
       setLoading(false);
@@ -830,27 +856,36 @@ export default function AppLayout() {
             <Link to="/collections/music" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {[
-              { name: 'Celestine Ukwu', genre: 'Highlife', streams: '2.4M', flag: '🇳🇬', gradient: 'from-[#9D4EDD] to-[#00D9FF]' },
-              { name: 'Sinach', genre: 'Gospel', streams: '18M', flag: '🇳🇬', gradient: 'from-[#FF6B00] to-[#FFB800]' },
-              { name: 'Joe Mettle', genre: 'Gospel', streams: '5.1M', flag: '🇬🇭', gradient: 'from-[#00F5A0] to-[#00D9FF]' },
-              { name: 'Femi Kuti', genre: 'Afrobeat', streams: '9.3M', flag: '🇳🇬', gradient: 'from-[#FFB800] to-[#FF6B00]' },
-              { name: 'Soweto Gospel', genre: 'Gospel', streams: '3.7M', flag: '🇿🇦', gradient: 'from-[#00D9FF] to-[#9D4EDD]' },
-              { name: 'Nathaniel Bassey', genre: 'Worship', streams: '12M', flag: '🇳🇬', gradient: 'from-[#9D4EDD] to-[#FF6B00]' },
-            ].map((artist) => (
-              <Link
-                key={artist.name}
-                to={`/artists/${artist.name.toLowerCase().replace(/\s+/g, '-')}`}
-                className="shrink-0 w-40 group"
-              >
-                <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${artist.gradient} flex items-center justify-center mb-3 group-hover:scale-[1.02] transition-transform shadow-lg shadow-black/40 border border-white/10`}>
-                  <span className="text-4xl">{artist.flag}</span>
-                </div>
-                <p className="text-white text-sm font-semibold text-center truncate">{artist.name}</p>
-                <p className="text-[#00D9FF] text-xs text-center">{artist.genre}</p>
-                <p className="text-white/30 text-xs text-center">{artist.streams} streams</p>
-              </Link>
-            ))}
+            {(featuredArtists.length > 0 ? featuredArtists : [
+              { name: 'Celestine Ukwu', genre: 'Highlife', streams_count: 2400000, country_code: 'NG', slug: 'celestine-ukwu' },
+              { name: 'Sinach', genre: 'Gospel', streams_count: 18000000, country_code: 'NG', slug: 'sinach' },
+              { name: 'Joe Mettle', genre: 'Gospel', streams_count: 5100000, country_code: 'GH', slug: 'joe-mettle' },
+              { name: 'Femi Kuti', genre: 'Afrobeat', streams_count: 9300000, country_code: 'NG', slug: 'femi-kuti' },
+              { name: 'Soweto Gospel', genre: 'Gospel', streams_count: 3700000, country_code: 'ZA', slug: 'soweto-gospel' },
+              { name: 'Nathaniel Bassey', genre: 'Worship', streams_count: 12000000, country_code: 'NG', slug: 'nathaniel-bassey' },
+            ]).map((artist: any, i: number) => {
+              const GRADIENTS = ['from-[#9D4EDD] to-[#00D9FF]','from-[#FF6B00] to-[#FFB800]','from-[#00F5A0] to-[#00D9FF]','from-[#FFB800] to-[#FF6B00]','from-[#00D9FF] to-[#9D4EDD]','from-[#9D4EDD] to-[#FF6B00]'];
+              const flag = artist.country_code
+                ? String.fromCodePoint(...[...artist.country_code.toUpperCase()].map((c: string) => 127397 + c.charCodeAt(0)))
+                : '🌍';
+              const streams = artist.streams_count >= 1000000
+                ? `${(artist.streams_count / 1000000).toFixed(1)}M`
+                : artist.streams_count >= 1000 ? `${Math.round(artist.streams_count / 1000)}K` : String(artist.streams_count ?? 0);
+              return (
+                <Link
+                  key={artist.slug ?? artist.name}
+                  to={`/artists/${artist.slug ?? artist.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="shrink-0 w-40 group"
+                >
+                  <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center mb-3 group-hover:scale-[1.02] transition-transform shadow-lg shadow-black/40 border border-white/10`}>
+                    <span className="text-4xl">{flag}</span>
+                  </div>
+                  <p className="text-white text-sm font-semibold text-center truncate">{artist.name}</p>
+                  <p className="text-[#00D9FF] text-xs text-center">{artist.genre}</p>
+                  <p className="text-white/30 text-xs text-center">{streams} streams</p>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -871,21 +906,26 @@ export default function AppLayout() {
             <Link to="/dashboard/earnings" className="text-[#00D9FF] text-sm hover:underline">Leaderboard</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { rank: 1, name: 'Sinach', level: 'Diamond', earnings: '$4,280', badge: '👑', color: '#FFB800' },
-              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', earnings: '$3,150', badge: '💎', color: '#00D9FF' },
-              { rank: 3, name: 'Joe Mettle', level: 'Gold', earnings: '$2,890', badge: '⭐', color: '#FFB800' },
-            ].map((creator) => (
-              <div key={creator.rank} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 hover:scale-[1.02] transition-all border border-white/10 shadow-lg shadow-black/40">
-                <span className="text-2xl font-black" style={{ color: creator.color }}>#{creator.rank}</span>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-lg shrink-0">{creator.badge}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">{creator.name}</p>
-                  <p className="text-white/40 text-xs">{creator.level}</p>
+            {(topCreators.length > 0 ? topCreators : [
+              { rank: 1, name: 'Sinach', level: 'Diamond', xp: 18500, badge: '👑', color: '#FFB800' },
+              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', xp: 9200, badge: '💎', color: '#00D9FF' },
+              { rank: 3, name: 'Joe Mettle', level: 'Gold', xp: 4800, badge: '⭐', color: '#FFB800' },
+            ]).map((creator: any, i: number) => {
+              const LEVEL_COLORS: Record<string, string> = { Bronze: '#CD7F32', Silver: '#C0C0C0', Gold: '#FFB800', Platinum: '#E5E4E2', Diamond: '#00D9FF', 'Global Ambassador': '#9D4EDD' };
+              const BADGES = ['👑', '💎', '⭐'];
+              const color = LEVEL_COLORS[creator.level] ?? '#FFB800';
+              return (
+                <div key={creator.user_id ?? creator.name ?? i} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 hover:scale-[1.02] transition-all border border-white/10 shadow-lg shadow-black/40">
+                  <span className="text-2xl font-black" style={{ color }}>#{i + 1}</span>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-lg shrink-0">{BADGES[i] ?? '🌟'}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm truncate">{creator.name ?? 'Creator'}</p>
+                    <p className="text-white/40 text-xs">{creator.level}</p>
+                  </div>
+                  <span className="text-[#00F5A0] font-bold text-sm shrink-0">{(creator.xp ?? 0).toLocaleString()} XP</span>
                 </div>
-                <span className="text-[#00F5A0] font-bold text-sm shrink-0">{creator.earnings}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

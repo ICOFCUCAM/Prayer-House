@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import CompetitionRoomCard, { RoomCardData } from '@/components/competition/CompetitionRoomCard';
 import CompetitionCountdown from '@/components/competition/CompetitionCountdown';
 import DefaultPerformanceThumbnail from '@/components/media/DefaultPerformanceThumbnail';
+import SubtitleSelector from '@/components/SubtitleSelector';
 import { Trophy, Play, Heart, Bell, Upload, Star, Loader2, ChevronRight, TrendingUp, Clock } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -177,6 +178,10 @@ export default function TalentArenaPage() {
   const [notified,  setNotified]  = useState<Set<string>>(new Set());
   const [heroBg,    setHeroBg]    = useState(0);
 
+  // Video modal + subtitle state
+  const [videoModal,    setVideoModal]    = useState<Entry | null>(null);
+  const [activeVttUrl,  setActiveVttUrl]  = useState<string | null>(null);
+
   // Submission form state (preserved from original)
   const [subForm, setSubForm] = useState({ competitionId: '', title: '', mediaType: 'audio' as 'audio' | 'video', mediaFile: null as File | null });
   const [subSubmitting, setSubSubmitting] = useState(false);
@@ -249,6 +254,54 @@ export default function TalentArenaPage() {
   return (
     <div className="min-h-screen bg-[#0A1128]">
       <Header />
+
+      {/* ── VIDEO MODAL with SubtitleSelector ── */}
+      {videoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => { setVideoModal(null); setActiveVttUrl(null); }}
+        >
+          <div
+            className="w-full max-w-2xl bg-[#0D1733] rounded-2xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div>
+                <p className="font-bold text-white text-sm">{videoModal.title}</p>
+                <p className="text-gray-400 text-xs mt-0.5">{videoModal.artistName}</p>
+              </div>
+              <button
+                onClick={() => { setVideoModal(null); setActiveVttUrl(null); }}
+                className="text-gray-400 hover:text-white text-2xl leading-none transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+            {/* Video player */}
+            <div className="relative bg-black aspect-video">
+              {videoModal.mediaUrl ? (
+                <video
+                  key={videoModal.id}
+                  className="w-full h-full"
+                  controls
+                  autoPlay
+                  crossOrigin="anonymous"
+                >
+                  <source src={videoModal.mediaUrl} />
+                  {activeVttUrl && <track kind="subtitles" src={activeVttUrl} default />}
+                </video>
+              ) : (
+                <DefaultPerformanceThumbnail gradient={videoModal.avatarColor} label={videoModal.title} />
+              )}
+            </div>
+            {/* Subtitle selector */}
+            <div className="px-5 py-4 border-t border-white/10 bg-white/3">
+              <SubtitleSelector entryId={videoModal.id} onSelect={setActiveVttUrl} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden border-b border-white/5">
@@ -384,7 +437,15 @@ export default function TalentArenaPage() {
               {sortedEntries.map((entry, idx) => (
                 <div key={entry.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-all group">
                   {/* Thumbnail */}
-                  <div className="relative aspect-video overflow-hidden">
+                  <div
+                    className={`relative aspect-video overflow-hidden ${entry.mediaType === 'video' ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (entry.mediaType === 'video') {
+                        setVideoModal(entry);
+                        setActiveVttUrl(null);
+                      }
+                    }}
+                  >
                     {entry.thumbnailUrl ? (
                       <img src={entry.thumbnailUrl} alt={entry.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
@@ -394,6 +455,14 @@ export default function TalentArenaPage() {
                       />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    {/* Play overlay for video entries */}
+                    {entry.mediaType === 'video' && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                          <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                        </div>
+                      </div>
+                    )}
                     {/* Rank badge */}
                     <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black
                       ${idx === 0 ? 'bg-[#FFB800] text-black' : idx === 1 ? 'bg-gray-400 text-black' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-white/20 text-white'}`}>
