@@ -45,18 +45,41 @@ const STATS = [
   { icon: TrendingUp, label: 'Monthly Streams', value: '45M+', color: '#FFB800' },
 ];
 
-// Fallback books shown when Supabase books collection is empty
-const MOCK_BOOKS = [
-  { id: 'b1', title: 'The Gospel of Grace', author: 'Pastor E. Ofori', price: '$12.99', rating: 5, genre: 'Christian Living', emoji: '✝️', gradient: 'from-[#9D4EDD] to-[#4A1878]', bestseller: true },
-  { id: 'b2', title: 'Kingdom Business Secrets', author: 'Dr. Faith Mensah', price: '$18.99', rating: 4, genre: 'Business', emoji: '👑', gradient: 'from-[#FFB800] to-[#B87000]', bestseller: false },
-  { id: 'b3', title: 'Midnight Prayers', author: 'Rev. Samuel Asante', price: '$9.99', rating: 5, genre: 'Devotional', emoji: '🌙', gradient: 'from-[#00D9FF] to-[#005C6B]', bestseller: true },
-  { id: 'b4', title: 'African Praise Anthology', author: 'Various Authors', price: '$24.99', rating: 4, genre: 'Worship', emoji: '🎵', gradient: 'from-[#FF6B00] to-[#6B2D00]', bestseller: false },
-  { id: 'b5', title: 'The Prophetic Voice', author: 'Apostle Grace Oduya', price: '$15.99', rating: 5, genre: 'Prophecy', emoji: '🔥', gradient: 'from-[#FF006E] to-[#6B002E]', bestseller: false },
-  { id: 'b6', title: 'Healing in His Wings', author: 'Dr. Emmanuel Yaw', price: '$13.99', rating: 4, genre: 'Healing', emoji: '🕊️', gradient: 'from-[#00F5A0] to-[#006640]', bestseller: true },
-  { id: 'b7', title: 'The Digital Christian', author: 'Tech Pastor Kwame', price: '$11.99', rating: 4, genre: 'Technology', emoji: '💻', gradient: 'from-[#00D9FF] to-[#9D4EDD]', bestseller: false },
-  { id: 'b8', title: 'Songs of Ascent', author: 'Choir Master David', price: '$8.99', rating: 5, genre: 'Worship', emoji: '🎼', gradient: 'from-[#9D4EDD] to-[#FF006E]', bestseller: false },
-  { id: 'b9', title: 'Raising Kingdom Kids', author: 'Pastor Mary Adofo', price: '$16.99', rating: 4, genre: 'Parenting', emoji: '👨‍👩‍👧', gradient: 'from-[#FFB800] to-[#FF6B00]', bestseller: false },
-  { id: 'b10', title: 'The Fast That Breaks Chains', author: 'Bishop John Asare', price: '$10.99', rating: 5, genre: 'Fasting & Prayer', emoji: '⚡', gradient: 'from-[#00F5A0] to-[#00D9FF]', bestseller: false },
+// ── Mock fallback products for homepage sections ──────────────────────────────
+// Used when Supabase collections are empty — all three sections share one format.
+
+const MOCK_BOOK_PRODUCTS = [
+  { id: 'b1',  handle: 'the-gospel-of-grace',       title: 'The Gospel of Grace',       author: 'Pastor E. Ofori',        product_type: 'Books', price: 1299 },
+  { id: 'b2',  handle: 'kingdom-business-secrets',   title: 'Kingdom Business Secrets',  author: 'Dr. Faith Mensah',       product_type: 'Books', price: 1899 },
+  { id: 'b3',  handle: 'midnight-prayers',           title: 'Midnight Prayers',          author: 'Rev. Samuel Asante',     product_type: 'Books', price: 999  },
+  { id: 'b4',  handle: 'african-praise-anthology',   title: 'African Praise Anthology',  author: 'Various Authors',        product_type: 'Books', price: 2499 },
+  { id: 'b5',  handle: 'the-prophetic-voice',        title: 'The Prophetic Voice',       author: 'Apostle Grace Oduya',    product_type: 'Books', price: 1599 },
+  { id: 'b6',  handle: 'healing-in-his-wings',       title: 'Healing in His Wings',      author: 'Dr. Emmanuel Yaw',       product_type: 'Books', price: 1399 },
+  { id: 'b7',  handle: 'the-digital-christian',      title: 'The Digital Christian',     author: 'Tech Pastor Kwame',      product_type: 'Books', price: 1199 },
+  { id: 'b8',  handle: 'songs-of-ascent',            title: 'Songs of Ascent',           author: 'Choir Master David',     product_type: 'Books', price: 899  },
+  { id: 'b9',  handle: 'raising-kingdom-kids',       title: 'Raising Kingdom Kids',      author: 'Pastor Mary Adofo',      product_type: 'Books', price: 1699 },
+  { id: 'b10', handle: 'the-fast-that-breaks-chains',title: 'The Fast That Breaks Chains',author: 'Bishop John Asare',     product_type: 'Books', price: 1099 },
+];
+
+const MOCK_FEATURED_PRODUCTS = [
+  { id: 'f1', handle: 'amazing-grace-reimagined',  title: 'Amazing Grace Reimagined',    artist: 'Grace Ensemble',         product_type: 'Music',      price: 0    },
+  { id: 'f2', handle: 'kingdom-worship-vol-2',     title: 'Kingdom Worship Vol. 2',      artist: 'Bethel Africa',          product_type: 'Music',      price: 0    },
+  { id: 'f3', handle: 'prophetic-songs',           title: 'Prophetic Songs',             artist: 'Emmanuel Choir',         product_type: 'Music',      price: 999  },
+  { id: 'f4', handle: 'faith-in-action-series',   title: 'Faith in Action Series',      vendor: 'WANKONG Studios',        product_type: 'Videos',     price: 0    },
+  { id: 'f5', handle: 'deep-worship-experience',  title: 'Deep Worship Experience',     artist: 'New Life Worship',       product_type: 'Music',      price: 0    },
+];
+
+const MOCK_NEW_RELEASES = [
+  { id: 'n1',  handle: 'victory-in-worship',       title: 'Victory in Worship',          artist: 'Triumphant Sound',       product_type: 'Music',      price: 0    },
+  { id: 'n2',  handle: 'healing-waters-series',    title: 'Healing Waters Series',       vendor: 'New Life Ministry',      product_type: 'Videos',     price: 0    },
+  { id: 'n3',  handle: 'kingdom-principles-2025',  title: 'Kingdom Principles 2025',     author: 'Bishop John Asare',      product_type: 'Books',      price: 1499 },
+  { id: 'n4',  handle: 'africa-gospel-radio-ep',   title: 'Africa Gospel Radio EP',      artist: 'Zion Radio',             product_type: 'Music',      price: 0    },
+  { id: 'n5',  handle: 'the-prayer-warrior',       title: 'The Prayer Warrior',          vendor: 'Prayer House',           product_type: 'Audiobooks', price: 799  },
+  { id: 'n6',  handle: 'fire-from-heaven',         title: 'Fire from Heaven',            artist: 'Mountain Fire Choir',    product_type: 'Music',      price: 0    },
+  { id: 'n7',  handle: 'digital-discipleship',     title: 'Digital Discipleship',        author: 'Tech Pastor Kwame',      product_type: 'Courses',    price: 2999 },
+  { id: 'n8',  handle: 'praise-from-africa',       title: 'Praise from Africa',          artist: 'Afro Praise Collective', product_type: 'Music',      price: 0    },
+  { id: 'n9',  handle: 'the-overcomer',            title: 'The Overcomer',               author: 'Dr. E. Mensah',          product_type: 'Books',      price: 999  },
+  { id: 'n10', handle: 'live-worship-nairobi',     title: 'Live Worship Nairobi',        artist: 'Praise Network',         product_type: 'Music',      price: 0    },
 ];
 
 export default function AppLayout() {
@@ -84,7 +107,7 @@ export default function AppLayout() {
 
   const navigate = useNavigate();
   const { recentlyPlayed, play: playerPlay } = usePlayer();
-  const booksScrollRef = useRef<HTMLDivElement>(null);
+  const booksScrollRef = useRef<HTMLDivElement>(null); // kept for legacy compatibility
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoWrapRef = useRef<HTMLDivElement>(null);
   const [viewCount, setViewCount] = useState(60318);
@@ -200,24 +223,14 @@ export default function AppLayout() {
         }
       }
 
-      const newCol = cols?.find(c => c.handle === 'new-releases');
-      if (newCol) {
-        const { data: links } = await supabase
-          .from('ecom_product_collections')
-          .select('product_id, position')
-          .eq('collection_id', newCol.id)
-          .order('position');
-        if (links && links.length > 0) {
-          const ids = links.map(l => l.product_id);
-          const { data: prods } = await supabase
-            .from('ecom_products')
-            .select('*, variants:ecom_product_variants(*)')
-            .in('id', ids)
-            .eq('status', 'active');
-          const sorted = ids.map(id => prods?.find(p => p.id === id)).filter(Boolean);
-          setNewReleases(sorted);
-        }
-      }
+      // New Releases — direct query sorted by creation date DESC (all content types)
+      const { data: newProds } = await supabase
+        .from('ecom_products')
+        .select('*, variants:ecom_product_variants(*)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (newProds && newProds.length > 0) setNewReleases(newProds);
 
       // Books — try 'books' collection, fall back to type filter
       const booksCol = cols?.find((c: any) => c.handle === 'books');
@@ -710,143 +723,27 @@ export default function AppLayout() {
                 <p className="text-white/40 text-sm">Top reads in the community this week</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Scroll arrows */}
-              <button
-                onClick={() => scrollBooks('left')}
-                aria-label="Scroll left"
-                className="hidden md:flex w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => scrollBooks('right')}
-                aria-label="Scroll right"
-                className="hidden md:flex w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-all"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <Link
-                to="/collections/books"
-                className="text-[#FFB800] hover:text-[#FFB800]/70 text-sm font-medium flex items-center gap-1 transition-colors"
-              >
-                See All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+            <Link
+              to="/books/trending"
+              className="text-[#FFB800] hover:text-[#FFB800]/70 text-sm font-medium flex items-center gap-1 transition-colors"
+            >
+              See All <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
-          {/* Horizontal scroll strip */}
-          <div className="relative">
-            {/* Left fade */}
-            <div className="pointer-events-none absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-[#0A1128] to-transparent z-10" />
-            {/* Right fade */}
-            <div className="pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-[#0A1128] to-transparent z-10" />
-
-            <div
-              ref={booksScrollRef}
-              className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOKS).map((book: any, i: number) => {
-                const isMock = !book.gradient; // real product from Supabase won't have gradient
-                const title = isMock ? book.title : (book.title || 'Untitled');
-                const author = isMock ? book.author : (book.vendor || 'Unknown Author');
-                const price = isMock ? book.price : (book.variants?.[0]?.price ? `$${parseFloat(book.variants[0].price).toFixed(2)}` : 'Free');
-                const rating = isMock ? book.rating : 4;
-                const bestseller = isMock ? book.bestseller : (i < 2);
-
-                return (
-                  <Link
-                    key={book.id || i}
-                    to="/collections/books"
-                    className="shrink-0 w-36 md:w-44 group"
-                  >
-                    {/* Book cover — portrait 2:3 */}
-                    <div className="relative rounded-xl overflow-hidden mb-3 border border-white/10 shadow-xl shadow-black/40 group-hover:scale-[1.02] group-hover:shadow-[#FFB800]/10 transition-all duration-300"
-                      style={{ aspectRatio: '2/3' }}>
-
-                      {/* Cover background */}
-                      {isMock ? (
-                        <div className={`absolute inset-0 bg-gradient-to-br ${book.gradient}`} />
-                      ) : book.images?.[0] ? (
-                        <img src={book.images[0]} alt={title} className="absolute inset-0 w-full h-full object-cover" />
-                      ) : (
-                        <DefaultBookCover title={title} author={author} />
-                      )}
-
-                      {/* Spine shimmer line */}
-                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-white/20 rounded-l-xl" />
-
-                      {/* Book text overlay (mock only) */}
-                      {isMock && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2 py-3">
-                          <span className="text-3xl mb-2 drop-shadow-lg">{book.emoji}</span>
-                          <span className="text-white font-bold text-[11px] leading-tight drop-shadow">{title}</span>
-                          <span className="text-white/60 text-[9px] mt-1">{book.genre}</span>
-                        </div>
-                      )}
-
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/20">
-                          Read Preview
-                        </span>
-                      </div>
-
-                      {/* Bestseller badge */}
-                      {bestseller && (
-                        <div className="absolute top-2 left-2 bg-[#FFB800] text-[#0A1128] text-[9px] font-black px-1.5 py-0.5 rounded leading-none">
-                          BEST
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-white text-xs font-semibold leading-tight mb-1 line-clamp-2 group-hover:text-[#FFB800] transition-colors">
-                      {title}
-                    </h3>
-
-                    {/* Author */}
-                    <p className="text-white/40 text-[11px] mb-2 truncate">{author}</p>
-
-                    {/* Price + Stars */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#FFB800] font-bold text-sm">{price}</span>
-                      <div className="flex gap-px">
-                        {[1,2,3,4,5].map(s => (
-                          <Star
-                            key={s}
-                            className={`w-2.5 h-2.5 ${s <= rating ? 'fill-[#FFB800] text-[#FFB800]' : 'text-white/20'}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-
-              {/* "See All" terminal card */}
-              <Link
-                to="/collections/books"
-                className="shrink-0 w-36 md:w-44 flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[#FFB800]/30 hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5 transition-all group"
-                style={{ aspectRatio: '2/3', minHeight: 180 }}
-              >
-                <div className="w-10 h-10 rounded-full bg-[#FFB800]/10 border border-[#FFB800]/20 flex items-center justify-center group-hover:bg-[#FFB800]/20 transition-colors">
-                  <ArrowRight className="w-5 h-5 text-[#FFB800]" />
-                </div>
-                <span className="text-[#FFB800] text-xs font-medium text-center leading-tight px-2">
-                  Browse All Books
-                </span>
-              </Link>
-            </div>
+          {/* Responsive grid — 2 / 3 / 5 columns */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-12">
+            {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOK_PRODUCTS).slice(0, 10).map((product: any) => (
+              <ProductCard key={product.id} product={product} variant="portrait" />
+            ))}
           </div>
 
           {/* Genre filter pills */}
-          <div className="flex gap-2 mt-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {['All', 'Devotional', 'Christian Living', 'Worship', 'Business', 'Prophecy', 'Parenting', 'Healing'].map(genre => (
               <Link
                 key={genre}
-                to={genre === 'All' ? '/collections/books' : `/collections/books?genre=${genre.toLowerCase().replace(/ /g, '-')}`}
+                to={genre === 'All' ? '/books/trending' : `/collections/books?genre=${genre.toLowerCase().replace(/ /g, '-')}`}
                 className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all border-white/10 bg-white/5 text-white/50 hover:border-[#FFB800]/40 hover:bg-[#FFB800]/10 hover:text-[#FFB800]"
               >
                 {genre}

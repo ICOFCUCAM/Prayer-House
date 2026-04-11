@@ -24,7 +24,7 @@ interface Product {
 
 interface ProductCardProps {
   product: Product;
-  variant?: 'default' | 'featured';
+  variant?: 'default' | 'featured' | 'portrait';
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -132,6 +132,122 @@ export default function ProductCard({ product, variant = 'default' }: ProductCar
   ) : (
     <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-600 text-white font-bold">${price.toFixed(2)}</span>
   );
+
+  // ── Portrait variant (2:3 ratio — reference card for all discovery grids) ───
+
+  if (variant === 'portrait') {
+    const handleDownload = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (previewUrl) window.open(previewUrl, '_blank');
+    };
+
+    return (
+      <Link
+        to={`/products/${product.handle}`}
+        className="group block hover:-translate-y-1 transition-all duration-300"
+      >
+        {/* Cover — aspect-[2/3] */}
+        <div
+          className="relative rounded-xl overflow-hidden border border-white/10 shadow-lg group-hover:scale-[1.02] group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-300"
+          style={{ aspectRatio: '2/3' }}
+        >
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            /* Fallback: gradient + initials + title + creator name overlay */
+            <div className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center gap-1.5 p-3 text-center`}>
+              <span className="text-4xl font-black text-white/25 leading-none">{product.title?.[0] ?? '?'}</span>
+              <span className="text-white/70 text-[11px] font-semibold line-clamp-2 leading-tight mt-1">{product.title}</span>
+              {creator && <span className="text-white/40 text-[10px]">{creator}</span>}
+            </div>
+          )}
+
+          {/* Spine shimmer */}
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-white/15 rounded-l-xl" />
+
+          {/* Type badge — top-left */}
+          <div className="absolute top-2 left-2">
+            <span className={`px-1.5 py-0.5 text-[9px] font-bold text-white rounded bg-gradient-to-r ${gradient}`}>
+              {type}
+            </span>
+          </div>
+
+          {/* Price badge — top-right */}
+          <div className="absolute top-2 right-2">
+            {isFree ? (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#00F5A0] text-[#0A1128]">FREE</span>
+            ) : (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FFB800] text-[#0A1128]">${price.toFixed(2)}</span>
+            )}
+          </div>
+
+          {/* Play overlay on hover */}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button
+              onClick={handlePreview}
+              className="w-12 h-12 rounded-full bg-[#9D4EDD] hover:bg-[#9D4EDD]/90 flex items-center justify-center shadow-xl transition-colors"
+            >
+              <svg className="w-5 h-5 fill-white ml-1" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Info below cover */}
+        <div className="pt-2.5 px-0.5">
+          <p className="text-white text-xs font-semibold line-clamp-2 leading-tight">{product.title}</p>
+          {creator && <p className="text-gray-400 text-[11px] truncate mt-0.5">{creator}</p>}
+
+          {/* Action row */}
+          <div className="flex items-center gap-1.5 mt-2">
+            {previewUrl && (
+              <button
+                onClick={handlePreview}
+                className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-[#9D4EDD]/20 text-white/60 hover:text-[#9D4EDD] border border-white/5 transition-colors"
+              >
+                <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                Play
+              </button>
+            )}
+            {isFree ? (
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-medium bg-[#00F5A0]/10 hover:bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/15 transition-colors"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Free
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-medium bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-400 border border-indigo-500/15 transition-colors"
+              >
+                + Cart
+              </button>
+            )}
+            <button
+              onClick={handleAddToPlaylist}
+              title="Add to playlist"
+              className="ml-auto p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white border border-white/5 transition-colors"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   // ── Featured variant ────────────────────────────────────────────────────────
 
