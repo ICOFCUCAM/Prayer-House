@@ -6,6 +6,7 @@ import Footer from './Footer';
 import ProductCard from './ProductCard';
 import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { usePlayer } from './GlobalPlayer';
+import FeaturedPerformance from './home/FeaturedPerformance';
 
 const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
@@ -582,6 +583,9 @@ export default function AppLayout() {
           </div>
         </div>
       </section>
+
+      {/* ── Featured Performance ─────────────────────────────── */}
+      <FeaturedPerformance />
 
       {/* Video Modal */}
       {videoModalOpen && (
