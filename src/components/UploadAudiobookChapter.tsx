@@ -8,6 +8,7 @@ interface UploadAudiobookChapterProps {
   onSuccess: () => void;
 }
 
+// Detect audio duration from a File object
 function getDuration(file: File): Promise<number> {
   return new Promise(resolve => {
     const audio = new Audio();
@@ -26,6 +27,20 @@ function getDuration(file: File): Promise<number> {
   });
 }
 
+// Format seconds as mm:ss
+function formatDuration(secs: number): string {
+  if (!secs || secs <= 0) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return bytes + ' B';
+}
+
 const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
   audiobookId,
   chapterNum,
@@ -33,6 +48,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
 }) => {
   const [chapterTitle, setChapterTitle] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [detectedDuration, setDetectedDuration] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -40,9 +56,14 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
 
   const audioInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setAudioFile(file);
+    if (!file) return;
+    setAudioFile(file);
+    setDetectedDuration(0);
+    // Auto-detect duration
+    const dur = await getDuration(file);
+    setDetectedDuration(dur);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,29 +77,25 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
     setProgress(0);
 
     try {
-      // Get audio duration
-      const duration = await getDuration(audioFile);
-
-      // Build storage path
+      // Build storage path: {audiobookId}/chapter_{chapterNum}.mp3
       const ext = audioFile.name.split('.').pop() ?? 'mp3';
       const storagePath = `${audiobookId}/chapter_${chapterNum}.${ext}`;
 
-      // Upload via XMLHttpRequest for progress tracking
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // Upload to 'audiobook-audio' bucket via XHR for progress tracking
+      const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
       const supabaseUrl: string = (supabase as any).supabaseUrl;
       const supabaseKey: string = (supabase as any).supabaseKey;
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+
         xhr.upload.addEventListener('progress', ev => {
           if (ev.lengthComputable) {
             setProgress(Math.round((ev.loaded / ev.total) * 100));
           }
         });
+
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             setProgress(100);
@@ -92,6 +109,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
             }
           }
         });
+
         xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
 
         const url = `${supabaseUrl}/storage/v1/object/audiobook-audio/${storagePath}`;
@@ -112,13 +130,13 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
         .from('audiobook-audio')
         .getPublicUrl(storagePath);
 
-      // Insert into audiobook_chapters
+      // Insert into 'audiobook_chapters' (audiobook_id, chapter_num, title, audio_url, duration_s)
       const { error: insertErr } = await supabase.from('audiobook_chapters').insert({
         audiobook_id: audiobookId,
-        chapter_number: chapterNum,
+        chapter_num: chapterNum,
         title: chapterTitle.trim(),
         audio_url: urlData.publicUrl,
-        duration_seconds: Math.round(duration),
+        duration_s: Math.round(detectedDuration),
       });
 
       if (insertErr) throw insertErr;
@@ -136,7 +154,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-8 bg-[#1A2240] rounded-2xl">
         <CheckCircle className="w-10 h-10 text-[#00F5A0]" />
-        <p className="text-white font-semibold">Chapter {chapterNum} uploaded!</p>
+        <p className="text-white font-semibold">Chapter {chapterNum} uploaded successfully!</p>
       </div>
     );
   }
@@ -164,7 +182,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
         </div>
       )}
 
-      {/* Chapter Title */}
+      {/* Chapter title */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-gray-300">Chapter Title *</label>
         <input
@@ -176,7 +194,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
         />
       </div>
 
-      {/* Audio File */}
+      {/* Audio file — accept audio/* */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-gray-300">Audio File *</label>
         <div
@@ -189,10 +207,16 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
                 <Music className="w-5 h-5 text-[#00D9FF]" />
               </div>
               <div className="flex flex-col gap-0.5 min-w-0">
+                {/* filename */}
                 <span className="text-white text-sm font-medium truncate">{audioFile.name}</span>
-                <span className="text-gray-400 text-xs">
-                  {(audioFile.size / 1024 / 1024).toFixed(2)} MB
-                </span>
+                {/* file size */}
+                <span className="text-gray-400 text-xs">{formatFileSize(audioFile.size)}</span>
+                {/* detected duration mm:ss */}
+                {detectedDuration > 0 && (
+                  <span className="text-[#00F5A0] text-xs">
+                    Duration: {formatDuration(detectedDuration)}
+                  </span>
+                )}
                 <span className="text-[#00D9FF] text-xs">Click to change</span>
               </div>
             </div>
@@ -213,7 +237,7 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
         />
       </div>
 
-      {/* Progress bar */}
+      {/* Upload progress (0-100%) */}
       {uploading && (
         <div className="flex flex-col gap-2 bg-[#0A1128] rounded-xl p-4">
           <div className="flex items-center justify-between text-xs text-gray-400">
@@ -229,22 +253,16 @@ const UploadAudiobookChapter: React.FC<UploadAudiobookChapterProps> = ({
         </div>
       )}
 
-      {/* Submit */}
+      {/* Upload button */}
       <button
         type="submit"
         disabled={uploading}
         className="w-full flex items-center justify-center gap-2 bg-[#00D9FF] hover:bg-[#00b8d9] disabled:opacity-50 disabled:cursor-not-allowed text-[#0A1128] font-bold py-3 rounded-xl transition-colors text-sm"
       >
         {uploading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Uploading {progress > 0 ? `${progress}%` : '...'}
-          </>
+          <><Loader2 className="w-5 h-5 animate-spin" /> Uploading {progress > 0 ? `${progress}%` : '...'}</>
         ) : (
-          <>
-            <Upload className="w-5 h-5" />
-            Upload Chapter
-          </>
+          <><Upload className="w-5 h-5" /> Upload Chapter</>
         )}
       </button>
     </form>

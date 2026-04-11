@@ -43,6 +43,20 @@ const ReleasesPage = lazy(() => import('./pages/distribution/ReleasesPage'));
 const WatchPage = lazy(() => import('./pages/competition/WatchPage'));
 const ResultsPage = lazy(() => import('./pages/competition/ResultsPage'));
 
+// Legal & utility pages
+const CookiePolicyPage = lazy(() => import('./pages/CookiePolicyPage'));
+const CommunityGuidelinesPage = lazy(() => import('./pages/CommunityGuidelinesPage'));
+const CompetitionTermsPage = lazy(() => import('./pages/CompetitionTermsPage'));
+const DistributionAgreementPage = lazy(() => import('./pages/DistributionAgreementPage'));
+const CreatorMonetizationPolicyPage = lazy(() => import('./pages/CreatorMonetizationPolicyPage'));
+const SubscriptionTermsPage = lazy(() => import('./pages/SubscriptionTermsPage'));
+const CopyrightPolicyPage = lazy(() => import('./pages/CopyrightPolicyPage'));
+const ReportContentPage = lazy(() => import('./pages/ReportContentPage'));
+const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
+const MobileAppPage = lazy(() => import('./pages/MobileAppPage'));
+const PartnersPage = lazy(() => import('./pages/PartnersPage'));
+const ApiAccessPage = lazy(() => import('./pages/ApiAccessPage'));
+
 const Spinner = () => (
   <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
     <div className="w-8 h-8 border-2 border-[#00D9FF] border-t-transparent rounded-full animate-spin" />
@@ -77,6 +91,18 @@ export default function App() {
           <Route path="/terms-of-service" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPage />} />
           <Route path="/dmca-policy" element={<DmcaPage />} />
+          <Route path="/cookies" element={<CookiePolicyPage />} />
+          <Route path="/community-guidelines" element={<CommunityGuidelinesPage />} />
+          <Route path="/competition-terms" element={<CompetitionTermsPage />} />
+          <Route path="/distribution-agreement" element={<DistributionAgreementPage />} />
+          <Route path="/creator-monetization-policy" element={<CreatorMonetizationPolicyPage />} />
+          <Route path="/subscription-terms" element={<SubscriptionTermsPage />} />
+          <Route path="/copyright" element={<CopyrightPolicyPage />} />
+          <Route path="/report" element={<ReportContentPage />} />
+          <Route path="/help" element={<HelpCenterPage />} />
+          <Route path="/mobile" element={<MobileAppPage />} />
+          <Route path="/partners/:type" element={<PartnersPage />} />
+          <Route path="/api-access" element={<ApiAccessPage />} />
 
           {/* Protected: any logged-in user */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

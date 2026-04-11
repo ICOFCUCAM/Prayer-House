@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import CreatorLevelBadge from '@/components/CreatorLevelBadge';
-import { EarningCategory } from '@/pipelines/earnings/EarningsWorker';
+import { Loader2, DollarSign } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface Earning {
   id: string;
-  category: EarningCategory;
+  category: string;
   amount: number;
   period: string;
   paid: boolean;
@@ -21,32 +19,58 @@ interface Earning {
 interface CreatorLevel {
   level: string;
   xp: number;
-  xp_to_next: number;
 }
 
-type Period = 'month' | '3months' | 'all';
+type Period = 'month' | 'quarter' | 'all';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  music_stream: 'Music Streams',
-  book_sale: 'Book Sales',
-  audiobook_play: 'Audiobook Plays',
-  competition_win: 'Competition Wins',
-  fan_vote_reward: 'Fan Vote Rewards',
+  music_stream:         'Music Streams',
+  book_sale:            'Book Sales',
+  audiobook_play:       'Audiobook Plays',
+  competition_win:      'Competition Wins',
+  fan_vote_reward:      'Fan Vote Rewards',
   distribution_royalty: 'Distribution Royalties',
-  translation_sale: 'Translation Sales',
+  translation_sale:     'Translation Sales',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  music_stream: '🎵', book_sale: '📚', audiobook_play: '🎧',
+  competition_win: '🏆', fan_vote_reward: '❤', distribution_royalty: '💿', translation_sale: '🌍',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  music_stream: 'from-[#00D9FF] to-[#9D4EDD]',
-  book_sale: 'from-[#9D4EDD] to-[#FF6B00]',
-  audiobook_play: 'from-[#FFB800] to-[#FF6B00]',
-  competition_win: 'from-[#FFB800] to-[#9D4EDD]',
-  fan_vote_reward: 'from-[#00F5A0] to-[#00D9FF]',
-  distribution_royalty: 'from-[#00D9FF] to-[#00F5A0]',
-  translation_sale: 'from-[#9D4EDD] to-[#00F5A0]',
+  music_stream: '#9D4EDD', book_sale: '#00D9FF', audiobook_play: '#00F5A0',
+  competition_win: '#FFB800', fan_vote_reward: '#FF6B00', distribution_royalty: '#00D9FF', translation_sale: '#9D4EDD',
 };
 
-const WITHDRAWAL_METHODS = ['PayPal', 'Bank Transfer', 'Mobile Money'];
+// Level thresholds for XP bar
+const LEVEL_THRESHOLDS: { level: string; minXP: number; color: string }[] = [
+  { level: 'Bronze',           minXP: 0,     color: '#CD7F32' },
+  { level: 'Silver',           minXP: 500,   color: '#C0C0C0' },
+  { level: 'Gold',             minXP: 2000,  color: '#FFB800' },
+  { level: 'Platinum',         minXP: 5000,  color: '#E5E4E2' },
+  { level: 'Diamond',          minXP: 10000, color: '#00D9FF' },
+  { level: 'GlobalAmbassador', minXP: 25000, color: '#9D4EDD' },
+];
+
+function getLevelColor(level: string): string {
+  return LEVEL_THRESHOLDS.find(t => t.level === level)?.color ?? '#CD7F32';
+}
+
+function getNextThresholdXP(xp: number): number {
+  for (const t of LEVEL_THRESHOLDS) {
+    if (xp < t.minXP) return t.minXP;
+  }
+  return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1].minXP;
+}
+
+function getCurrentThresholdXP(xp: number): number {
+  let min = 0;
+  for (const t of LEVEL_THRESHOLDS) {
+    if (xp >= t.minXP) min = t.minXP;
+  }
+  return min;
+}
 
 // ── Withdrawal Modal ──────────────────────────────────────────────────────────
 
@@ -59,26 +83,24 @@ interface WithdrawalModalProps {
 
 function WithdrawalModal({ userId, maxAmount, onClose, onSuccess }: WithdrawalModalProps) {
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState(WITHDRAWAL_METHODS[0]);
-  const [details, setDetails] = useState('');
+  const [method, setMethod] = useState('PayPal');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) { setError('Enter a valid amount.'); return; }
-    if (numAmount > maxAmount) { setError(`Maximum withdrawal is $${maxAmount.toFixed(2)}.`); return; }
-    if (!details.trim()) { setError('Please enter your payout details.'); return; }
+    const num = parseFloat(amount);
+    if (!num || num <= 0) { setError('Enter a valid amount.'); return; }
+    if (num > maxAmount) { setError(`Maximum withdrawal is $${maxAmount.toFixed(2)}.`); return; }
+    if (num < 10) { setError('Minimum withdrawal is $10.'); return; }
 
     setSubmitting(true);
     setError('');
 
     const { error: insertErr } = await supabase.from('creator_withdrawals').insert({
       user_id: userId,
-      amount: numAmount,
+      amount: num,
       method,
-      payout_details: details.trim(),
       status: 'pending',
       created_at: new Date().toISOString(),
     });
@@ -93,16 +115,16 @@ function WithdrawalModal({ userId, maxAmount, onClose, onSuccess }: WithdrawalMo
       <div className="bg-[#0D1733] border border-white/10 rounded-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <h2 className="text-lg font-bold text-white">Request Withdrawal</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
-            <label className="text-xs text-gray-400 mb-1.5 block">Amount (USD)</label>
+            <label className="text-xs text-gray-400 mb-1.5 block">Amount (USD) — min $10</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
               <input
                 type="number"
-                min="1"
+                min="10"
                 step="0.01"
                 max={maxAmount}
                 value={amount}
@@ -114,7 +136,6 @@ function WithdrawalModal({ userId, maxAmount, onClose, onSuccess }: WithdrawalMo
             </div>
             <p className="text-gray-500 text-xs mt-1">Available: <span className="text-[#FFB800]">${maxAmount.toFixed(2)}</span></p>
           </div>
-
           <div>
             <label className="text-xs text-gray-400 mb-1.5 block">Payout Method</label>
             <select
@@ -122,29 +143,16 @@ function WithdrawalModal({ userId, maxAmount, onClose, onSuccess }: WithdrawalMo
               onChange={e => setMethod(e.target.value)}
               className="w-full bg-[#0A1128] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#FFB800]/50"
             >
-              {WITHDRAWAL_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              {['PayPal', 'Bank Transfer', 'Mobile Money'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
             </select>
           </div>
-
-          <div>
-            <label className="text-xs text-gray-400 mb-1.5 block">
-              {method === 'PayPal' ? 'PayPal Email' : method === 'Bank Transfer' ? 'Bank Account Details' : 'Mobile Money Number'}
-            </label>
-            <input
-              value={details}
-              onChange={e => setDetails(e.target.value)}
-              required
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-[#FFB800]/50"
-              placeholder={method === 'PayPal' ? 'you@example.com' : method === 'Bank Transfer' ? 'Bank name, account number...' : '+1 234 567 8900'}
-            />
-          </div>
-
           {error && <p className="text-red-400 text-xs">{error}</p>}
-
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-white rounded-xl font-semibold disabled:opacity-40 transition-opacity"
+            className="w-full py-3 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-white rounded-xl font-semibold disabled:opacity-40"
           >
             {submitting ? 'Submitting…' : 'Submit Withdrawal Request'}
           </button>
@@ -157,43 +165,44 @@ function WithdrawalModal({ userId, maxAmount, onClose, onSuccess }: WithdrawalMo
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function EarningsDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  const [userId, setUserId] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [creatorLevel, setCreatorLevel] = useState<CreatorLevel | null>(null);
   const [loading, setLoading] = useState(true);
+  // Period state: 'month' | 'quarter' | 'all'
   const [period, setPeriod] = useState<Period>('month');
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
 
+  // Get user via supabase.auth.getUser() — redirect to '/' if not logged in
   useEffect(() => {
-    if (!authLoading && !user) navigate('/login');
-  }, [authLoading, user, navigate]);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { navigate('/'); return; }
+      setUserId(user.id);
 
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-
-    Promise.all([
-      supabase
-        .from('creator_earnings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('creator_levels')
-        .select('level, xp, xp_to_next')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-    ]).then(([earningsRes, levelRes]) => {
-      setEarnings((earningsRes.data ?? []) as Earning[]);
-      setCreatorLevel(levelRes.data as CreatorLevel | null);
-      setLoading(false);
+      Promise.all([
+        supabase
+          .from('creator_earnings')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        // Current level: fetches from creator_levels
+        supabase
+          .from('creator_levels')
+          .select('level, xp')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]).then(([earningsRes, levelRes]) => {
+        setEarnings((earningsRes.data ?? []) as Earning[]);
+        setCreatorLevel(levelRes.data as CreatorLevel | null);
+        setLoading(false);
+      });
     });
-  }, [user]);
+  }, [navigate]);
 
-  // Filter by period
+  // Filter earnings by period
   const filteredEarnings = earnings.filter(e => {
     if (period === 'all') return true;
     const eDate = new Date(e.created_at);
@@ -201,7 +210,7 @@ export default function EarningsDashboardPage() {
     if (period === 'month') {
       return eDate.getMonth() === now.getMonth() && eDate.getFullYear() === now.getFullYear();
     }
-    if (period === '3months') {
+    if (period === 'quarter') {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
       return eDate >= threeMonthsAgo;
@@ -209,41 +218,44 @@ export default function EarningsDashboardPage() {
     return true;
   });
 
-  const totalEarnings = filteredEarnings.reduce((s, e) => s + e.amount, 0);
-  const allTimeTotal = earnings.reduce((s, e) => s + e.amount, 0);
+  const totalFiltered = filteredEarnings.reduce((s, e) => s + Number(e.amount), 0);
+  const allTimeTotal = earnings.reduce((s, e) => s + Number(e.amount), 0);
 
+  // Category breakdown bars
   const earningsByCategory = filteredEarnings.reduce<Record<string, number>>((acc, e) => {
-    acc[e.category] = (acc[e.category] ?? 0) + e.amount;
+    acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount);
     return acc;
   }, {});
+  const maxBar = Math.max(...Object.values(earningsByCategory), 1);
 
-  const maxBarValue = Math.max(...Object.values(earningsByCategory), 1);
+  // XP bar
+  const xp = creatorLevel?.xp ?? 0;
+  const levelColor = getLevelColor(creatorLevel?.level ?? 'Bronze');
+  const currentMin = getCurrentThresholdXP(xp);
+  const nextMin = getNextThresholdXP(xp);
+  const xpPct = nextMin > currentMin ? Math.min(((xp - currentMin) / (nextMin - currentMin)) * 100, 100) : 100;
 
-  const xpPct = creatorLevel ? Math.min((creatorLevel.xp / (creatorLevel.xp + creatorLevel.xp_to_next)) * 100, 100) : 0;
-
-  const PERIOD_OPTIONS: { id: Period; label: string }[] = [
-    { id: 'month', label: 'This Month' },
-    { id: '3months', label: 'Last 3 Months' },
-    { id: 'all', label: 'All Time' },
+  const PERIODS: { id: Period; label: string }[] = [
+    { id: 'month',   label: 'This Month' },
+    { id: 'quarter', label: 'This Quarter' },
+    { id: 'all',     label: 'All Time' },
   ];
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#FFB800] border-t-transparent rounded-full animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#FFB800] animate-spin" />
       </div>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#0A1128] text-white">
       <Header />
 
-      {showWithdrawal && (
+      {showWithdrawal && userId && (
         <WithdrawalModal
-          userId={user.id}
+          userId={userId}
           maxAmount={allTimeTotal}
           onClose={() => setShowWithdrawal(false)}
           onSuccess={() => { setShowWithdrawal(false); setWithdrawalSuccess(true); }}
@@ -261,27 +273,28 @@ export default function EarningsDashboardPage() {
         </div>
       )}
 
-      {/* Hero */}
+      {/* Hero — large gold total earnings number */}
       <div className="bg-gradient-to-br from-[#0A1128] via-[#100D2E] to-[#0A1128] border-b border-white/5 py-12">
         <div className="max-w-5xl mx-auto px-4 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFB800] to-[#FF6B00] flex items-center justify-center text-xl">💰</div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFB800] to-[#FF6B00] flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-white" />
+            </div>
             <span className="text-[#FFB800] text-sm font-medium uppercase tracking-widest">Earnings Dashboard</span>
           </div>
-
           <div className="flex flex-col sm:flex-row sm:items-end gap-6 justify-between">
             <div>
               <p className="text-gray-400 text-sm mb-1">Total Earnings</p>
+              {/* Large gold total earnings number */}
               <p className="text-5xl font-black text-[#FFB800]">${allTimeTotal.toFixed(2)}</p>
               <p className="text-gray-500 text-sm mt-1">All time · USD</p>
             </div>
+            {/* Withdrawal modal trigger button */}
             <button
               onClick={() => setShowWithdrawal(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-white rounded-xl font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-white rounded-xl font-semibold hover:opacity-90 transition-opacity"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <DollarSign className="w-5 h-5" />
               Withdraw Funds
             </button>
           </div>
@@ -290,33 +303,39 @@ export default function EarningsDashboardPage() {
 
       <div className="max-w-5xl mx-auto px-4 lg:px-8 py-10 space-y-10">
 
-        {/* Creator Level */}
+        {/* Current level — badge + XP bar */}
         {creatorLevel && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Creator Level</p>
-                <CreatorLevelBadge level={creatorLevel.level} xp={creatorLevel.xp} showXP />
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Creator Level</p>
+                <span
+                  className="text-xl font-black"
+                  style={{ color: levelColor }}
+                >
+                  {creatorLevel.level}
+                </span>
+                <span className="text-gray-400 text-sm ml-3">{xp.toLocaleString()} XP</span>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500">XP to next level</p>
-                <p className="text-white font-bold">{creatorLevel.xp_to_next.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">Next level at</p>
+                <p className="text-white font-bold">{nextMin.toLocaleString()} XP</p>
               </div>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] rounded-full transition-all duration-700"
-                style={{ width: `${xpPct}%` }}
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${xpPct}%`, background: `linear-gradient(90deg, ${levelColor}99, ${levelColor})` }}
               />
             </div>
-            <p className="text-gray-500 text-xs mt-1.5">{creatorLevel.xp.toLocaleString()} / {(creatorLevel.xp + creatorLevel.xp_to_next).toLocaleString()} XP</p>
+            <p className="text-gray-500 text-xs mt-1.5">{xp.toLocaleString()} / {nextMin.toLocaleString()} XP</p>
           </div>
         )}
 
-        {/* Period Selector */}
+        {/* Period selector */}
         <div>
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
-            {PERIOD_OPTIONS.map(p => (
+          <div className="flex items-center gap-2 mb-6">
+            {PERIODS.map(p => (
               <button
                 key={p.id}
                 onClick={() => setPeriod(p.id)}
@@ -331,13 +350,12 @@ export default function EarningsDashboardPage() {
             ))}
           </div>
 
-          {/* Total for period */}
           <div className="text-center mb-8 py-5 bg-white/3 border border-white/5 rounded-2xl">
-            <p className="text-gray-400 text-sm mb-1">{PERIOD_OPTIONS.find(p2 => p2.id === period)?.label} Earnings</p>
-            <p className="text-3xl font-black text-[#FFB800]">${totalEarnings.toFixed(2)}</p>
+            <p className="text-gray-400 text-sm mb-1">{PERIODS.find(p => p.id === period)?.label} Earnings</p>
+            <p className="text-3xl font-black text-[#FFB800]">${totalFiltered.toFixed(2)}</p>
           </div>
 
-          {/* Category Breakdown */}
+          {/* Category breakdown bars */}
           <h2 className="text-lg font-bold text-white mb-5">Breakdown by Category</h2>
           {Object.keys(earningsByCategory).length === 0 ? (
             <div className="text-center py-12 text-gray-500 bg-white/3 border border-white/5 rounded-2xl">
@@ -348,17 +366,22 @@ export default function EarningsDashboardPage() {
               {Object.entries(earningsByCategory)
                 .sort(([, a], [, b]) => b - a)
                 .map(([cat, amount]) => {
-                  const pct = (amount / maxBarValue) * 100;
+                  const pct = (amount / maxBar) * 100;
+                  const color = CATEGORY_COLORS[cat] ?? '#6b7280';
+                  const icon = CATEGORY_ICONS[cat] ?? '💵';
                   return (
-                    <div key={cat} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-all">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-white font-medium">{CATEGORY_LABELS[cat] ?? cat}</span>
-                        <span className="text-[#FFB800] font-bold text-sm">${amount.toFixed(2)}</span>
+                    <div key={cat} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span>{icon}</span>
+                        <div className="flex items-center justify-between flex-1">
+                          <span className="text-sm text-white font-medium">{CATEGORY_LABELS[cat] ?? cat}</span>
+                          <span className="text-[#FFB800] font-bold text-sm">${Number(amount).toFixed(2)}</span>
+                        </div>
                       </div>
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className={`h-full bg-gradient-to-r ${CATEGORY_COLORS[cat] ?? 'from-[#9D4EDD] to-[#00D9FF]'} rounded-full transition-all duration-700`}
-                          style={{ width: `${pct}%` }}
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%`, background: color }}
                         />
                       </div>
                     </div>
@@ -368,11 +391,11 @@ export default function EarningsDashboardPage() {
           )}
         </div>
 
-        {/* Recent Transactions */}
+        {/* Recent transactions: date, category icon, amount */}
         {filteredEarnings.length > 0 && (
           <div>
             <h2 className="text-lg font-bold text-white mb-5">Recent Transactions</h2>
-            <div className="overflow-x-auto bg-white/3 border border-white/5 rounded-2xl">
+            <div className="bg-white/3 border border-white/5 rounded-2xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
@@ -388,13 +411,22 @@ export default function EarningsDashboardPage() {
                       <td className="py-3.5 px-5 text-gray-300">
                         {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="py-3.5 px-5 text-gray-300">{CATEGORY_LABELS[e.category] ?? e.category}</td>
+                      <td className="py-3.5 px-5 text-gray-300">
+                        <span className="mr-1.5">{CATEGORY_ICONS[e.category] ?? '💵'}</span>
+                        {CATEGORY_LABELS[e.category] ?? e.category}
+                      </td>
                       <td className="py-3.5 px-5">
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${e.paid ? 'text-[#00F5A0] border-[#00F5A0]/30 bg-[#00F5A0]/10' : 'text-[#FFB800] border-[#FFB800]/30 bg-[#FFB800]/10'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                          e.paid
+                            ? 'text-[#00F5A0] border-[#00F5A0]/30 bg-[#00F5A0]/10'
+                            : 'text-[#FFB800] border-[#FFB800]/30 bg-[#FFB800]/10'
+                        }`}>
                           {e.paid ? 'Paid' : 'Pending'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right font-bold text-[#FFB800]">${e.amount.toFixed(2)}</td>
+                      <td className="py-3.5 px-5 text-right font-bold text-[#FFB800]">
+                        ${Number(e.amount).toFixed(2)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
