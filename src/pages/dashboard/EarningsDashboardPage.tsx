@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { startEarningsListener } from '@/pipelines/levels/LevelUpgradeWorker';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Loader2, DollarSign } from 'lucide-react';
+
+const PAYOUT_THRESHOLD = 10; // minimum $10 to request first withdrawal
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,9 +181,14 @@ export default function EarningsDashboardPage() {
 
   // Get user via supabase.auth.getUser() — redirect to '/' if not logged in
   useEffect(() => {
+    let unsubscribeEarnings: (() => void) | null = null;
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { navigate('/'); return; }
       setUserId(user.id);
+
+      // Wire real-time listener: auto-awards XP whenever a new earnings row is inserted
+      unsubscribeEarnings = startEarningsListener(user.id);
 
       Promise.all([
         supabase
@@ -200,6 +208,8 @@ export default function EarningsDashboardPage() {
         setLoading(false);
       });
     });
+
+    return () => { unsubscribeEarnings?.(); };
   }, [navigate]);
 
   // Filter earnings by period
@@ -331,6 +341,48 @@ export default function EarningsDashboardPage() {
             <p className="text-gray-500 text-xs mt-1.5">{xp.toLocaleString()} / {nextMin.toLocaleString()} XP</p>
           </div>
         )}
+
+        {/* Payout Threshold / Withdrawal Eligibility */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Withdrawal Eligibility</p>
+              <p className="text-sm text-white font-medium">
+                Minimum balance required:{' '}
+                <span className="text-[#FFB800]">${PAYOUT_THRESHOLD.toFixed(2)}</span>
+              </p>
+            </div>
+            <span
+              className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+                allTimeTotal >= PAYOUT_THRESHOLD
+                  ? 'text-[#00F5A0] border-[#00F5A0]/30 bg-[#00F5A0]/10'
+                  : 'text-[#FFB800] border-[#FFB800]/30 bg-[#FFB800]/10'
+              }`}
+            >
+              {allTimeTotal >= PAYOUT_THRESHOLD ? 'Ready to Withdraw' : 'Awaiting Threshold'}
+            </span>
+          </div>
+          <div className="h-2.5 bg-white/10 rounded-full overflow-hidden mb-2">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${Math.min((allTimeTotal / PAYOUT_THRESHOLD) * 100, 100)}%`,
+                background:
+                  allTimeTotal >= PAYOUT_THRESHOLD
+                    ? 'linear-gradient(90deg, #00F5A0, #00D9FF)'
+                    : 'linear-gradient(90deg, #FFB800, #FF6B00)',
+              }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>${allTimeTotal.toFixed(2)} earned</span>
+            <span>
+              {allTimeTotal >= PAYOUT_THRESHOLD
+                ? 'Threshold reached ✓'
+                : `$${(PAYOUT_THRESHOLD - allTimeTotal).toFixed(2)} to go`}
+            </span>
+          </div>
+        </div>
 
         {/* Period selector */}
         <div>

@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import ArtistFollowButton from '@/components/ArtistFollowButton';
+import CreatorLevelBadge from '@/components/CreatorLevelBadge';
 
 interface Artist {
   id: string;
@@ -41,13 +43,22 @@ export default function ArtistPublicPage() {
   const navigate = useNavigate();
 
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [artistDbId, setArtistDbId] = useState<string>(''); // artists.id (not user_id)
   const [tracks, setTracks] = useState<any[]>([]);
   const [releases, setReleases] = useState<any[]>([]);
   const [competitionEntries, setCompetitionEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'releases' | 'competition' | 'about'>('releases');
-  const [following, setFollowing] = useState(false);
   const [followCount, setFollowCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [creatorLevel, setCreatorLevel] = useState<string>('Bronze');
+
+  // Get current user session
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id);
+    });
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -64,21 +75,30 @@ export default function ArtistPublicPage() {
           return;
         }
         setArtist(artistData);
-        setFollowCount(artistData.followers_count ?? 0);
+        setArtistDbId(artistData.id);
+        setFollowCount(artistData.followers ?? artistData.followers_count ?? 0);
 
         const userId = artistData.user_id;
+
+        // Fetch creator level for this artist
+        const { data: levelData } = await supabase
+          .from('creator_levels')
+          .select('level')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (levelData) setCreatorLevel(levelData.level);
 
         const [tracksRes, releasesRes, entriesRes] = await Promise.all([
           supabase
             .from('tracks')
             .select('id, title, cover_art, genre, play_count, audio_url, created_at')
-            .eq('user_id', userId)
+            .eq('artist_id', userId)
             .order('created_at', { ascending: false })
             .limit(30),
           supabase
             .from('distribution_releases')
-            .select('id, title, status, cover_art, platform_count, created_at, release_metadata(*)')
-            .eq('user_id', userId)
+            .select('id, status, created_at, tracks(title, artwork_url)')
+            .eq('tracks.artist_id', userId)
             .order('created_at', { ascending: false })
             .limit(20),
           supabase
@@ -96,13 +116,6 @@ export default function ArtistPublicPage() {
         setLoading(false);
       });
   }, [slug]);
-
-  const handleFollow = () => {
-    setFollowing(f => {
-      setFollowCount(c => f ? c - 1 : c + 1);
-      return !f;
-    });
-  };
 
   if (loading) {
     return (
@@ -208,24 +221,21 @@ export default function ArtistPublicPage() {
                   <p className="text-gray-400 text-sm mt-0.5">{artist.genre}{artist.country ? ` · ${artist.country}` : ''}</p>
                 )}
               </div>
-              <div className="sm:ml-auto">
-                <button
-                  onClick={handleFollow}
-                  className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all ${
-                    following
-                      ? 'bg-white/10 text-gray-300 border border-white/20 hover:bg-white/15'
-                      : 'bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white shadow-lg shadow-purple-500/20 hover:opacity-90'
-                  }`}
-                >
-                  {following ? 'Following' : 'Follow'}
-                </button>
+              <div className="sm:ml-auto flex items-center gap-3">
+                <CreatorLevelBadge level={creatorLevel} />
+                {artistDbId && (
+                  <ArtistFollowButton
+                    artistId={artistDbId}
+                    userId={currentUserId}
+                  />
+                )}
               </div>
             </div>
 
             {/* Stats */}
-            <div className="flex items-center gap-6 mt-4 text-sm">
+            <div className="flex items-center gap-6 mt-4 text-sm flex-wrap">
               <div>
-                <p className="font-bold text-white text-lg">{fmt(artist.streams_count ?? 0)}</p>
+                <p className="font-bold text-white text-lg">{fmt(artist.total_streams ?? artist.streams_count ?? artist.streams ?? 0)}</p>
                 <p className="text-gray-500 text-xs">Streams</p>
               </div>
               <div>
@@ -235,6 +245,12 @@ export default function ArtistPublicPage() {
               <div>
                 <p className="font-bold text-white text-lg">{totalReleases}</p>
                 <p className="text-gray-500 text-xs">Releases</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#FFB800] text-lg">
+                  {fmt(competitionEntries.reduce((sum, e) => sum + (e.votes ?? 0), 0))}
+                </p>
+                <p className="text-gray-500 text-xs">Competition Votes</p>
               </div>
             </div>
           </div>

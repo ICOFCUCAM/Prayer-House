@@ -2,39 +2,41 @@ import { supabase } from '@/lib/supabase';
 import { TRANSLATION_TARGET_LANGUAGES, getLanguageName } from './LanguageMapping';
 
 // ── TranslateBookWorker ────────────────────────────────────────
-// Production: call a serverless function / edge function that:
-//   1. Downloads the source PDF from Supabase storage
-//   2. Extracts text (pdf-parse or similar)
-//   3. Calls DeepL / Google Translate API per language
-//   4. Generates translated PDF (pdf-lib or similar)
-//   5. Uploads to 'translated-books' bucket
-//   6. Updates book_translations record
+// Invokes the deployed `translate-book` Supabase Edge Function.
+// Falls back gracefully if the function is not yet deployed (dev mode).
 
-export async function translateBook(bookId: string, sourcePdfUrl: string): Promise<void> {
-  for (const lang of TRANSLATION_TARGET_LANGUAGES) {
-    // Insert queued record (idempotent)
-    await supabase.from('book_translations').upsert([{
-      book_id:  bookId,
-      language: lang,
-      status:   'queued',
-    }], { onConflict: 'book_id,language' });
+export async function translateBook(
+  bookId: string,
+  sourcePdfUrl: string,
+  authorId?: string,
+): Promise<void> {
+  // Queue all translation records as 'queued' first (idempotent)
+  const queued = TRANSLATION_TARGET_LANGUAGES.map(lang => ({
+    book_id:  bookId,
+    language: lang,
+    title:    `[${getLanguageName(lang)} Translation]`,
+    status:   'queued' as const,
+  }));
 
-    // In production, invoke edge function:
-    // await supabase.functions.invoke('translate-book', {
-    //   body: { bookId, sourcePdfUrl, targetLanguage: lang }
-    // });
+  await supabase.from('book_translations').upsert(queued, {
+    onConflict: 'book_id,language',
+    ignoreDuplicates: true,
+  });
 
-    // Simulate: mark as done with placeholder URL
-    const translatedUrl = sourcePdfUrl.replace(/(\.[^.]+)$/, `_${lang}$1`);
-    await supabase.from('book_translations').update({
-      status:  'done',
-      pdf_url: translatedUrl,
-      title:   `[${getLanguageName(lang)} Translation]`,
-    }).eq('book_id', bookId).eq('language', lang);
+  // Invoke the Edge Function (asynchronous — fire and forget)
+  const { error } = await supabase.functions.invoke('translate-book', {
+    body: { book_id: bookId, author_id: authorId ?? null },
+  });
+
+  if (error) {
+    // Edge Function not deployed or network error — log and continue.
+    // Translation records stay 'queued' and will be processed when deployed.
+    console.warn('[TranslateBookWorker] Edge function not reachable:', error.message);
   }
 }
 
-// ── TranslationQueueService.ts inline ─────────────────────────
+// ── TranslationQueueService ────────────────────────────────────
+
 export async function getBookTranslations(bookId: string) {
   const { data } = await supabase
     .from('book_translations')

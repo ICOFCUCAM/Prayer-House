@@ -1,6 +1,8 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { awardXP, XP_REWARDS } from '@/pipelines/levels/LevelUpgradeWorker';
+import { translateBook } from '@/pipelines/translation/TranslateBookWorker';
 import Header from '@/components/Header';
 import { BookOpen, Upload, DollarSign, TrendingUp, ChevronRight } from 'lucide-react';
 
@@ -45,6 +47,7 @@ export default function BookUploadPage() {
   const coverRef   = useRef<HTMLInputElement>(null);
   const fileRef    = useRef<HTMLInputElement>(null);
 
+  const [userId,       setUserId]       = useState<string | null>(null);
   const [coverFile,    setCoverFile]    = useState<File | null>(null);
   const [bookFile,     setBookFile]     = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState('');
@@ -65,6 +68,13 @@ export default function BookUploadPage() {
     publicationYear: new Date().getFullYear().toString(),
     pages:           '',
   });
+
+  // ── Fetch current user ID at mount ──────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
   // ── Live royalty calc ────────────────────────────────────────────────────
   const royaltyInfo = useMemo(() => {
@@ -106,6 +116,20 @@ export default function BookUploadPage() {
     setError('');
 
     try {
+      // Upload book file to storage (if provided) so translation pipeline has a real URL
+      let bookFileUrl: string | null = null;
+      if (bookFile && userId) {
+        const ext  = bookFile.name.split('.').pop()?.toLowerCase() ?? 'pdf';
+        const path = `books/${userId}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('book-files')
+          .upload(path, bookFile, { contentType: bookFile.type, upsert: false });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('book-files').getPublicUrl(path);
+          bookFileUrl = urlData.publicUrl;
+        }
+      }
+
       const productData = {
         title:            form.title,
         body_html:        form.description,
@@ -125,8 +149,22 @@ export default function BookUploadPage() {
         created_at:       new Date().toISOString(),
       };
 
-      const { error: insertError } = await supabase.from('ecom_products').insert([productData]);
+      const { data: inserted, error: insertError } = await supabase
+        .from('ecom_products')
+        .insert([productData])
+        .select('id')
+        .single();
       if (insertError) throw insertError;
+
+      // Award XP for uploading a book (fire-and-forget)
+      if (userId) {
+        awardXP(userId, XP_REWARDS.upload_book, 'upload_book').catch(console.error);
+
+        // Trigger multilingual translation pipeline if a PDF was uploaded
+        if (bookFileUrl && bookFile?.name.toLowerCase().endsWith('.pdf') && inserted?.id) {
+          translateBook(String(inserted.id), bookFileUrl, userId).catch(console.error);
+        }
+      }
 
       setSuccess(true);
     } catch (err: any) {
