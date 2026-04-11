@@ -17,7 +17,7 @@ const CREATORS_LINKS = [
 const DISCOVERY_LINKS = [
   { label: 'Music by Language',   href: '/collections/music' },
   { label: 'Browse Books',        href: '/collections/books' },
-  { label: 'Audiobooks',          href: '/ebook-marketplace' },
+  { label: 'Audiobooks',          href: '/collections/audiobooks' },
   { label: 'Videos',              href: '/collections/videos' },
   { label: 'Podcasts',            href: '/collections/podcasts' },
   { label: 'Featured Artists',    href: '/collections/music' },

@@ -173,9 +173,10 @@ export default function App() {
           <Route path="/dashboard/artist/upload-performance" element={<ProtectedRoute><TalentArenaUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Music" /></ProtectedRoute>} />
           <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Album" /></ProtectedRoute>} />
-          <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Book" /></ProtectedRoute>} />
+          <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><BookUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Audiobook" /></ProtectedRoute>} />
-          <Route path="/dashboard/distribution"           element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
+          <Route path="/dashboard/distribution"                element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
+          <Route path="/dashboard/distribution/upload-release" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/memberships"            element={<ProtectedRoute><ComingSoonPage feature="Creator Memberships" /></ProtectedRoute>} />
 
           {/* ── Admin invite accept (public — token is the auth) */}

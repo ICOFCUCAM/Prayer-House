@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import AdminCompetitionPanel from '@/components/competition/AdminCompetitionPanel';
+import AdminDistributionPanel from '@/components/distribution/AdminDistributionPanel';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -762,8 +764,8 @@ export default function AdminDashboardPage() {
             <Route path="/users"       element={<AdminUsers />} />
             <Route path="/artists"     element={<GenericModule title="Artists" table="artists" select="id,name,slug,verified,streams,followers,created_at" columns={[{ key: 'name', label: 'Name' }, { key: 'slug', label: 'Slug' }, { key: 'streams', label: 'Streams' }, { key: 'followers', label: 'Followers' }, { key: 'verified', label: 'Verified' }]} colour={CYAN} />} />
             <Route path="/authors"     element={<GenericModule title="Authors" table="authors" select="id,name,slug,total_downloads,total_earnings,created_at" columns={[{ key: 'name', label: 'Name' }, { key: 'total_downloads', label: 'Downloads' }, { key: 'total_earnings', label: 'Earnings' }]} colour={GOLD} />} />
-            <Route path="/competitions" element={<GenericModule title="Competitions" table="competition_rooms" select="id,title,status,prize_pool,entry_count,created_at" columns={[{ key: 'title', label: 'Title' }, { key: 'status', label: 'Status' }, { key: 'prize_pool', label: 'Prize Pool' }, { key: 'entry_count', label: 'Entries' }]} colour={PURPLE} />} />
-            <Route path="/distribution" element={<GenericModule title="Distribution Releases" table="distribution_releases" select="id,status,created_at" columns={[{ key: 'id', label: 'ID' }, { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Created' }]} colour={ORANGE} />} />
+            <Route path="/competitions" element={<AdminCompetitionPanel />} />
+            <Route path="/distribution" element={<AdminDistributionPanel />} />
             <Route path="/books"       element={<AdminBooks />} />
             <Route path="/earnings"    element={<GenericModule title="Earnings" table="creator_earnings" select="id,user_id,category,amount,created_at" columns={[{ key: 'user_id', label: 'User' }, { key: 'category', label: 'Category' }, { key: 'amount', label: 'Amount' }, { key: 'created_at', label: 'Date' }]} colour={GREEN} />} />
             <Route path="/reports"     element={<GenericModule title="Reports" table="content_reports" select="id,reason,status,created_at" columns={[{ key: 'id', label: 'ID' }, { key: 'reason', label: 'Reason' }, { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Date' }]} colour={RED} />} />
