@@ -7,6 +7,9 @@ import ProductCard from './ProductCard';
 import { Play, Zap, Music, BookOpen, Video, Mic, Trophy, Globe, Users, DollarSign, TrendingUp, ArrowRight, Headphones, Radio, Star, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { usePlayer } from './GlobalPlayer';
 import FeaturedPerformancesGrid from './home/FeaturedPerformancesGrid';
+import DefaultBookCover from './home/DefaultBookCover';
+import AudiobookCard from './home/AudiobookCard';
+import DefaultVideoThumbnail from './home/DefaultVideoThumbnail';
 
 const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
@@ -683,7 +686,7 @@ export default function AppLayout() {
                     className="shrink-0 w-36 md:w-44 group"
                   >
                     {/* Book cover — portrait 2:3 */}
-                    <div className="relative rounded-xl overflow-hidden mb-3 shadow-xl shadow-black/40 group-hover:shadow-[#FFB800]/10 transition-shadow duration-300"
+                    <div className="relative rounded-xl overflow-hidden mb-3 border border-white/10 shadow-xl shadow-black/40 group-hover:scale-[1.02] group-hover:shadow-[#FFB800]/10 transition-all duration-300"
                       style={{ aspectRatio: '2/3' }}>
 
                       {/* Cover background */}
@@ -692,7 +695,7 @@ export default function AppLayout() {
                       ) : book.images?.[0] ? (
                         <img src={book.images[0]} alt={title} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#FFB800] to-[#FF6B00]" />
+                        <DefaultBookCover title={title} author={author} />
                       )}
 
                       {/* Spine shimmer line */}
@@ -807,7 +810,7 @@ export default function AppLayout() {
                 to={`/artists/${artist.name.toLowerCase().replace(/\s+/g, '-')}`}
                 className="shrink-0 w-40 group"
               >
-                <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${artist.gradient} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-lg`}>
+                <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${artist.gradient} flex items-center justify-center mb-3 group-hover:scale-[1.02] transition-transform shadow-lg shadow-black/40 border border-white/10`}>
                   <span className="text-4xl">{artist.flag}</span>
                 </div>
                 <p className="text-white text-sm font-semibold text-center truncate">{artist.name}</p>
@@ -840,7 +843,7 @@ export default function AppLayout() {
               { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', earnings: '$3,150', badge: '💎', color: '#00D9FF' },
               { rank: 3, name: 'Joe Mettle', level: 'Gold', earnings: '$2,890', badge: '⭐', color: '#FFB800' },
             ].map((creator) => (
-              <div key={creator.rank} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors border border-white/5">
+              <div key={creator.rank} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 hover:scale-[1.02] transition-all border border-white/10 shadow-lg shadow-black/40">
                 <span className="text-2xl font-black" style={{ color: creator.color }}>#{creator.rank}</span>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-lg shrink-0">{creator.badge}</div>
                 <div className="flex-1 min-w-0">
@@ -877,17 +880,7 @@ export default function AppLayout() {
               { title: 'The Power of Now', author: 'Eckhart Tolle', lang: 'AR', hours: '7.3h', gradient: 'from-[#00D9FF] to-[#9D4EDD]' },
               { title: 'Battlefield of the Mind', author: 'Joyce Meyer', lang: 'YO', hours: '5.8h', gradient: 'from-[#FFB800] to-[#FF6B00]' },
             ].map((ab) => (
-              <div key={ab.title} className="shrink-0 w-44 cursor-pointer group">
-                <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${ab.gradient} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-lg`}>
-                  <span className="text-4xl">🎧</span>
-                </div>
-                <p className="text-white text-sm font-semibold truncate">{ab.title}</p>
-                <p className="text-white/50 text-xs truncate">{ab.author}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] bg-[#FF6B00]/20 text-[#FF6B00] px-1.5 py-0.5 rounded">{ab.lang}</span>
-                  <span className="text-white/30 text-[10px]">{ab.hours}</span>
-                </div>
-              </div>
+              <AudiobookCard key={ab.title} {...ab} />
             ))}
           </div>
         </div>
@@ -916,11 +909,17 @@ export default function AppLayout() {
               { title: 'Live Praise Session', performer: 'Zara Ibrahim', votes: '654', lang: 'AR', gradient: 'from-[#FFB800]/30 to-[#FF6B00]/20' },
             ].map((perf) => (
               <Link key={perf.title} to="/collections/talent-arena" className="group block">
-                <div className={`w-full aspect-video rounded-xl bg-gradient-to-br ${perf.gradient} border border-white/10 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform relative overflow-hidden`}>
-                  <span className="text-3xl">🎤</span>
-                  <div className="absolute bottom-2 right-2 bg-black/60 text-[#00F5A0] text-[10px] font-bold px-2 py-0.5 rounded-full">❤ {perf.votes}</div>
+                {/* 16:9 thumbnail */}
+                <div className="w-full aspect-video rounded-xl overflow-hidden mb-2 border border-white/10 shadow-lg shadow-black/40 group-hover:scale-[1.02] transition-transform duration-300 relative">
+                  <DefaultVideoThumbnail title={perf.title} gradient={perf.gradient} />
+                  {/* Platform badge */}
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-[#9D4EDD]/80 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                    🎭 Talent Arena
+                  </div>
+                  {/* Votes */}
+                  <div className="absolute bottom-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-[#00F5A0] text-[10px] font-bold px-2 py-0.5 rounded-full">❤ {perf.votes}</div>
                 </div>
-                <p className="text-white text-xs font-semibold truncate">{perf.title}</p>
+                <p className="text-white text-xs font-semibold truncate group-hover:text-[#00F5A0] transition-colors">{perf.title}</p>
                 <p className="text-white/40 text-[10px] truncate">{perf.performer}</p>
                 <span className="text-[10px] bg-[#9D4EDD]/20 text-[#9D4EDD] px-1.5 py-0.5 rounded mt-1 inline-block">{perf.lang}</span>
               </Link>

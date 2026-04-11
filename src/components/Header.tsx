@@ -4,7 +4,8 @@ import { useCart } from '@/contexts/CartContext';
 import { useApp } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
-const NAV_LINKS = [
+const NAV_LINKS: Array<{ label: string; href?: string; handle?: string }> = [
+  { label: 'Homepage', href: '/' },
   { label: 'Music', handle: 'music' },
   { label: 'Videos', handle: 'videos' },
   { label: 'Books', handle: 'books' },
@@ -62,8 +63,8 @@ export default function Header() {
             <nav className="hidden xl:flex items-center gap-1 overflow-x-auto flex-1 mx-4">
               {NAV_LINKS.map(link => (
                 <Link
-                  key={link.handle}
-                  to={`/collections/${link.handle}`}
+                  key={link.href ?? link.handle}
+                  to={link.href ?? `/collections/${link.handle}`}
                   className="px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors whitespace-nowrap"
                 >
                   {link.label}
@@ -94,10 +95,10 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="px-3 py-1.5 text-sm text-gray-300 hover:text-white transition-colors hidden sm:block">
+                  <button onClick={() => navigate('/auth/login')} className="px-3 py-1.5 text-sm text-gray-300 hover:text-white transition-colors hidden sm:block">
                     Sign in
                   </button>
-                  <button onClick={() => { setAuthMode('register'); setShowAuthModal(true); }} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
+                  <button onClick={() => navigate('/auth/register')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
                     Get Started
                   </button>
                 </div>
@@ -135,8 +136,8 @@ export default function Header() {
             <nav className="max-w-7xl mx-auto px-4 py-3 grid grid-cols-2 gap-1">
               {NAV_LINKS.map(link => (
                 <Link
-                  key={link.handle}
-                  to={`/collections/${link.handle}`}
+                  key={link.href ?? link.handle}
+                  to={link.href ?? `/collections/${link.handle}`}
                   onClick={() => setMobileMenuOpen(false)}
                   className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
