@@ -584,9 +584,6 @@ export default function AppLayout() {
         </div>
       </section>
 
-      {/* ── Featured Performances Grid ──────────────────────── */}
-      <FeaturedPerformancesGrid />
-
       {/* Video Modal */}
       {videoModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setVideoModalOpen(false)}>
@@ -931,6 +928,9 @@ export default function AppLayout() {
           </div>
         </div>
       </section>
+
+      {/* ── Global Stage — Featured Performances ─────────────── */}
+      <FeaturedPerformancesGrid />
 
       {/* Featured Content */}
       {featuredProducts.length > 0 && (
