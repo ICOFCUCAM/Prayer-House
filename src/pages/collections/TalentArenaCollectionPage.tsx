@@ -1,129 +1,333 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
-interface Room {
-  id: string; title: string; category: string; prize_description?: string;
-  status: string; close_at?: string; entry_count?: number;
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface CompetitionRoom {
+  id: string;
+  title: string;
+  category: string | null;
+  prize_info: string | null;
+  prize_amount: number | null;
+  entry_count: number | null;
+  status: string;
+  deadline: string | null;
+  close_at: string | null;
+  banner_url: string | null;
+  description: string | null;
+  created_at: string;
 }
 
-function Countdown({ closeAt }: { closeAt: string }) {
-  const [timeLeft, setTimeLeft] = useState('');
+interface RecentWinner {
+  id: string;
+  room_id: string;
+  title: string;
+  performer_name: string | null;
+  votes: number;
+  thumbnail_url: string | null;
+  room_title: string;
+  prize_info: string;
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+
+function useCountdown(deadline: string | null) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
   useEffect(() => {
+    if (!deadline) return;
     const calc = () => {
-      const diff = new Date(closeAt).getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft('Closed'); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${h}h ${m}m ${s}s`);
+      const diff = new Date(deadline).getTime() - Date.now();
+      if (diff <= 0) return setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      setTimeLeft({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+        seconds: Math.floor((diff % 60000) / 1000),
+      });
     };
     calc();
-    const t = setInterval(calc, 1000);
-    return () => clearInterval(t);
-  }, [closeAt]);
-  return <span className="text-[#FF6B00] font-mono font-bold text-sm">{timeLeft}</span>;
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [deadline]);
+
+  return timeLeft;
 }
 
-const MOCK_ROOMS: Room[] = [
-  { id: 'r1', title: 'Gospel Voices Championship', category: 'Gospel', prize_description: '$500 cash + global distribution', status: 'open', close_at: new Date(Date.now() + 2 * 86400000).toISOString(), entry_count: 24 },
-  { id: 'r2', title: 'Worship Leaders Showcase', category: 'Worship', prize_description: '$300 + record deal intro', status: 'open', close_at: new Date(Date.now() + 5 * 86400000).toISOString(), entry_count: 17 },
-  { id: 'r3', title: 'African Talent Hunt', category: 'Open', prize_description: '$1,000 grand prize', status: 'open', close_at: new Date(Date.now() + 10 * 86400000).toISOString(), entry_count: 41 },
-];
+function Countdown({ deadline }: { deadline: string | null }) {
+  const t = useCountdown(deadline);
+  if (!deadline) return <span className="text-gray-500 text-xs">No deadline set</span>;
+  return (
+    <div className="flex gap-1.5">
+      {[['d', t.days], ['h', t.hours], ['m', t.minutes], ['s', t.seconds]].map(([label, val]) => (
+        <div key={label as string} className="bg-white/5 rounded-lg px-2 py-1 text-center min-w-[38px]">
+          <p className="text-white font-bold text-xs tabular-nums">{String(val).padStart(2, '0')}</p>
+          <p className="text-gray-600 text-[9px]">{label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-const MOCK_WINNERS = [
-  { title: 'Amazing Grace — Live', performer: 'Adaeze Obi', category: 'Gospel', votes: 1247, room: 'Spring Gospel Cup' },
-  { title: 'Spontaneous Worship', performer: 'Kofi Mensah', category: 'Worship', votes: 934, room: 'Worship Night Live' },
-];
+// ── Room Card ─────────────────────────────────────────────────────────────────
+
+function RoomCard({ room }: { room: CompetitionRoom }) {
+  const navigate = useNavigate();
+  const deadline = room.deadline ?? room.close_at;
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-[#9D4EDD]/40 transition-all group">
+      <div className="relative h-36 overflow-hidden">
+        {room.banner_url ? (
+          <img src={room.banner_url} alt={room.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#9D4EDD]/30 to-[#00D9FF]/10 flex items-center justify-center">
+            <span className="text-5xl">🏆</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0A1128] via-transparent to-transparent" />
+        {(room.prize_info || room.prize_amount) && (
+          <div className="absolute top-3 right-3 bg-[#FFB800] text-[#0A1128] text-xs font-bold px-2.5 py-1 rounded-xl">
+            {room.prize_info ?? `$${room.prize_amount}`}
+          </div>
+        )}
+        <div className="absolute top-3 left-3">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/30 font-medium">
+            ● OPEN
+          </span>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-white text-sm leading-tight">{room.title}</h3>
+          {room.category && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#9D4EDD]/10 text-[#9D4EDD] border border-[#9D4EDD]/20 font-medium whitespace-nowrap shrink-0">
+              {room.category}
+            </span>
+          )}
+        </div>
+
+        {room.description && (
+          <p className="text-gray-400 text-xs mb-3 line-clamp-2">{room.description}</p>
+        )}
+
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-gray-500 text-[10px] mb-0.5">Countdown</p>
+            <Countdown deadline={deadline} />
+          </div>
+          <div className="text-right">
+            <p className="text-gray-500 text-[10px] mb-0.5">Entries</p>
+            <p className="text-white font-bold text-sm">{room.entry_count ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/talent-arena/room/${room.id}`)}
+            className="flex-1 py-2 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white rounded-xl text-xs font-medium hover:opacity-90 transition-opacity"
+          >
+            View Room
+          </button>
+          <button
+            onClick={() => navigate('/talent-arena/upload')}
+            className="px-3 py-2 bg-white/5 border border-white/10 text-gray-300 rounded-xl text-xs hover:bg-white/10 transition-colors"
+          >
+            Enter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function TalentArenaCollectionPage() {
-  const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS);
+  const navigate = useNavigate();
+  const [rooms, setRooms] = useState<CompetitionRoom[]>([]);
+  const [recentWinners, setRecentWinners] = useState<RecentWinner[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('competition_rooms').select('*').eq('status', 'open')
-      .then(({ data }) => { if (data && data.length > 0) setRooms(data); });
+    const fetchData = async () => {
+      setLoading(true);
+
+      const [roomsRes, winnersRes] = await Promise.all([
+        supabase
+          .from('competition_rooms')
+          .select('id, title, category, prize_info, prize_amount, entry_count, status, deadline, close_at, banner_url, description, created_at')
+          .eq('status', 'open')
+          .order('created_at', { ascending: false })
+          .limit(12),
+        supabase
+          .from('competition_entries_v2')
+          .select('id, room_id, title, performer_name, votes, thumbnail_url, competition_rooms(title, prize_info)')
+          .eq('status', 'winner')
+          .order('votes', { ascending: false })
+          .limit(6),
+      ]);
+
+      setRooms((roomsRes.data ?? []) as CompetitionRoom[]);
+
+      const mappedWinners = (winnersRes.data ?? []).map((w: any) => ({
+        id: w.id,
+        room_id: w.room_id,
+        title: w.title,
+        performer_name: w.performer_name,
+        votes: w.votes,
+        thumbnail_url: w.thumbnail_url,
+        room_title: w.competition_rooms?.title ?? 'Competition',
+        prize_info: w.competition_rooms?.prize_info ?? '',
+      }));
+      setRecentWinners(mappedWinners);
+      setLoading(false);
+    };
+
+    fetchData();
   }, []);
+
+  const totalPrizePool = rooms.reduce((s, r) => s + (r.prize_amount ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-[#0A1128] text-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#FF6B00]/20 to-[#FFB800]/10 border-b border-white/5 py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-2 text-white/40 text-sm mb-4">
-            <Link to="/" className="hover:text-white">Home</Link>
-            <span>/</span>
-            <span className="text-white">Talent Arena</span>
-          </div>
-          <h1 className="text-4xl font-black text-white mb-2">🎭 Talent Arena</h1>
-          <p className="text-white/50 text-lg">Compete, get voted on by the world, win cash prizes and global distribution.</p>
-          <Link
-            to="/talent-arena/upload"
-            className="inline-block mt-6 bg-gradient-to-r from-[#FF6B00] to-[#FFB800] text-black font-black px-8 py-3 rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Submit Your Performance
-          </Link>
-        </div>
-      </div>
+      <Header />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Active rooms */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-black text-white mb-6 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#00F5A0] animate-pulse inline-block" />
-            Live Competitions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => (
-              <div key={room.id} className="bg-white/5 border border-white/10 hover:border-[#FF6B00]/50 rounded-2xl p-6 transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-xs bg-[#FF6B00]/20 text-[#FF6B00] px-2 py-0.5 rounded-full font-semibold">{room.category}</span>
-                  <span className="text-[10px] bg-[#00F5A0]/10 text-[#00F5A0] px-2 py-0.5 rounded-full font-bold uppercase">OPEN</span>
-                </div>
-                <h3 className="text-white font-bold text-lg mb-2">{room.title}</h3>
-                {room.prize_description && (
-                  <p className="text-[#FFB800] text-sm font-semibold mb-3">🏆 {room.prize_description}</p>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/40">{room.entry_count ?? 0} entries</span>
-                  {room.close_at && <Countdown closeAt={room.close_at} />}
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Link
-                    to={`/talent-arena/room/${room.id}`}
-                    className="flex-1 text-center py-2 rounded-lg border border-white/20 text-white/70 text-sm hover:border-[#00D9FF] hover:text-[#00D9FF] transition-colors"
-                  >
-                    Watch
-                  </Link>
-                  <Link
-                    to="/talent-arena/upload"
-                    className="flex-1 text-center py-2 rounded-lg bg-[#FF6B00] text-white text-sm font-semibold hover:bg-[#FF6B00]/80 transition-colors"
-                  >
-                    Enter
-                  </Link>
-                </div>
-              </div>
-            ))}
+      {/* Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#0A1128] via-[#100D2E] to-[#0A1128] border-b border-white/5 py-16">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(157,78,221,0.15),transparent_60%)]" />
+        <div className="relative max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-xl">🎤</div>
+            <span className="text-[#9D4EDD] text-sm font-medium uppercase tracking-widest">Talent Arena</span>
           </div>
-        </div>
+          <h1 className="text-5xl font-black text-white mb-3">
+            Compete. <span className="bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] bg-clip-text text-transparent">Win.</span>
+          </h1>
+          <p className="text-gray-400 text-lg max-w-xl mb-6">The ultimate platform for gospel artists to showcase talent, gain fans, and earn real prizes.</p>
 
-        {/* Recent winners */}
-        <div>
-          <h2 className="text-2xl font-black text-white mb-6">🥇 Recent Winners</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_WINNERS.map((w, i) => (
-              <div key={i} className="flex items-center gap-4 bg-gradient-to-r from-[#FFB800]/10 to-transparent border border-[#FFB800]/20 rounded-xl p-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#FFB800] to-[#FF6B00] flex items-center justify-center text-2xl shrink-0">🏆</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold truncate">{w.title}</p>
-                  <p className="text-white/50 text-sm">{w.performer}</p>
-                  <p className="text-white/30 text-xs">{w.room} · {w.votes.toLocaleString()} votes</p>
-                </div>
-                <span className="text-xs bg-[#FFB800]/20 text-[#FFB800] px-2 py-0.5 rounded-full shrink-0">{w.category}</span>
+          <div className="flex gap-6">
+            {[
+              { label: 'Active Rooms', value: loading ? '—' : String(rooms.length) },
+              { label: 'Total Prize Pool', value: loading ? '—' : (totalPrizePool > 0 ? `$${totalPrizePool.toLocaleString()}` : 'Prizes Available') },
+              { label: 'Recent Winners', value: loading ? '—' : String(recentWinners.length) },
+            ].map(s => (
+              <div key={s.label}>
+                <p className="text-white font-black text-2xl">{s.value}</p>
+                <p className="text-gray-500 text-xs">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+
+        {/* Active Rooms */}
+        <div className="mb-14">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00F5A0] animate-pulse inline-block" />
+              <h2 className="text-xl font-bold text-white">Active Competition Rooms</h2>
+            </div>
+            <Link to="/talent-arena" className="text-[#9D4EDD] text-sm hover:underline">View All →</Link>
+          </div>
+
+          {loading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
+                  <div className="h-36 bg-white/5" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-white/10 rounded w-3/4" />
+                    <div className="h-3 bg-white/5 rounded w-full" />
+                    <div className="h-8 bg-white/10 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : rooms.length === 0 ? (
+            <div className="text-center py-16 bg-white/3 border border-white/5 rounded-2xl">
+              <div className="text-5xl mb-4">🎤</div>
+              <p className="text-gray-400 text-lg">No open competition rooms right now.</p>
+              <p className="text-gray-600 text-sm mt-2">Check back soon — new rooms open regularly.</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {rooms.map(room => (
+                <RoomCard key={room.id} room={room} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Winners */}
+        {recentWinners.length > 0 && (
+          <div className="mb-14">
+            <h2 className="text-xl font-bold text-white mb-6">Recent Winners</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {recentWinners.map(winner => (
+                <Link
+                  key={winner.id}
+                  to={`/talent-arena/room/${winner.room_id}`}
+                  className="bg-gradient-to-br from-[#FFB800]/10 to-transparent border border-[#FFB800]/20 rounded-2xl overflow-hidden hover:border-[#FFB800]/40 transition-all group"
+                >
+                  <div className="aspect-video relative overflow-hidden bg-white/5">
+                    {winner.thumbnail_url ? (
+                      <img src={winner.thumbnail_url} alt={winner.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#FFB800]/30 to-[#FF6B00]/10 flex items-center justify-center text-5xl">🏆</div>
+                    )}
+                    <div className="absolute top-2 left-2 bg-[#FFB800] text-[#0A1128] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      🏆 WINNER
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur rounded-lg px-2 py-1 flex items-center gap-1">
+                      <svg className="w-3 h-3 text-[#FFB800]" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-[10px] text-white font-bold">{winner.votes.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <p className="font-semibold text-white text-sm truncate">{winner.title}</p>
+                    {winner.performer_name && (
+                      <p className="text-gray-400 text-xs mt-0.5 truncate">{winner.performer_name}</p>
+                    )}
+                    <p className="text-gray-600 text-[10px] mt-1 truncate">{winner.room_title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#9D4EDD]/20 to-[#00D9FF]/10 border border-[#9D4EDD]/20 rounded-2xl p-8 text-center">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(157,78,221,0.08),transparent_70%)]" />
+          <div className="relative">
+            <div className="text-5xl mb-4">🎤</div>
+            <h3 className="text-2xl font-black text-white mb-2">Submit Your Performance</h3>
+            <p className="text-gray-400 mb-6 max-w-md mx-auto">
+              Record your best performance, submit to an active competition, and let the community vote.
+            </p>
+            <button
+              onClick={() => navigate('/talent-arena/upload')}
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/20"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Submit Your Performance
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
     </div>
   );
 }
