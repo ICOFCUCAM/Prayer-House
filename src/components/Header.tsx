@@ -9,6 +9,7 @@ const NAV_LINKS: Array<{ label: string; href?: string; handle?: string }> = [
   { label: 'Music', handle: 'music' },
   { label: 'Videos', handle: 'videos' },
   { label: 'Books', handle: 'books' },
+  { label: 'Audiobooks', handle: 'audiobooks' },
   { label: 'Podcasts', handle: 'podcasts' },
   { label: 'Talent Arena', handle: 'talent-arena' },
   { label: 'Marketplace', handle: 'marketplace' },

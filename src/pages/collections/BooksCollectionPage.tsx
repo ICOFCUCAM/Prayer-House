@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
@@ -18,22 +18,83 @@ interface Book {
   status: string;
   created_at: string;
   authors?: { name: string } | null;
+  // Format flags
+  has_ebook?: boolean | null;
+  has_audiobook?: boolean | null;
+  has_softcover?: boolean | null;
+  has_hardcover?: boolean | null;
+  // Per-format prices
+  ebook_price?: number | null;
+  audiobook_price?: number | null;
+  softcover_price?: number | null;
+  hardcover_price?: number | null;
+  // Amazon URLs
+  amazon_softcover_url?: string | null;
+  amazon_hardcover_url?: string | null;
+  // Multi-source fields
+  softcover_source?: 'wankong' | 'amazon' | 'external' | null;
+  hardcover_source?: 'wankong' | 'amazon' | 'external' | null;
+  softcover_external_url?: string | null;
+  hardcover_external_url?: string | null;
+  softcover_visible?: boolean | null;
+  hardcover_visible?: boolean | null;
 }
 
 const BOOK_GENRES = ['All', 'Fiction', 'Non-Fiction', 'Christian Living', 'Theology', 'Biography', 'Children', 'Poetry', 'Self-Help', 'History'];
-type PriceFilter = 'all' | 'free' | 'paid';
+type PriceFilter  = 'all' | 'free' | 'paid';
+type FormatFilter = 'all' | 'ebook' | 'audiobook' | 'softcover' | 'hardcover';
+
+const FORMAT_FILTER_OPTIONS: { id: FormatFilter; label: string }[] = [
+  { id: 'all',       label: 'All Formats' },
+  { id: 'ebook',     label: 'eBook' },
+  { id: 'audiobook', label: 'Audiobook' },
+  { id: 'softcover', label: 'Softcover' },
+  { id: 'hardcover', label: 'Hardcover' },
+];
 
 const PAGE_SIZE = 24;
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return String(n);
+// ── Format Badges ─────────────────────────────────────────────────────────────
+
+const FORMAT_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  ebook:     { bg: 'bg-[#00D9FF]/15',  text: 'text-[#00D9FF]',  label: 'eBOOK'     },
+  audiobook: { bg: 'bg-[#9D4EDD]/15',  text: 'text-[#9D4EDD]',  label: 'AUDIO'     },
+  softcover: { bg: 'bg-[#00F5A0]/15',  text: 'text-[#00F5A0]',  label: 'SOFTCOVER' },
+  hardcover: { bg: 'bg-[#FFB800]/15',  text: 'text-[#FFB800]',  label: 'HARDCOVER' },
+};
+
+function FormatBadge({ format }: { format: keyof typeof FORMAT_BADGE_STYLES }) {
+  const s = FORMAT_BADGE_STYLES[format];
+  return (
+    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${s.bg} ${s.text}`}>{s.label}</span>
+  );
+}
+
+// ── Source label (admin-visible) ──────────────────────────────────────────────
+
+function sourceLabel(src: string | null | undefined) {
+  if (src === 'amazon')   return 'AMZ';
+  if (src === 'external') return 'EXT';
+  return 'WKG';
 }
 
 // ── Book Card ─────────────────────────────────────────────────────────────────
 
-function BookCard({ book, onDownload }: { book: Book; onDownload: (b: Book) => void }) {
+function BookCard({ book, onAction }: { book: Book; onAction: (book: Book, action: string, url?: string) => void }) {
+  const formats: { key: string; label: string; price?: number | null; visible?: boolean | null; source?: string | null; url?: string | null }[] = [];
+
+  if (book.has_ebook)     formats.push({ key: 'ebook',     label: 'Read Now',       price: book.ebook_price });
+  if (book.has_audiobook) formats.push({ key: 'audiobook', label: 'Listen Now',     price: book.audiobook_price });
+  if (book.has_softcover && book.softcover_visible !== false) {
+    formats.push({ key: 'softcover', label: 'Buy Softcover', price: book.softcover_price, visible: book.softcover_visible, source: book.softcover_source, url: book.softcover_source === 'amazon' ? book.amazon_softcover_url : book.softcover_source === 'external' ? book.softcover_external_url : null });
+  }
+  if (book.has_hardcover && book.hardcover_visible !== false) {
+    formats.push({ key: 'hardcover', label: 'Buy Hardcover', price: book.hardcover_price, visible: book.hardcover_visible, source: book.hardcover_source, url: book.hardcover_source === 'amazon' ? book.amazon_hardcover_url : book.hardcover_source === 'external' ? book.hardcover_external_url : null });
+  }
+
+  // Fallback: if no format flags set, show generic Buy/Download
+  const hasFormatData = book.has_ebook || book.has_audiobook || book.has_softcover || book.has_hardcover;
+
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group flex flex-col">
       <div className="aspect-[3/4] relative overflow-hidden bg-white/5">
@@ -52,12 +113,15 @@ function BookCard({ book, onDownload }: { book: Book; onDownload: (b: Book) => v
             </svg>
           </div>
         )}
+
         {/* Price badge */}
         <div className="absolute top-2 right-2">
           <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${book.price === 0 ? 'bg-[#00F5A0] text-[#0A1128]' : 'bg-[#FFB800] text-[#0A1128]'}`}>
             {book.price === 0 ? 'FREE' : `$${book.price.toFixed(2)}`}
           </span>
         </div>
+
+        {/* Genre badge */}
         {book.genre && (
           <div className="absolute top-2 left-2">
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-white border border-white/10 font-medium">
@@ -65,16 +129,65 @@ function BookCard({ book, onDownload }: { book: Book; onDownload: (b: Book) => v
             </span>
           </div>
         )}
+
+        {/* Format badges strip */}
+        {hasFormatData && (
+          <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+            {book.has_ebook     && <FormatBadge format="ebook" />}
+            {book.has_audiobook && <FormatBadge format="audiobook" />}
+            {book.has_softcover && <FormatBadge format="softcover" />}
+            {book.has_hardcover && <FormatBadge format="hardcover" />}
+          </div>
+        )}
       </div>
+
       <div className="p-3 flex flex-col flex-1">
         <p className="font-semibold text-white text-sm line-clamp-2 flex-1">{book.title}</p>
         <p className="text-gray-400 text-xs mt-1 truncate">{book.authors?.name ?? 'Unknown Author'}</p>
-        <button
-          onClick={() => onDownload(book)}
-          className="mt-3 w-full py-2 rounded-xl text-xs font-medium transition-all bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white hover:opacity-90"
-        >
-          {book.price === 0 ? 'Download Free' : 'Buy Now'}
-        </button>
+
+        {/* Per-format buttons */}
+        {hasFormatData ? (
+          <div className="mt-3 space-y-1.5">
+            {formats.map(f => {
+              // Hide if source is set but URL is missing (external/amazon but no URL)
+              const needsUrl = f.source === 'amazon' || f.source === 'external';
+              if (needsUrl && !f.url) return null;
+
+              const handleClick = () => {
+                if (f.url) {
+                  window.open(f.url, '_blank', 'noopener,noreferrer');
+                } else {
+                  onAction(book, f.key);
+                }
+              };
+
+              return (
+                <button
+                  key={f.key}
+                  onClick={handleClick}
+                  className={`w-full py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center justify-between px-2.5
+                    ${f.key === 'ebook' ? 'bg-[#00D9FF]/15 text-[#00D9FF] hover:bg-[#00D9FF]/25' :
+                      f.key === 'audiobook' ? 'bg-[#9D4EDD]/15 text-[#9D4EDD] hover:bg-[#9D4EDD]/25' :
+                      f.key === 'softcover' ? 'bg-[#00F5A0]/15 text-[#00F5A0] hover:bg-[#00F5A0]/25' :
+                      'bg-[#FFB800]/15 text-[#FFB800] hover:bg-[#FFB800]/25'}`}
+                >
+                  <span>{f.label}</span>
+                  <span className="opacity-70">
+                    {f.price != null ? (f.price === 0 ? 'Free' : `$${f.price.toFixed(2)}`) : ''}
+                    {f.url && <span className="ml-1 text-[9px]">↗</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <button
+            onClick={() => onAction(book, 'default')}
+            className="mt-3 w-full py-2 rounded-xl text-xs font-medium transition-all bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white hover:opacity-90"
+          >
+            {book.price === 0 ? 'Download Free' : 'Buy Now'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -94,6 +207,7 @@ export default function BooksCollectionPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
+  const [formatFilter, setFormatFilter] = useState<FormatFilter>('all');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
@@ -105,7 +219,7 @@ export default function BooksCollectionPage() {
 
     let query = supabase
       .from('ecom_products')
-      .select('id, title, cover_url, price, product_type, genre, language, status, created_at, authors(name)')
+      .select('id, title, cover_url, price, product_type, genre, language, status, created_at, authors(name), has_ebook, has_audiobook, has_softcover, has_hardcover, ebook_price, audiobook_price, softcover_price, hardcover_price, amazon_softcover_url, amazon_hardcover_url, softcover_source, hardcover_source, softcover_external_url, hardcover_external_url, softcover_visible, hardcover_visible')
       .eq('product_type', 'Book')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
@@ -116,14 +230,15 @@ export default function BooksCollectionPage() {
     if (priceFilter === 'free') query = query.eq('price', 0);
     if (priceFilter === 'paid') query = query.gt('price', 0);
     if (search.trim()) query = query.ilike('title', `%${search.trim()}%`);
+    if (formatFilter === 'ebook')     query = query.eq('has_ebook', true);
+    if (formatFilter === 'audiobook') query = query.eq('has_audiobook', true);
+    if (formatFilter === 'softcover') query = query.eq('has_softcover', true);
+    if (formatFilter === 'hardcover') query = query.eq('has_hardcover', true);
 
     const { data, error } = await query;
     if (!error && data) {
-      if (reset) {
-        setBooks(data as Book[]);
-      } else {
-        setBooks(prev => [...prev, ...(data as Book[])]);
-      }
+      if (reset) setBooks(data as Book[]);
+      else setBooks(prev => [...prev, ...(data as Book[])]);
       setHasMore(data.length === PAGE_SIZE);
       if (!reset) setPage(p => p + 1);
     }
@@ -133,7 +248,7 @@ export default function BooksCollectionPage() {
 
   useEffect(() => {
     fetchBooks(true);
-  }, [selectedGenre, selectedLanguage, priceFilter, search]);
+  }, [selectedGenre, selectedLanguage, priceFilter, formatFilter, search]);
 
   const handleSearchInput = (val: string) => {
     setSearchInput(val);
@@ -141,12 +256,10 @@ export default function BooksCollectionPage() {
     debounceRef.current = setTimeout(() => setSearch(val), 400);
   };
 
-  const handleDownload = (book: Book) => {
-    if (book.price === 0) {
-      navigate(`/products/${book.id}`);
-    } else {
-      navigate(`/products/${book.id}`);
-    }
+  const handleAction = (book: Book, action: string) => {
+    if (action === 'softcover') navigate(`/checkout/softcover/${book.id}`);
+    else if (action === 'hardcover') navigate(`/checkout/hardcover/${book.id}`);
+    else navigate(`/products/${book.id}`);
   };
 
   const PRICE_OPTIONS: { id: PriceFilter; label: string }[] = [
@@ -169,7 +282,7 @@ export default function BooksCollectionPage() {
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-3">
             Explore <span className="bg-gradient-to-r from-[#9D4EDD] to-[#FFB800] bg-clip-text text-transparent">Books</span>
           </h1>
-          <p className="text-gray-400 text-lg max-w-xl">Discover African literature, Christian books, poetry and more from authors worldwide.</p>
+          <p className="text-gray-400 text-lg max-w-xl">Discover African literature, Christian books, poetry and more — available in eBook, audiobook, softcover and hardcover.</p>
         </div>
       </div>
 
@@ -190,7 +303,7 @@ export default function BooksCollectionPage() {
         </div>
 
         {/* Filters row */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap gap-3 mb-4">
           {/* Price filter */}
           <div className="flex gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
             {PRICE_OPTIONS.map(p => (
@@ -217,6 +330,22 @@ export default function BooksCollectionPage() {
               <option key={l.code} value={l.code}>{l.flag} {l.name}</option>
             ))}
           </select>
+        </div>
+
+        {/* Format filter */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {FORMAT_FILTER_OPTIONS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFormatFilter(f.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all
+                ${formatFilter === f.id
+                  ? 'bg-gradient-to-r from-[#9D4EDD] to-[#FFB800] text-white'
+                  : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
         {/* Genre chips */}
@@ -263,7 +392,7 @@ export default function BooksCollectionPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
               {books.map(book => (
-                <BookCard key={book.id} book={book} onDownload={handleDownload} />
+                <BookCard key={book.id} book={book} onAction={handleAction} />
               ))}
             </div>
 

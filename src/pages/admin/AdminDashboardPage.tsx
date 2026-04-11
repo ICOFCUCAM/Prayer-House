@@ -219,6 +219,117 @@ function GenericModule({
   );
 }
 
+// ── Admin Books (format linking + visibility toggles) ─────────────────────────
+
+interface AdminBook {
+  id: string; title: string; price: number; language: string | null; created_at: string;
+  has_ebook?: boolean; has_audiobook?: boolean; has_softcover?: boolean; has_hardcover?: boolean;
+  softcover_source?: string | null; hardcover_source?: string | null;
+  softcover_visible?: boolean | null; hardcover_visible?: boolean | null;
+}
+
+function AdminBooks() {
+  const [books,   setBooks]   = useState<AdminBook[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from('ecom_products')
+      .select('id, title, price, language, created_at, has_ebook, has_audiobook, has_softcover, has_hardcover, softcover_source, hardcover_source, softcover_visible, hardcover_visible')
+      .eq('product_type', 'Book')
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => { setBooks((data ?? []) as AdminBook[]); setLoading(false); });
+  }, []);
+
+  const toggleVisibility = async (id: string, field: 'softcover_visible' | 'hardcover_visible', current: boolean | null | undefined) => {
+    setSaving(id + field);
+    const next = !current;
+    await supabase.from('ecom_products').update({ [field]: next }).eq('id', id);
+    setBooks(prev => prev.map(b => b.id === id ? { ...b, [field]: next } : b));
+    setSaving(null);
+  };
+
+  const FORMAT_BADGE: Record<string, { bg: string; text: string }> = {
+    ebook:     { bg: `${CYAN}18`,   text: CYAN   },
+    audiobook: { bg: `${PURPLE}18`, text: PURPLE },
+    softcover: { bg: `${GREEN}18`,  text: GREEN  },
+    hardcover: { bg: `${GOLD}18`,   text: GOLD   },
+  };
+
+  return (
+    <div>
+      <h2 className="text-white font-black text-xl mb-6">Books — Format Manager</h2>
+      {loading ? <p className="text-white/40">Loading…</p> : books.length === 0 ? (
+        <div className="text-center py-16 text-white/30">No books yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {books.map(b => {
+            const formats = [
+              b.has_ebook     && 'ebook',
+              b.has_audiobook && 'audiobook',
+              b.has_softcover && 'softcover',
+              b.has_hardcover && 'hardcover',
+            ].filter(Boolean) as string[];
+            return (
+              <div key={b.id} className="px-4 py-3 rounded-xl border border-white/8 bg-white/3 flex flex-wrap items-center gap-3">
+                {/* Title */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{b.title}</p>
+                  <p className="text-white/30 text-xs">${b.price.toFixed(2)} · {b.language ?? '—'} · {new Date(b.created_at).toLocaleDateString()}</p>
+                </div>
+                {/* Format badges */}
+                <div className="flex flex-wrap gap-1">
+                  {formats.length === 0 ? (
+                    <span className="text-[10px] text-white/20 italic">no formats</span>
+                  ) : formats.map(f => (
+                    <span key={f} className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: FORMAT_BADGE[f].bg, color: FORMAT_BADGE[f].text }}>
+                      {f.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+                {/* Source badges */}
+                {b.has_softcover && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/40 font-medium">
+                    SC:{b.softcover_source ?? 'wkng'}
+                  </span>
+                )}
+                {b.has_hardcover && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/40 font-medium">
+                    HC:{b.hardcover_source ?? 'wkng'}
+                  </span>
+                )}
+                {/* Visibility toggles */}
+                {b.has_softcover && (
+                  <button
+                    onClick={() => toggleVisibility(b.id, 'softcover_visible', b.softcover_visible)}
+                    disabled={saving === b.id + 'softcover_visible'}
+                    className={`text-[9px] px-2 py-0.5 rounded font-semibold transition-colors ${b.softcover_visible !== false ? `bg-[${GREEN}15] text-[${GREEN}]` : 'bg-white/5 text-white/30'}`}
+                    style={b.softcover_visible !== false ? { background: `${GREEN}15`, color: GREEN } : {}}
+                  >
+                    SC {b.softcover_visible !== false ? 'Visible' : 'Hidden'}
+                  </button>
+                )}
+                {b.has_hardcover && (
+                  <button
+                    onClick={() => toggleVisibility(b.id, 'hardcover_visible', b.hardcover_visible)}
+                    disabled={saving === b.id + 'hardcover_visible'}
+                    className="text-[9px] px-2 py-0.5 rounded font-semibold transition-colors bg-white/5 text-white/30"
+                    style={b.hardcover_visible !== false ? { background: `${GOLD}15`, color: GOLD } : {}}
+                  >
+                    HC {b.hardcover_visible !== false ? 'Visible' : 'Hidden'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface AdminInvite {
@@ -653,7 +764,7 @@ export default function AdminDashboardPage() {
             <Route path="/authors"     element={<GenericModule title="Authors" table="authors" select="id,name,slug,total_downloads,total_earnings,created_at" columns={[{ key: 'name', label: 'Name' }, { key: 'total_downloads', label: 'Downloads' }, { key: 'total_earnings', label: 'Earnings' }]} colour={GOLD} />} />
             <Route path="/competitions" element={<GenericModule title="Competitions" table="competition_rooms" select="id,title,status,prize_pool,entry_count,created_at" columns={[{ key: 'title', label: 'Title' }, { key: 'status', label: 'Status' }, { key: 'prize_pool', label: 'Prize Pool' }, { key: 'entry_count', label: 'Entries' }]} colour={PURPLE} />} />
             <Route path="/distribution" element={<GenericModule title="Distribution Releases" table="distribution_releases" select="id,status,created_at" columns={[{ key: 'id', label: 'ID' }, { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Created' }]} colour={ORANGE} />} />
-            <Route path="/books"       element={<GenericModule title="Books" table="ecom_products" select="id,title,price,language,created_at" columns={[{ key: 'title', label: 'Title' }, { key: 'price', label: 'Price' }, { key: 'language', label: 'Lang' }, { key: 'created_at', label: 'Created' }]} colour={GOLD} />} />
+            <Route path="/books"       element={<AdminBooks />} />
             <Route path="/earnings"    element={<GenericModule title="Earnings" table="creator_earnings" select="id,user_id,category,amount,created_at" columns={[{ key: 'user_id', label: 'User' }, { key: 'category', label: 'Category' }, { key: 'amount', label: 'Amount' }, { key: 'created_at', label: 'Date' }]} colour={GREEN} />} />
             <Route path="/reports"     element={<GenericModule title="Reports" table="content_reports" select="id,reason,status,created_at" columns={[{ key: 'id', label: 'ID' }, { key: 'reason', label: 'Reason' }, { key: 'status', label: 'Status' }, { key: 'created_at', label: 'Date' }]} colour={RED} />} />
             <Route path="/settings"    element={<AdminSettings />} />

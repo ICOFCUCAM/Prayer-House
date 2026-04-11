@@ -37,7 +37,8 @@ const MusicCollectionPage       = lazy(() => import('./pages/collections/MusicCo
 const BooksCollectionPage       = lazy(() => import('./pages/collections/BooksCollectionPage'));
 const VideosCollectionPage      = lazy(() => import('./pages/collections/VideosCollectionPage'));
 const PodcastsCollectionPage    = lazy(() => import('./pages/collections/PodcastsCollectionPage'));
-const TalentArenaCollectionPage = lazy(() => import('./pages/collections/TalentArenaCollectionPage'));
+const TalentArenaCollectionPage  = lazy(() => import('./pages/collections/TalentArenaCollectionPage'));
+const AudiobooksCollectionPage   = lazy(() => import('./pages/collections/AudiobooksCollectionPage'));
 const ReleasesPage              = lazy(() => import('./pages/distribution/ReleasesPage'));
 const WatchPage                 = lazy(() => import('./pages/competition/WatchPage'));
 const ResultsPage               = lazy(() => import('./pages/competition/ResultsPage'));
@@ -140,6 +141,7 @@ export default function App() {
           <Route path="/collections/videos"       element={<VideosCollectionPage />} />
           <Route path="/collections/podcasts"     element={<PodcastsCollectionPage />} />
           <Route path="/collections/talent-arena" element={<TalentArenaCollectionPage />} />
+          <Route path="/collections/audiobooks"   element={<AudiobooksCollectionPage />} />
 
           {/* ── Phase 2 — Competition pages ────────────────────────────────── */}
           <Route path="/competition/watch/:entryId"   element={<WatchPage />} />
@@ -168,6 +170,7 @@ export default function App() {
           } />
 
           {/* ── Coming-soon stubs for footer creator links ─────────────────── */}
+          <Route path="/dashboard/artist/upload-performance" element={<ProtectedRoute><TalentArenaUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Music" /></ProtectedRoute>} />
           <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Album" /></ProtectedRoute>} />
           <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Book" /></ProtectedRoute>} />
