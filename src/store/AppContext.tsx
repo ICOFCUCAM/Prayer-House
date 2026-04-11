@@ -65,8 +65,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const user: AppUser | null = supabaseUser ? {
     id: supabaseUser.id,
     email: supabaseUser.email ?? '',
-    displayName: supabaseUser.user_metadata?.display_name ?? supabaseUser.user_metadata?.full_name ?? supabaseUser.email?.split('@')[0] ?? 'Creator',
-    username: supabaseUser.user_metadata?.username ?? supabaseUser.email?.split('@')[0] ?? 'creator',
+    displayName: supabaseUser.user_metadata?.display_name ?? supabaseUser.user_metadata?.full_name ?? supabaseUser.email?.split('@')?.[0] ?? 'Creator',
+    username: supabaseUser.user_metadata?.username ?? supabaseUser.email?.split('@')?.[0] ?? 'creator',
     avatar: supabaseUser.user_metadata?.avatar_url ?? `https://api.dicebear.com/7.x/initials/svg?seed=${supabaseUser.email}`,
     country: supabaseUser.user_metadata?.country ?? 'US',
     role: supabaseUser.user_metadata?.role ?? 'creator',
