@@ -3,6 +3,22 @@ import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
+const REPORTING_REQUIREMENTS = [
+  'A description of the copyrighted work you claim has been infringed',
+  'The URL or specific location of the infringing content on WANKONG',
+  'Your full name and contact information (email, phone)',
+  'A statement of good faith belief that the use is not authorised by the copyright owner',
+  'A statement that the information in your notice is accurate, under penalty of perjury',
+  'Your physical or electronic signature',
+];
+
+const MUSICAL_RULES = [
+  { icon: '🎵', rule: 'Cover songs require a mechanical licence before uploading or distributing.' },
+  { icon: '🎛️', rule: 'Samples require written clearance from the original rights holder.' },
+  { icon: '🔀', rule: 'Remixes must credit the original artist and obtain remix permission if distributing commercially.' },
+  { icon: '🎤', rule: 'Karaoke or re-recorded versions require a separate sync and mechanical licence.' },
+];
+
 export default function CopyrightPolicyPage() {
   return (
     <div className="min-h-screen bg-[#0A1128] text-white flex flex-col">
@@ -12,254 +28,214 @@ export default function CopyrightPolicyPage() {
         {/* Hero */}
         <section className="border-b border-white/10 py-16">
           <div className="max-w-4xl mx-auto px-4 lg:px-8">
-            <p className="text-[#FF6B00] text-sm font-semibold uppercase tracking-widest mb-3">Legal</p>
+            <p className="text-[#FFB800] text-sm font-semibold uppercase tracking-widest mb-3">Legal</p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Copyright Policy</h1>
             <p className="text-white/60 text-lg">Last updated: April 2026</p>
             <p className="mt-6 text-white/80 text-lg leading-relaxed">
-              WANKONG respects the rights of creators and copyright owners. This policy explains our commitment
-              to copyright, what creators are responsible for, and the procedures for reporting and resolving
-              copyright infringement on the platform.
+              We respect intellectual property rights and require all creators to do the same. This policy explains how
+              WANKONG handles copyright, how to report infringement, and the consequences for repeat violations.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to="/dmca-policy"
-                className="px-4 py-2 bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] rounded-lg text-sm hover:bg-[#FF6B00]/20 transition-colors"
-              >
-                Formal DMCA Procedure →
-              </Link>
-              <a
-                href="mailto:copyright@wankong.com"
-                className="px-4 py-2 bg-white/5 border border-white/10 text-white/70 rounded-lg text-sm hover:bg-white/10 transition-colors"
-              >
-                copyright@wankong.com
-              </a>
-            </div>
           </div>
         </section>
 
-        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-16 space-y-12">
+        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-16 space-y-16">
 
-          {/* 1. Commitment */}
+          {/* 1. WANKONG's Commitment */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">1. WANKONG's Commitment to Copyright</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              WANKONG is a platform built by creators for creators. We believe that intellectual property rights
-              are fundamental to a healthy creator economy. We take copyright seriously — not only as a legal
-              obligation, but because protecting creators' works is core to our mission.
-            </p>
-            <p className="text-white/70 leading-relaxed">
-              WANKONG complies with applicable copyright laws and has implemented policies and processes to
-              address copyright infringement on our platform promptly and fairly. We expect all users — whether
-              they upload one song or publish a hundred books — to share this commitment.
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">1. WANKONG's Commitment to Copyright</h2>
+            <p className="text-white/75 leading-relaxed">
+              We respect intellectual property rights and require all creators to do the same. WANKONG actively works
+              to prevent copyright infringement on our platform and provides clear procedures for rights holders to
+              report violations. We comply with the Digital Millennium Copyright Act (DMCA) and equivalent international
+              intellectual property laws.
             </p>
           </section>
 
           {/* 2. Creator Responsibility */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">2. Creator Responsibility</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              Every creator who uploads content to WANKONG represents and warrants the following:
-            </p>
-            <div className="space-y-3">
-              {[
-                'You own all rights (or hold valid licences) to every element of the content you upload, including the master recording, underlying composition, lyrics, artwork, and any samples or interpolations.',
-                'You have obtained all mechanical licences, sync licences, and any other required clearances for the content.',
-                'The content does not infringe any third-party copyright, trademark, or other intellectual property right.',
-                'You have the authority to grant WANKONG the display and distribution licences described in our Terms of Service.',
-              ].map((item, i) => (
-                <div key={i} className="flex gap-4 bg-white/5 border border-white/10 rounded-xl p-4">
-                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#FF6B00]/15 border border-[#FF6B00]/30 text-[#FF6B00] text-xs flex items-center justify-center font-bold">
-                    {i + 1}
-                  </span>
-                  <p className="text-white/65 text-sm leading-relaxed">{item}</p>
-                </div>
-              ))}
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">2. Creator Responsibility</h2>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5">
+              <p className="text-white/75 leading-relaxed mb-4">
+                All content you upload to WANKONG must be owned by you or properly licensed. By uploading content, you
+                confirm that:
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'You own the copyright to all uploaded content, or have obtained the necessary licences and permissions.',
+                  'Your content does not infringe the intellectual property rights of any third party.',
+                  'Any samples, beats, or instrumentals used are properly cleared.',
+                  'Cover songs are properly licensed via a mechanical licence before distribution.',
+                  'You have the right to grant WANKONG the licence required to host and stream your content.',
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-white/70">
+                    <span className="text-[#FFB800] mt-0.5 flex-shrink-0">&#10003;</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </section>
 
           {/* 3. Reporting Infringement */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">3. Reporting Copyright Infringement</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              If you believe your copyrighted work has been uploaded to WANKONG without authorisation, you may
-              file a copyright infringement claim by emailing{' '}
-              <a href="mailto:copyright@wankong.com" className="text-[#00D9FF] hover:underline">
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">3. Reporting Infringement</h2>
+            <p className="text-white/75 leading-relaxed mb-5">
+              If you believe your copyrighted work has been uploaded to WANKONG without your permission, please submit
+              a copyright infringement notice to our designated copyright agent:
+            </p>
+            <div className="bg-[#FFB800]/5 border border-[#FFB800]/20 rounded-2xl px-6 py-4 mb-5 flex items-center gap-3">
+              <span className="text-xl">📧</span>
+              <a href="mailto:copyright@wankong.com" className="text-[#FFB800] hover:underline font-semibold">
                 copyright@wankong.com
               </a>
-              . Your claim must include all of the following:
-            </p>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
-              {[
-                { label: 'Description of the work', detail: 'A clear description of the copyrighted work you claim has been infringed (e.g. "My song \'Sunset\' released on my album \'Horizon\' in 2024").' },
-                { label: 'Infringing URL', detail: 'The URL or content ID of the infringing material on WANKONG so we can locate it promptly.' },
-                { label: 'Your contact information', detail: 'Your full name, email address, and phone number so we can respond to your claim.' },
-                { label: 'Statement of authority', detail: 'A statement that you are the copyright owner, or are authorised to act on behalf of the copyright owner, with respect to the work in question.' },
-                { label: 'Good faith statement', detail: 'A statement that you have a good faith belief that the use of the work is not authorised by the copyright owner, its agent, or the law.' },
-              ].map((item) => (
-                <div key={item.label}>
-                  <p className="font-semibold text-[#FF6B00] text-sm">{item.label}</p>
-                  <p className="text-white/60 text-sm mt-0.5">{item.detail}</p>
+            </div>
+            <p className="text-white/70 text-sm mb-4">Your notice must include all of the following:</p>
+            <div className="space-y-3">
+              {REPORTING_REQUIREMENTS.map((req, i) => (
+                <div key={i} className="flex gap-4 items-start bg-white/5 border border-white/10 rounded-xl px-5 py-3">
+                  <span className="w-6 h-6 rounded-full bg-[#FFB800]/10 border border-[#FFB800]/30 flex items-center justify-center text-[#FFB800] text-xs font-bold flex-shrink-0">
+                    {i + 1}
+                  </span>
+                  <p className="text-white/70 text-sm leading-relaxed">{req}</p>
                 </div>
               ))}
             </div>
-            <p className="text-white/50 text-xs mt-4">
-              For formal DMCA notices with the legal declaration of accuracy and perjury statement, please use
-              our DMCA procedure at{' '}
-              <Link to="/dmca-policy" className="text-[#00D9FF] hover:underline">/dmca-policy</Link>.
-            </p>
           </section>
 
           {/* 4. Takedown Procedure */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">4. Takedown Procedure</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              Upon receiving a valid copyright claim, WANKONG will:
-            </p>
-            <div className="relative">
-              <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-white/10" />
-              {[
-                { step: 'Review the claim', detail: 'WANKONG\'s copyright team reviews the claim within 48 hours of receipt to assess its validity.' },
-                { step: 'Notify the uploader', detail: 'The creator who uploaded the content is notified that a copyright claim has been made against their content.' },
-                { step: 'Remove the content', detail: 'If the claim is valid on its face, the content is disabled or removed from the platform.' },
-                { step: 'Notify the claimant', detail: 'The claimant is informed that the content has been acted upon.' },
-              ].map((item, i) => (
-                <div key={item.step} className="relative flex gap-5 pl-2 pb-5">
-                  <div className="relative z-10 flex-shrink-0 w-8 h-8 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] text-sm font-bold">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 pt-1">
-                    <p className="font-semibold text-white text-sm">{item.step}</p>
-                    <p className="text-white/55 text-sm mt-0.5">{item.detail}</p>
-                  </div>
-                </div>
-              ))}
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">4. Takedown Procedure</h2>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5">
+              <p className="text-white/75 leading-relaxed">
+                Upon receiving a valid copyright infringement notice, WANKONG will review the claim within{' '}
+                <span className="text-[#FFB800] font-semibold">48 hours</span>. If the claim is valid and the content
+                is found to infringe copyright, the content will be removed from the platform and the uploader will be
+                notified. Invalid or incomplete notices may be disregarded. WANKONG will not be liable for any removal
+                carried out in good faith in response to a copyright notice.
+              </p>
             </div>
           </section>
 
-          {/* 5. Counter-Notice */}
+          {/* 5. Counter-Notice Procedure */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">5. Counter-Notice Procedure</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              If you are a creator whose content was removed and you believe the removal was in error — for
-              example, because you hold a valid licence or the claim was incorrect — you may file a
-              counter-notice. To submit a counter-notice, email{' '}
-              <a href="mailto:copyright@wankong.com" className="text-[#00D9FF] hover:underline">
-                copyright@wankong.com
-              </a>{' '}
-              with the subject line "Counter-Notice" and include:
-            </p>
-            <ul className="space-y-2">
-              {[
-                'The URL or content ID of the removed content',
-                'Your full name and contact information',
-                'A statement that you consent to the jurisdiction of the relevant court',
-                'A statement under penalty of perjury that the content was removed by mistake or misidentification',
-                'Any evidence of your rights to the content (licence agreements, original files, etc.)',
-              ].map((item, i) => (
-                <li key={i} className="flex gap-3 text-white/65 text-sm">
-                  <span className="text-[#FF6B00] flex-shrink-0">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <p className="text-white/55 text-sm mt-4">
-              If the counter-notice is valid, WANKONG will forward it to the original claimant. If the
-              claimant does not initiate legal proceedings within 10–14 business days, the content may be
-              reinstated.
-            </p>
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">5. Counter-Notice Procedure</h2>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5">
+              <p className="text-white/75 leading-relaxed mb-4">
+                If you believe your content was removed incorrectly — for example due to a misidentification or a
+                notice filed in bad faith — you may file a counter-notice within a{' '}
+                <span className="text-[#FFB800] font-semibold">14-day window</span> from the removal date. Send your
+                counter-notice to{' '}
+                <a href="mailto:copyright@wankong.com" className="text-[#FFB800] hover:underline">
+                  copyright@wankong.com
+                </a>{' '}
+                and include:
+              </p>
+              <ul className="space-y-2">
+                {[
+                  'Your name and contact information',
+                  'Identification of the removed content and its prior location',
+                  'A statement under penalty of perjury that you believe the removal was a mistake',
+                  'Your consent to the jurisdiction of the appropriate federal court',
+                  'Your physical or electronic signature',
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-white/70">
+                    <span className="text-[#FFB800] mt-0.5 flex-shrink-0">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           {/* 6. Repeat Offender Policy */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">6. Repeat Offender Policy</h2>
-            <div className="bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded-xl p-5">
-              <p className="text-white/75 text-sm leading-relaxed mb-4">
-                WANKONG operates a three-strikes repeat offender policy for copyright violations:
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">6. Repeat Offender Policy</h2>
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl px-6 py-5">
+              <p className="text-white/80 leading-relaxed mb-3">
+                WANKONG applies a <span className="text-red-400 font-semibold">three-strikes policy</span> to copyright
+                infringement:
               </p>
-              <div className="space-y-3">
+              <ul className="space-y-2">
                 {[
-                  { strike: 'Strike 1', result: 'Content removed. Formal warning issued to account.' },
-                  { strike: 'Strike 2', result: 'Content removed. Temporary account suspension (30 days). Upload privileges restricted.' },
-                  { strike: 'Strike 3', result: 'Permanent account ban. All earnings under review. Account reported if required by law.' },
-                ].map((s) => (
-                  <div key={s.strike} className="flex gap-4">
-                    <span className="flex-shrink-0 px-2 py-0.5 bg-[#FF6B00]/30 text-[#FF6B00] text-xs font-bold rounded">{s.strike}</span>
-                    <span className="text-white/65 text-sm">{s.result}</span>
-                  </div>
+                  'Strike 1: Warning + content removal. Educational notice sent to account.',
+                  'Strike 2: 30-day content upload suspension + content removal.',
+                  'Strike 3: Permanent account ban + forfeiture of all accumulated earnings.',
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-white/70">
+                    <span className="text-red-400 mt-0.5 flex-shrink-0">✕</span>
+                    <span>{item}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </section>
 
           {/* 7. Content Removal Timeline */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">7. Content Removal Timeline</h2>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-[#FF6B00]">48–72</p>
-                <p className="text-white/50 text-sm">hours</p>
-              </div>
-              <div className="text-white/65 text-sm leading-relaxed">
-                WANKONG aims to review and act on all valid copyright claims within 48–72 hours of receipt.
-                Complex claims involving multiple works, unclear ownership, or disputed licences may take
-                longer. Claimants will be notified if additional time is needed.
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">7. Content Removal Timeline</h2>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5 flex items-center gap-4">
+              <span className="text-3xl">⏱️</span>
+              <div>
+                <p className="text-white font-semibold">48–72 hours</p>
+                <p className="text-white/60 text-sm">
+                  Valid copyright claims are reviewed and actioned within 48–72 hours of receipt. Complex cases
+                  involving counter-notices may take up to 14 business days to resolve.
+                </p>
               </div>
             </div>
           </section>
 
           {/* 8. Safe Harbour */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">8. Safe Harbour</h2>
-            <p className="text-white/70 leading-relaxed">
-              WANKONG operates as a user-content platform and qualifies for safe harbour protection under
-              applicable law (including the DMCA in the United States and equivalent provisions in other
-              jurisdictions) for content uploaded by users, provided WANKONG acts in good faith on valid
-              takedown notices. WANKONG does not pre-screen all user-uploaded content and is not liable for
-              infringing content uploaded by users where it is unaware of the infringement and acts promptly
-              upon notice.
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">8. Safe Harbour</h2>
+            <p className="text-white/75 leading-relaxed">
+              WANKONG operates under safe harbour provisions as a platform hosting user-generated content. This means
+              WANKONG is not liable for infringing content uploaded by users, provided we act promptly upon receiving
+              valid takedown notices and do not have actual knowledge of infringement. Safe harbour protection depends
+              on our compliance with copyright takedown procedures — which we take seriously.
             </p>
           </section>
 
           {/* 9. Musical Works */}
           <section>
-            <h2 className="text-2xl font-bold mb-4 text-[#FF6B00]">9. Musical Works: Covers, Samples, Remixes</h2>
-            <div className="space-y-4">
-              {[
-                {
-                  title: 'Cover Songs',
-                  body: 'To upload a cover song to WANKONG for streaming or distribution, you must hold a valid mechanical licence for the underlying composition. WANKONG does not obtain mechanical licences on behalf of creators. Cover songs without mechanical licences will be removed upon notice.',
-                },
-                {
-                  title: 'Samples',
-                  body: 'Using an unlicensed sample in your music is a copyright violation. All samples — whether audio recordings or underlying compositions — must be cleared before upload. WANKONG is not responsible for sampling disputes arising from improperly cleared samples.',
-                },
-                {
-                  title: 'Remixes',
-                  body: 'Remixes of third-party works require the permission of both the master recording owner (typically the label or original artist) and the composition owner (publisher/songwriter). Fan remixes without permission are not permitted on WANKONG even if they are non-commercial.',
-                },
-              ].map((item) => (
-                <div key={item.title} className="bg-white/5 border border-white/10 rounded-xl p-5">
-                  <h3 className="font-semibold text-white mb-2">{item.title}</h3>
-                  <p className="text-white/60 text-sm leading-relaxed">{item.body}</p>
+            <h2 className="text-2xl font-bold mb-6 text-[#FFB800]">9. Musical Works — Specific Rules</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {MUSICAL_RULES.map((item, i) => (
+                <div
+                  key={i}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-5 flex gap-4 items-start hover:border-white/20 transition-colors"
+                >
+                  <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                  <p className="text-white/70 text-sm leading-relaxed">{item.rule}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* 10. DMCA Link */}
-          <section className="bg-gradient-to-r from-[#FF6B00]/10 to-transparent border border-[#FF6B00]/20 rounded-2xl p-6">
-            <h2 className="text-xl font-bold mb-3 text-[#FF6B00]">10. Formal DMCA Procedure</h2>
-            <p className="text-white/70 text-sm leading-relaxed mb-4">
-              If you need to file a formal DMCA takedown notice — including the full legal declaration required
-              under the Digital Millennium Copyright Act — please refer to our dedicated DMCA Policy page,
-              which includes the required form language and our registered DMCA agent's contact information.
-            </p>
-            <Link
-              to="/dmca-policy"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#FF6B00]/90 text-white font-semibold rounded-xl text-sm transition-colors"
-            >
-              View DMCA Policy →
-            </Link>
+          {/* 10. Formal DMCA Procedure */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4 text-[#FFB800]">10. Formal DMCA Procedure</h2>
+            <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5">
+              <p className="text-white/75 leading-relaxed mb-4">
+                For formal DMCA takedown requests and US-specific copyright procedures, please refer to our dedicated
+                DMCA Policy page. This page contains the formal agent designation, jurisdiction statements, and
+                counter-notice procedures required under US law.
+              </p>
+              <Link
+                to="/dmca-policy"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FFB800]/10 border border-[#FFB800]/30 text-[#FFB800] rounded-xl text-sm font-semibold hover:bg-[#FFB800]/15 transition-colors"
+              >
+                View DMCA Policy &#8594;
+              </Link>
+            </div>
+          </section>
+
+          {/* Contact */}
+          <section className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-center">
+            <p className="text-white/70 text-sm mb-2">Copyright concerns or licensing enquiries?</p>
+            <a href="mailto:copyright@wankong.com" className="text-[#FFB800] hover:underline font-semibold">
+              copyright@wankong.com
+            </a>
           </section>
 
         </div>

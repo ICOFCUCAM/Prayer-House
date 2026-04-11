@@ -116,8 +116,6 @@ export default function LanguageScreen({ route }: Props) {
     );
   }
 
-  const flag = FLAG[language] ?? '🌍';
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
