@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 // ── Column data ───────────────────────────────────────────────────────────────
 
 const CREATORS_LINKS = [
-  { label: 'Upload Music',              href: '/upload/distribute' },
-  { label: 'Upload Album',              href: '/upload/distribute' },
-  { label: 'Upload Book',               href: '/authors/dashboard' },
-  { label: 'Upload Audiobook',          href: '/authors/dashboard' },
-  { label: 'Talent Arena',              href: '/talent-arena' },
-  { label: 'Distribution Dashboard',   href: '/distribution/releases' },
-  { label: 'Creator Earnings',          href: '/dashboard/earnings' },
-  { label: 'Creator Memberships',       href: '/dashboard' },
+  { label: 'Upload Music',            href: '/dashboard/artist/upload-music' },
+  { label: 'Upload Album',            href: '/dashboard/artist/upload-album' },
+  { label: 'Upload Book',             href: '/dashboard/author/upload-book' },
+  { label: 'Upload Audiobook',        href: '/dashboard/author/upload-audiobook' },
+  { label: 'Talent Arena',            href: '/collections/talent-arena' },
+  { label: 'Distribution Dashboard',  href: '/dashboard/distribution' },
+  { label: 'Creator Earnings',        href: '/dashboard/earnings' },
+  { label: 'Creator Memberships',     href: '/dashboard/memberships' },
 ];
 
 const DISCOVERY_LINKS = [
@@ -148,6 +148,8 @@ export default function Footer() {
                   key={s.label}
                   href={s.href}
                   aria-label={s.label}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:border-white/30 hover:bg-white/10 transition-all text-xs font-bold"
                 >
                   {s.icon}
@@ -223,6 +225,7 @@ export default function Footer() {
             <div className="flex flex-wrap gap-2">
               {SOCIAL.map(s => (
                 <a key={s.label} href={s.href} aria-label={s.label}
+                  target="_blank" rel="noopener noreferrer"
                   className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-white/40 text-xs font-bold hover:text-white transition-colors">
                   {s.icon}
                 </a>

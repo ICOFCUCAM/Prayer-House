@@ -60,6 +60,10 @@ const ApiAccessPage                 = lazy(() => import('./pages/ApiAccessPage')
 const CallbackPage    = lazy(() => import('./pages/auth/CallbackPage'));
 const SelectRolePage  = lazy(() => import('./pages/auth/SelectRolePage'));
 const RegisterPage    = lazy(() => import('./pages/auth/RegisterPage'));
+const LoginPage       = lazy(() => import('./pages/auth/LoginPage'));
+
+// ── Coming-soon placeholder ────────────────────────────────────────────────────
+const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
 
 // ── Phase 4 — Role dashboards ─────────────────────────────────────────────────
 const DashboardPage         = lazy(() => import('./pages/DashboardPage'));
@@ -122,6 +126,7 @@ export default function App() {
           <Route path="/api-access"               element={<ApiAccessPage />} />
 
           {/* ── Auth (Phase 4) ─────────────────────────────────────────────── */}
+          <Route path="/auth/login"               element={<LoginPage />} />
           <Route path="/auth/callback"            element={<CallbackPage />} />
           <Route path="/auth/register"            element={<RegisterPage />} />
           <Route path="/auth/select-role"         element={
@@ -161,6 +166,14 @@ export default function App() {
           <Route path="/distribution/releases" element={
             <ProtectedRoute><ReleasesPage /></ProtectedRoute>
           } />
+
+          {/* ── Coming-soon stubs for footer creator links ─────────────────── */}
+          <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Music" /></ProtectedRoute>} />
+          <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Album" /></ProtectedRoute>} />
+          <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Book" /></ProtectedRoute>} />
+          <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Audiobook" /></ProtectedRoute>} />
+          <Route path="/dashboard/distribution"           element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
+          <Route path="/dashboard/memberships"            element={<ProtectedRoute><ComingSoonPage feature="Creator Memberships" /></ProtectedRoute>} />
 
           {/* ── Admin invite accept (public — token is the auth) */}
           <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Play, Upload, Trophy, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import PerformanceCard, { type PerformanceCardData } from '@/components/media/PerformanceCard';
+import DefaultPerformanceThumbnail from '@/components/media/DefaultPerformanceThumbnail';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CompetitionRoom {
   id: string;
@@ -30,21 +33,21 @@ interface RecentWinner {
   thumbnail_url: string | null;
   room_title: string;
   prize_info: string;
+  embed_url?: string | null;
 }
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
 
 function useCountdown(deadline: string | null) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
+  const [t, setT] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   useEffect(() => {
     if (!deadline) return;
     const calc = () => {
       const diff = new Date(deadline).getTime() - Date.now();
-      if (diff <= 0) return setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      setTimeLeft({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff % 86400000) / 3600000),
+      if (diff <= 0) return setT({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      setT({
+        days:    Math.floor(diff / 86400000),
+        hours:   Math.floor((diff % 86400000) / 3600000),
         minutes: Math.floor((diff % 3600000) / 60000),
         seconds: Math.floor((diff % 60000) / 1000),
       });
@@ -53,8 +56,7 @@ function useCountdown(deadline: string | null) {
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
   }, [deadline]);
-
-  return timeLeft;
+  return t;
 }
 
 function Countdown({ deadline }: { deadline: string | null }) {
@@ -62,8 +64,8 @@ function Countdown({ deadline }: { deadline: string | null }) {
   if (!deadline) return <span className="text-gray-500 text-xs">No deadline set</span>;
   return (
     <div className="flex gap-1.5">
-      {[['d', t.days], ['h', t.hours], ['m', t.minutes], ['s', t.seconds]].map(([label, val]) => (
-        <div key={label as string} className="bg-white/5 rounded-lg px-2 py-1 text-center min-w-[38px]">
+      {([['d', t.days], ['h', t.hours], ['m', t.minutes], ['s', t.seconds]] as [string, number][]).map(([label, val]) => (
+        <div key={label} className="bg-white/5 rounded-lg px-2 py-1 text-center min-w-[38px]">
           <p className="text-white font-bold text-xs tabular-nums">{String(val).padStart(2, '0')}</p>
           <p className="text-gray-600 text-[9px]">{label}</p>
         </div>
@@ -79,13 +81,13 @@ function RoomCard({ room }: { room: CompetitionRoom }) {
   const deadline = room.deadline ?? room.close_at;
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-[#9D4EDD]/40 transition-all group">
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-[#9D4EDD]/40 hover:scale-[1.02] transition-all duration-300 group shadow-lg shadow-black/40">
       <div className="relative h-36 overflow-hidden">
         {room.banner_url ? (
           <img src={room.banner_url} alt={room.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#9D4EDD]/30 to-[#00D9FF]/10 flex items-center justify-center">
-            <span className="text-5xl">🏆</span>
+          <div className="relative w-full h-full">
+            <DefaultPerformanceThumbnail gradient="from-[#9D4EDD]/40 to-[#00D9FF]/20" label={room.title} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A1128] via-transparent to-transparent" />
@@ -110,11 +112,9 @@ function RoomCard({ room }: { room: CompetitionRoom }) {
             </span>
           )}
         </div>
-
         {room.description && (
           <p className="text-gray-400 text-xs mb-3 line-clamp-2">{room.description}</p>
         )}
-
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-gray-500 text-[10px] mb-0.5">Countdown</p>
@@ -125,7 +125,6 @@ function RoomCard({ room }: { room: CompetitionRoom }) {
             <p className="text-white font-bold text-sm">{room.entry_count ?? 0}</p>
           </div>
         </div>
-
         <div className="flex gap-2">
           <button
             onClick={() => navigate(`/talent-arena/room/${room.id}`)}
@@ -145,19 +144,85 @@ function RoomCard({ room }: { room: CompetitionRoom }) {
   );
 }
 
+// ── Skeleton cards ────────────────────────────────────────────────────────────
+
+function RoomSkeleton() {
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
+      <div className="h-36 bg-white/5" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-white/10 rounded w-3/4" />
+        <div className="h-3 bg-white/5 rounded w-full" />
+        <div className="h-8 bg-white/10 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+function PerformanceSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="w-full aspect-video rounded-xl bg-white/5 border border-white/5" />
+      <div className="mt-2 space-y-1.5">
+        <div className="h-3 bg-white/10 rounded w-4/5" />
+        <div className="h-2.5 bg-white/5 rounded w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────────
+
+function EmptyRoomsState() {
+  const PLACEHOLDERS = [
+    { label: 'Gospel Vocal Competition', sub: 'Opening Next Week',   gradient: 'from-[#9D4EDD]/40 to-[#00D9FF]/20' },
+    { label: 'Worship Leader Challenge', sub: 'New Room — Stay Tuned', gradient: 'from-[#FFB800]/30 to-[#FF6B00]/20' },
+    { label: 'Choir Ensemble Battle',   sub: 'Upcoming Competition',  gradient: 'from-[#00F5A0]/30 to-[#00D9FF]/20' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 px-1">
+        <Zap className="w-4 h-4 text-[#9D4EDD]" />
+        <p className="text-white/60 text-sm">Upcoming Competitions Opening Soon</p>
+        <span className="text-white/20 text-xs ml-auto">New rooms open weekly</span>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {PLACEHOLDERS.map((p, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-white/10 overflow-hidden opacity-60 shadow-lg shadow-black/40"
+          >
+            {/* Cinematic 16:9 placeholder */}
+            <div className="relative w-full aspect-video">
+              <DefaultPerformanceThumbnail gradient={p.gradient} label="Opening Soon" />
+              <div className="absolute inset-0 border border-dashed border-white/10 rounded-none m-3 pointer-events-none" />
+            </div>
+            <div className="px-4 py-3 bg-white/3">
+              <p className="text-white/60 text-sm font-semibold">{p.label}</p>
+              <p className="text-white/30 text-xs mt-0.5">{p.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function TalentArenaCollectionPage() {
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState<CompetitionRoom[]>([]);
-  const [recentWinners, setRecentWinners] = useState<RecentWinner[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rooms,           setRooms]           = useState<CompetitionRoom[]>([]);
+  const [recentWinners,   setRecentWinners]   = useState<RecentWinner[]>([]);
+  const [featuredStrip,   setFeaturedStrip]   = useState<RecentWinner[]>([]);
+  const [loading,         setLoading]         = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
 
-      const [roomsRes, winnersRes] = await Promise.all([
+      const [roomsRes, winnersRes, stripRes] = await Promise.all([
         supabase
           .from('competition_rooms')
           .select('id, title, category, prize_info, prize_amount, entry_count, status, deadline, close_at, banner_url, description, created_at')
@@ -166,25 +231,34 @@ export default function TalentArenaCollectionPage() {
           .limit(12),
         supabase
           .from('competition_entries_v2')
-          .select('id, room_id, title, performer_name, votes, thumbnail_url, competition_rooms(title, prize_info)')
+          .select('id, room_id, title, performer_name, votes, thumbnail_url, embed_url, competition_rooms(title, prize_info)')
           .eq('status', 'winner')
           .order('votes', { ascending: false })
           .limit(6),
+        supabase
+          .from('competition_entries_v2')
+          .select('id, room_id, title, performer_name, votes, thumbnail_url, embed_url, competition_rooms(title, prize_info)')
+          .in('status', ['winner', 'live', 'finalist'])
+          .order('votes', { ascending: false })
+          .limit(10),
       ]);
 
       setRooms((roomsRes.data ?? []) as CompetitionRoom[]);
 
-      const mappedWinners = (winnersRes.data ?? []).map((w: any) => ({
+      const mapEntry = (w: any): RecentWinner => ({
         id: w.id,
         room_id: w.room_id,
         title: w.title,
         performer_name: w.performer_name,
         votes: w.votes,
         thumbnail_url: w.thumbnail_url,
+        embed_url: w.embed_url,
         room_title: w.competition_rooms?.title ?? 'Competition',
         prize_info: w.competition_rooms?.prize_info ?? '',
-      }));
-      setRecentWinners(mappedWinners);
+      });
+
+      setRecentWinners((winnersRes.data ?? []).map(mapEntry));
+      setFeaturedStrip((stripRes.data ?? []).map(mapEntry));
       setLoading(false);
     };
 
@@ -193,28 +267,48 @@ export default function TalentArenaCollectionPage() {
 
   const totalPrizePool = rooms.reduce((s, r) => s + (r.prize_amount ?? 0), 0);
 
+  // Convert DB winners to PerformanceCardData
+  const toCard = (w: RecentWinner, badge?: string, badgeBg?: string): PerformanceCardData => ({
+    id:           w.id,
+    title:        w.title,
+    creatorName:  w.performer_name,
+    thumbnailUrl: w.thumbnail_url,
+    votes:        w.votes,
+    embedUrl:     w.embed_url ?? undefined,
+    to:           `/talent-arena/room/${w.room_id}`,
+    badge,
+    badgeBg,
+  });
+
   return (
     <div className="min-h-screen bg-[#0A1128] text-white">
       <Header />
 
-      {/* Hero */}
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#0A1128] via-[#100D2E] to-[#0A1128] border-b border-white/5 py-16">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(157,78,221,0.15),transparent_60%)]" />
+
         <div className="relative max-w-7xl mx-auto px-4 lg:px-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-xl">🎤</div>
+            {/* Video-style hero icon — no emoji */}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center">
+              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+            </div>
             <span className="text-[#9D4EDD] text-sm font-medium uppercase tracking-widest">Talent Arena</span>
           </div>
+
           <h1 className="text-5xl font-black text-white mb-3">
             Compete. <span className="bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] bg-clip-text text-transparent">Win.</span>
           </h1>
-          <p className="text-gray-400 text-lg max-w-xl mb-6">The ultimate platform for gospel artists to showcase talent, gain fans, and earn real prizes.</p>
+          <p className="text-gray-400 text-lg max-w-xl mb-6">
+            The ultimate platform for gospel artists to showcase talent, gain fans, and earn real prizes.
+          </p>
 
-          <div className="flex gap-6">
+          <div className="flex gap-6 mb-8">
             {[
-              { label: 'Active Rooms', value: loading ? '—' : String(rooms.length) },
+              { label: 'Active Rooms',    value: loading ? '—' : String(rooms.length) },
               { label: 'Total Prize Pool', value: loading ? '—' : (totalPrizePool > 0 ? `$${totalPrizePool.toLocaleString()}` : 'Prizes Available') },
-              { label: 'Recent Winners', value: loading ? '—' : String(recentWinners.length) },
+              { label: 'Recent Winners',  value: loading ? '—' : String(recentWinners.length) },
             ].map(s => (
               <div key={s.label}>
                 <p className="text-white font-black text-2xl">{s.value}</p>
@@ -222,9 +316,42 @@ export default function TalentArenaCollectionPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Featured Strip — recent winners / live entries ─────────────── */}
+          {(loading || featuredStrip.length > 0) && (
+            <div>
+              <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">
+                Recent Winners &amp; Live Entries
+              </p>
+              <div
+                className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
+                style={{ scrollbarWidth: 'none' }}
+              >
+                {loading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="w-[260px] flex-shrink-0 snap-center">
+                        <PerformanceSkeleton />
+                      </div>
+                    ))
+                  : featuredStrip.map((w, i) => (
+                      <div key={w.id} className="w-[260px] flex-shrink-0 snap-center">
+                        <PerformanceCard
+                          {...toCard(
+                            w,
+                            i === 0 ? '🏆 Winner' : w.votes > 500 ? '🔥 Trending' : '● Live',
+                            i === 0 ? 'rgba(255,184,0,0.85)' : w.votes > 500 ? 'rgba(255,107,0,0.85)' : 'rgba(0,245,160,0.25)',
+                          )}
+                        />
+                      </div>
+                    ))
+                }
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
 
         {/* Active Rooms */}
@@ -239,23 +366,10 @@ export default function TalentArenaCollectionPage() {
 
           {loading ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
-                  <div className="h-36 bg-white/5" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-white/10 rounded w-3/4" />
-                    <div className="h-3 bg-white/5 rounded w-full" />
-                    <div className="h-8 bg-white/10 rounded-xl" />
-                  </div>
-                </div>
-              ))}
+              {Array.from({ length: 6 }).map((_, i) => <RoomSkeleton key={i} />)}
             </div>
           ) : rooms.length === 0 ? (
-            <div className="text-center py-16 bg-white/3 border border-white/5 rounded-2xl">
-              <div className="text-5xl mb-4">🎤</div>
-              <p className="text-gray-400 text-lg">No open competition rooms right now.</p>
-              <p className="text-gray-600 text-sm mt-2">Check back soon — new rooms open regularly.</p>
-            </div>
+            <EmptyRoomsState />
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {rooms.map(room => (
@@ -266,50 +380,67 @@ export default function TalentArenaCollectionPage() {
         </div>
 
         {/* Recent Winners */}
-        {recentWinners.length > 0 && (
+        {(loading || recentWinners.length > 0) && (
           <div className="mb-14">
             <h2 className="text-xl font-bold text-white mb-6">Recent Winners</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {recentWinners.map(winner => (
-                <Link
-                  key={winner.id}
-                  to={`/talent-arena/room/${winner.room_id}`}
-                  className="bg-gradient-to-br from-[#FFB800]/10 to-transparent border border-[#FFB800]/20 rounded-2xl overflow-hidden hover:border-[#FFB800]/40 transition-all group"
-                >
-                  <div className="aspect-video relative overflow-hidden bg-white/5">
-                    {winner.thumbnail_url ? (
-                      <img src={winner.thumbnail_url} alt={winner.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#FFB800]/30 to-[#FF6B00]/10 flex items-center justify-center text-5xl">🏆</div>
-                    )}
-                    <div className="absolute top-2 left-2 bg-[#FFB800] text-[#0A1128] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      🏆 WINNER
-                    </div>
-                    <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur rounded-lg px-2 py-1 flex items-center gap-1">
-                      <svg className="w-3 h-3 text-[#FFB800]" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span className="text-[10px] text-white font-bold">{winner.votes.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <p className="font-semibold text-white text-sm truncate">{winner.title}</p>
-                    {winner.performer_name && (
-                      <p className="text-gray-400 text-xs mt-0.5 truncate">{winner.performer_name}</p>
-                    )}
-                    <p className="text-gray-600 text-[10px] mt-1 truncate">{winner.room_title}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+
+            {loading ? (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {Array.from({ length: 3 }).map((_, i) => <PerformanceSkeleton key={i} />)}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {recentWinners.map(w => (
+                  <PerformanceCard
+                    key={w.id}
+                    {...toCard(w, '🏆 WINNER', 'rgba(255,184,0,0.9)')}
+                    weekBadge={w.prize_info || undefined}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* CTA */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#9D4EDD]/20 to-[#00D9FF]/10 border border-[#9D4EDD]/20 rounded-2xl p-8 text-center">
+        {/* ── Submit CTA — video-upload banner ─────────────────────────── */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#9D4EDD]/20 to-[#00D9FF]/10 border border-[#9D4EDD]/20 rounded-2xl">
+
+          {/* Background texture */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),' +
+                'linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px)',
+              backgroundSize: '32px 32px',
+            }}
+          />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(157,78,221,0.08),transparent_70%)]" />
-          <div className="relative">
-            <div className="text-5xl mb-4">🎤</div>
+
+          {/* Video-upload preview strip */}
+          <div className="relative flex overflow-hidden h-[60px] border-b border-white/5">
+            {['from-[#9D4EDD]/30 to-[#00D9FF]/10','from-[#FFB800]/20 to-[#FF6B00]/10','from-[#00F5A0]/20 to-[#00D9FF]/10','from-[#FF006E]/20 to-[#9D4EDD]/10','from-[#00D9FF]/20 to-[#9D4EDD]/10'].map((g, i) => (
+              <div key={i} className={`flex-1 bg-gradient-to-br ${g} flex items-center justify-center border-r border-white/5`}>
+                {i === 2 ? (
+                  <div className="w-8 h-8 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+                    <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-white/10 border border-white/15 flex items-center justify-center animate-pulse">
+                    <div className="w-2 h-2 rounded-full bg-white/40" />
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0A1128]/60" />
+          </div>
+
+          {/* CTA body */}
+          <div className="relative text-center px-8 py-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 rounded-full mb-4">
+              <Upload className="w-3.5 h-3.5 text-[#9D4EDD]" />
+              <span className="text-[#9D4EDD] text-xs font-semibold uppercase tracking-wider">Submit Performance</span>
+            </div>
             <h3 className="text-2xl font-black text-white mb-2">Submit Your Performance</h3>
             <p className="text-gray-400 mb-6 max-w-md mx-auto">
               Record your best performance, submit to an active competition, and let the community vote.
@@ -318,13 +449,12 @@ export default function TalentArenaCollectionPage() {
               onClick={() => navigate('/talent-arena/upload')}
               className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/20"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
+              <Upload className="w-4 h-4" />
               Submit Your Performance
             </button>
           </div>
         </div>
+
       </div>
 
       <Footer />
