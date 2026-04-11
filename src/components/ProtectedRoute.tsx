@@ -1,14 +1,15 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
-  children: ReactNode;
-  requiredRole?: string | string[];
+  children:      ReactNode;
+  /** If set, user must have this role (or one of these roles) in user_roles table */
+  requiredRole?: UserRole | UserRole[] | 'admin';
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, loading, userRole, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -21,21 +22,34 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   if (!user) return <Navigate to="/" replace />;
 
   if (requiredRole) {
-    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    const userRole = user.user_metadata?.role || 'user';
-    if (!roles.includes(userRole)) {
-      return (
-        <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-4xl mb-4">🚫</p>
-            <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
-            <p className="text-white/50 mb-6">You don't have permission to view this page.</p>
-            <a href="/" className="px-6 py-3 bg-[#00D9FF] text-[#0A1128] font-bold rounded-xl">Go Home</a>
-          </div>
-        </div>
-      );
+    // Admin check
+    if (requiredRole === 'admin') {
+      if (!isAdmin) return <AccessDenied />;
+    } else {
+      // Role check against user_roles table
+      const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      if (!userRole || !allowed.includes(userRole)) {
+        return <AccessDenied />;
+      }
     }
   }
 
   return <>{children}</>;
+}
+
+// ── Access denied screen ───────────────────────────────────────────────────────
+
+function AccessDenied() {
+  return (
+    <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-4xl mb-4">🚫</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
+        <p className="text-white/50 mb-6">You don't have permission to view this page.</p>
+        <a href="/" className="px-6 py-3 bg-[#00D9FF] text-[#0A1128] font-bold rounded-xl">
+          Go Home
+        </a>
+      </div>
+    </div>
+  );
 }
