@@ -956,6 +956,157 @@ export default function AppLayout() {
         </div>
       </section>
 
+      {/* ── Featured Artists ─────────────────────────────────────── */}
+      <section className="py-12 bg-[#0D1535]">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#9D4EDD]/10 rounded-xl flex items-center justify-center">
+                <span className="text-[#9D4EDD] text-lg">★</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Featured Artists</h2>
+                <p className="text-white/40 text-xs">Verified creators on WANKONG</p>
+              </div>
+            </div>
+            <Link to="/collections/music" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { name: 'Celestine Ukwu', genre: 'Highlife', streams: '2.4M', flag: '🇳🇬', gradient: 'from-[#9D4EDD] to-[#00D9FF]' },
+              { name: 'Sinach', genre: 'Gospel', streams: '18M', flag: '🇳🇬', gradient: 'from-[#FF6B00] to-[#FFB800]' },
+              { name: 'Joe Mettle', genre: 'Gospel', streams: '5.1M', flag: '🇬🇭', gradient: 'from-[#00F5A0] to-[#00D9FF]' },
+              { name: 'Femi Kuti', genre: 'Afrobeat', streams: '9.3M', flag: '🇳🇬', gradient: 'from-[#FFB800] to-[#FF6B00]' },
+              { name: 'Soweto Gospel', genre: 'Gospel', streams: '3.7M', flag: '🇿🇦', gradient: 'from-[#00D9FF] to-[#9D4EDD]' },
+              { name: 'Nathaniel Bassey', genre: 'Worship', streams: '12M', flag: '🇳🇬', gradient: 'from-[#9D4EDD] to-[#FF6B00]' },
+            ].map((artist) => (
+              <Link
+                key={artist.name}
+                to={`/artists/${artist.name.toLowerCase().replace(/\s+/g, '-')}`}
+                className="shrink-0 w-40 group"
+              >
+                <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${artist.gradient} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-lg`}>
+                  <span className="text-4xl">{artist.flag}</span>
+                </div>
+                <p className="text-white text-sm font-semibold text-center truncate">{artist.name}</p>
+                <p className="text-[#00D9FF] text-xs text-center">{artist.genre}</p>
+                <p className="text-white/30 text-xs text-center">{artist.streams} streams</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Top Creators This Week ───────────────────────────────── */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#FFB800]/10 rounded-xl flex items-center justify-center">
+                <span className="text-[#FFB800] text-lg">🏆</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Top Creators This Week</h2>
+                <p className="text-white/40 text-xs">Ranked by earnings & engagement</p>
+              </div>
+            </div>
+            <Link to="/dashboard/earnings" className="text-[#00D9FF] text-sm hover:underline">Leaderboard</Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { rank: 1, name: 'Sinach', level: 'Diamond', earnings: '$4,280', badge: '👑', color: '#FFB800' },
+              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', earnings: '$3,150', badge: '💎', color: '#00D9FF' },
+              { rank: 3, name: 'Joe Mettle', level: 'Gold', earnings: '$2,890', badge: '⭐', color: '#FFB800' },
+            ].map((creator) => (
+              <div key={creator.rank} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors border border-white/5">
+                <span className="text-2xl font-black" style={{ color: creator.color }}>#{creator.rank}</span>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-lg shrink-0">{creator.badge}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{creator.name}</p>
+                  <p className="text-white/40 text-xs">{creator.level}</p>
+                </div>
+                <span className="text-[#00F5A0] font-bold text-sm shrink-0">{creator.earnings}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Audiobooks Discovery ──────────────────────────────────── */}
+      <section className="py-12 bg-[#0D1535]">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#FF6B00]/10 rounded-xl flex items-center justify-center">
+                <span className="text-[#FF6B00] text-lg">🎧</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Audiobooks</h2>
+                <p className="text-white/40 text-xs">Listen while you move</p>
+              </div>
+            </div>
+            <Link to="/ebook-marketplace" className="text-[#00D9FF] text-sm hover:underline">See All Books</Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { title: 'Prayer That Moves Mountains', author: 'E.M. Bounds', lang: 'EN', hours: '4.2h', gradient: 'from-[#FF6B00] to-[#FFB800]' },
+              { title: 'Purpose Driven Life', author: 'Rick Warren', lang: 'FR', hours: '8.5h', gradient: 'from-[#9D4EDD] to-[#00D9FF]' },
+              { title: 'Kingdom Principles', author: 'Myles Munroe', lang: 'SW', hours: '6.1h', gradient: 'from-[#00F5A0] to-[#00D9FF]' },
+              { title: 'The Power of Now', author: 'Eckhart Tolle', lang: 'AR', hours: '7.3h', gradient: 'from-[#00D9FF] to-[#9D4EDD]' },
+              { title: 'Battlefield of the Mind', author: 'Joyce Meyer', lang: 'YO', hours: '5.8h', gradient: 'from-[#FFB800] to-[#FF6B00]' },
+            ].map((ab) => (
+              <div key={ab.title} className="shrink-0 w-44 cursor-pointer group">
+                <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${ab.gradient} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-lg`}>
+                  <span className="text-4xl">🎧</span>
+                </div>
+                <p className="text-white text-sm font-semibold truncate">{ab.title}</p>
+                <p className="text-white/50 text-xs truncate">{ab.author}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] bg-[#FF6B00]/20 text-[#FF6B00] px-1.5 py-0.5 rounded">{ab.lang}</span>
+                  <span className="text-white/30 text-[10px]">{ab.hours}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trending Performances ────────────────────────────────── */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#00F5A0]/10 rounded-xl flex items-center justify-center">
+                <span className="text-[#00F5A0] text-lg">🎭</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Trending Performances</h2>
+                <p className="text-white/40 text-xs">Live from the Talent Arena</p>
+              </div>
+            </div>
+            <Link to="/collections/talent-arena" className="text-[#00D9FF] text-sm hover:underline">View Arena</Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[
+              { title: 'Amazing Grace Cover', performer: 'Adaeze Obi', votes: '1.2K', lang: 'EN', gradient: 'from-[#9D4EDD]/40 to-[#00D9FF]/20' },
+              { title: 'Spontaneous Worship', performer: 'Kofi Mensah', votes: '987', lang: 'YO', gradient: 'from-[#FF6B00]/40 to-[#FFB800]/20' },
+              { title: 'Gospel Medley', performer: 'Amara Diallo', votes: '2.1K', lang: 'FR', gradient: 'from-[#00F5A0]/30 to-[#00D9FF]/20' },
+              { title: 'Live Praise Session', performer: 'Zara Ibrahim', votes: '654', lang: 'AR', gradient: 'from-[#FFB800]/30 to-[#FF6B00]/20' },
+            ].map((perf) => (
+              <Link key={perf.title} to="/collections/talent-arena" className="group block">
+                <div className={`w-full aspect-video rounded-xl bg-gradient-to-br ${perf.gradient} border border-white/10 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform relative overflow-hidden`}>
+                  <span className="text-3xl">🎤</span>
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-[#00F5A0] text-[10px] font-bold px-2 py-0.5 rounded-full">❤ {perf.votes}</div>
+                </div>
+                <p className="text-white text-xs font-semibold truncate">{perf.title}</p>
+                <p className="text-white/40 text-[10px] truncate">{perf.performer}</p>
+                <span className="text-[10px] bg-[#9D4EDD]/20 text-[#9D4EDD] px-1.5 py-0.5 rounded mt-1 inline-block">{perf.lang}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Recently Played (from GlobalPlayer history) ───────────── */}
       {recentlyPlayed.length > 0 && (
         <section className="py-12">

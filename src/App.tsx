@@ -30,6 +30,19 @@ const DistributeUploadPage = lazy(() => import('./pages/upload/DistributeUploadP
 const TalentArenaUploadPage = lazy(() => import('./pages/talent-arena/TalentArenaUploadPage'));
 const TalentArenaRoomPage = lazy(() => import('./pages/talent-arena/TalentArenaRoomPage'));
 
+// New Phase 2 pages
+const ArtistPublicPage = lazy(() => import('./pages/artists/ArtistPublicPage'));
+const AuthorDashboardPage = lazy(() => import('./pages/authors/AuthorDashboardPage'));
+const EarningsDashboardPage = lazy(() => import('./pages/dashboard/EarningsDashboardPage'));
+const MusicCollectionPage = lazy(() => import('./pages/collections/MusicCollectionPage'));
+const BooksCollectionPage = lazy(() => import('./pages/collections/BooksCollectionPage'));
+const VideosCollectionPage = lazy(() => import('./pages/collections/VideosCollectionPage'));
+const PodcastsCollectionPage = lazy(() => import('./pages/collections/PodcastsCollectionPage'));
+const TalentArenaCollectionPage = lazy(() => import('./pages/collections/TalentArenaCollectionPage'));
+const ReleasesPage = lazy(() => import('./pages/distribution/ReleasesPage'));
+const WatchPage = lazy(() => import('./pages/competition/WatchPage'));
+const ResultsPage = lazy(() => import('./pages/competition/ResultsPage'));
+
 const Spinner = () => (
   <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
     <div className="w-8 h-8 border-2 border-[#00D9FF] border-t-transparent rounded-full animate-spin" />
@@ -71,6 +84,25 @@ export default function App() {
           <Route path="/distribute" element={<ProtectedRoute requiredRole={['creator','singer_artist','admin']}><DistributePage /></ProtectedRoute>} />
           <Route path="/upload/distribute" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
           <Route path="/talent-arena/upload" element={<ProtectedRoute><TalentArenaUploadPage /></ProtectedRoute>} />
+
+          {/* Phase 2 — Artists & Authors */}
+          <Route path="/artists/:slug" element={<ArtistPublicPage />} />
+          <Route path="/authors/dashboard" element={<ProtectedRoute><AuthorDashboardPage /></ProtectedRoute>} />
+          <Route path="/dashboard/earnings" element={<ProtectedRoute><EarningsDashboardPage /></ProtectedRoute>} />
+
+          {/* Phase 2 — Collections */}
+          <Route path="/collections/music" element={<MusicCollectionPage />} />
+          <Route path="/collections/books" element={<BooksCollectionPage />} />
+          <Route path="/collections/videos" element={<VideosCollectionPage />} />
+          <Route path="/collections/podcasts" element={<PodcastsCollectionPage />} />
+          <Route path="/collections/talent-arena" element={<TalentArenaCollectionPage />} />
+
+          {/* Phase 2 — Distribution */}
+          <Route path="/distribution/releases" element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
+
+          {/* Phase 2 — Competition */}
+          <Route path="/competition/watch/:entryId" element={<WatchPage />} />
+          <Route path="/competition/results/:roomId" element={<ResultsPage />} />
 
           {/* Protected: admin only */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>} />
