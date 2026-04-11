@@ -16,15 +16,44 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCount } from '../utils/formatters';
 
+// ── Colour constants ────────────────────────────────────────────────────────────
+const NAVY   = '#0A1128';
+const CYAN   = '#00D9FF';
+const PURPLE = '#9D4EDD';
+const GOLD   = '#FFB800';
+const GREEN  = '#00F5A0';
+const ORANGE = '#FF6B00';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const LANGUAGES = ['EN', 'FR', 'NO', 'SW', 'DE', 'ES', 'AR', 'ZH', 'ZU', 'BM', 'LG', 'RU', 'PID', 'YO', 'PT', 'SV'];
+const SUBTITLE_LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'sw', name: 'Swahili', flag: '🇰🇪' },
+  { code: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'no', name: 'Norwegian', flag: '🇳🇴' },
+  { code: 'sv', name: 'Swedish', flag: '🇸🇪' },
+  { code: 'pt', name: 'Portuguese', flag: '🇧🇷' },
+  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
+  { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
+  { code: 'yo', name: 'Yoruba', flag: '🌍' },
+  { code: 'ig', name: 'Igbo', flag: '🇳🇬' },
+  { code: 'ha', name: 'Hausa', flag: '🇳🇬' },
+  { code: 'pid', name: 'Pidgin', flag: '🌍' },
+  { code: 'bm', name: 'Bamumbu', flag: '🌍' },
+];
 
 const COVER_COLOURS: [string, string][] = [
-  ['#9D4EDD', '#00D9FF'],
-  ['#FF6B00', '#FFB800'],
-  ['#00F5A0', '#00D9FF'],
-  ['#9D4EDD', '#FF6B00'],
+  [PURPLE, CYAN],
+  [ORANGE, GOLD],
+  [GREEN,  CYAN],
+  [PURPLE, ORANGE],
+  [GOLD,   PURPLE],
+  [CYAN,   GREEN],
+  [ORANGE, PURPLE],
+  [GREEN,  GOLD],
 ];
 
 function getColourPair(id: string): [string, string] {
@@ -41,6 +70,7 @@ interface CompetitionRoom {
   status: string;
   prize_amount?: number;
   prize_currency?: string;
+  prize_description?: string;
   entry_deadline?: string;
   entry_count?: number;
 }
@@ -52,6 +82,7 @@ interface CompetitionEntry {
   title: string;
   video_url: string;
   votes_count: number;
+  ai_score?: number;
   status: string;
   performer_name?: string;
   language?: string;
@@ -60,6 +91,12 @@ interface CompetitionEntry {
 interface VotesMap {
   [entryId: string]: number;
 }
+
+interface SubtitleMap {
+  [entryId: string]: { lang: string; vtt_url: string } | null;
+}
+
+type TabType = 'rooms' | 'leaderboard';
 
 // ── Countdown Timer ────────────────────────────────────────────────────────────
 
@@ -82,7 +119,7 @@ function useCountdown(deadline?: string): string {
       const h = Math.floor((diff % 86_400_000) / 3_600_000);
       const m = Math.floor((diff % 3_600_000) / 60_000);
       const s = Math.floor((diff % 60_000) / 1_000);
-      if (d > 0) setRemaining(`${d}d ${h}h ${m}m`);
+      if (d > 0) setRemaining(`${d}d ${h}h ${m}m ${s}s`);
       else setRemaining(`${h}h ${m}m ${s}s`);
     };
 
@@ -111,10 +148,12 @@ function RoomCard({
   const [c1] = getColourPair(room.id);
 
   return (
-    <View style={[styles.roomCard, selected && { borderColor: '#00D9FF', borderWidth: 2 }]}>
+    <View style={[styles.roomCard, selected && styles.roomCardSelected]}>
       <View style={styles.roomCardHeader}>
         <View style={[styles.roomDot, { backgroundColor: c1 }]} />
-        <Text style={styles.roomCategory}>{room.category}</Text>
+        <View style={[styles.categoryPill, { backgroundColor: PURPLE }]}>
+          <Text style={styles.categoryPillText}>{room.category}</Text>
+        </View>
         <View style={styles.roomStatusBadge}>
           <Text style={styles.roomStatusText}>{room.status.toUpperCase()}</Text>
         </View>
@@ -122,11 +161,13 @@ function RoomCard({
 
       <Text style={styles.roomTitle}>{room.title}</Text>
 
-      {room.prize_amount != null && (
+      {room.prize_description ? (
+        <Text style={styles.roomPrize}>🏆 {room.prize_description}</Text>
+      ) : room.prize_amount != null ? (
         <Text style={styles.roomPrize}>
           🏆 {room.prize_currency ?? 'USD'} {room.prize_amount.toLocaleString()} Prize
         </Text>
-      )}
+      ) : null}
 
       <View style={styles.roomMeta}>
         <Text style={styles.roomMetaText}>⏱ {countdown}</Text>
@@ -155,43 +196,77 @@ function EntryCard({
   onVote,
   hasVoted,
   votesOverride,
+  subtitle,
+  onSubtitle,
 }: {
   entry: CompetitionEntry;
   rank: number;
   onVote: () => void;
   hasVoted: boolean;
   votesOverride?: number;
+  subtitle?: { lang: string; vtt_url: string } | null;
+  onSubtitle: () => void;
 }) {
-  const [c1] = getColourPair(entry.id);
+  const [c1, c2] = getColourPair(entry.id);
   const votes = votesOverride ?? entry.votes_count ?? 0;
 
   return (
     <View style={[styles.entryCard, rank === 1 && styles.entryCardFirst]}>
-      <View style={styles.entryRankBadge}>
-        <Text style={styles.entryRankText}>#{rank}</Text>
-      </View>
-
+      {/* 16:9 thumbnail placeholder */}
       <View style={[styles.entryThumb, { backgroundColor: c1 }]}>
-        <Text style={styles.entryThumbText}>🎬</Text>
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: c2, opacity: 0.35, borderRadius: 10 },
+          ]}
+        />
+        <Text style={styles.entryThumbIcon}>🎬</Text>
+        <View style={styles.entryRankBadgeOverlay}>
+          <Text style={styles.entryRankText}>#{rank}</Text>
+        </View>
       </View>
 
-      <View style={styles.entryInfo}>
-        <Text style={styles.entryTitle} numberOfLines={2}>{entry.title}</Text>
-        <Text style={styles.entryPerformer}>{entry.performer_name ?? 'Anonymous'}</Text>
-        {entry.language && <Text style={styles.entryLang}>{entry.language}</Text>}
-      </View>
+      <View style={styles.entryBody}>
+        <View style={styles.entryBodyTop}>
+          <View style={styles.entryInfo}>
+            <Text style={styles.entryTitle} numberOfLines={2}>{entry.title}</Text>
+            <Text style={styles.entryPerformer}>{entry.performer_name ?? 'Anonymous'}</Text>
+          </View>
+          <View style={styles.entryRight}>
+            <View style={styles.votesBadge}>
+              <Text style={styles.votesCount}>{formatCount(votes)}</Text>
+              <Text style={styles.votesLabel}>votes</Text>
+            </View>
+            {entry.ai_score != null && (
+              <View style={styles.aiScoreBadge}>
+                <Text style={styles.aiScoreText}>AI {entry.ai_score}</Text>
+              </View>
+            )}
+          </View>
+        </View>
 
-      <View style={styles.entryRight}>
-        <Text style={styles.entryVotes}>{formatCount(votes)}</Text>
-        <Text style={styles.entryVotesLabel}>votes</Text>
-        <TouchableOpacity
-          style={[styles.voteBtn, hasVoted && styles.voteBtnActive]}
-          onPress={onVote}
-          disabled={hasVoted}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.voteBtnText}>{hasVoted ? '❤' : '🤍'}</Text>
-        </TouchableOpacity>
+        <View style={styles.entryActions}>
+          <TouchableOpacity
+            style={[styles.voteBtn, hasVoted && styles.voteBtnVoted]}
+            onPress={onVote}
+            disabled={hasVoted}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.voteBtnText}>{hasVoted ? '❤ Voted' : '🤍 VOTE'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.subtitleBtn}
+            onPress={onSubtitle}
+            activeOpacity={0.8}
+          >
+            {subtitle ? (
+              <Text style={styles.subtitleActiveText}>CC: {subtitle.lang.toUpperCase()}</Text>
+            ) : (
+              <Text style={styles.subtitleBtnText}>CC</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -202,16 +277,19 @@ function EntryCard({
 export default function TalentArenaScreen() {
   const { user } = useAuth();
 
-  const [rooms, setRooms] = useState<CompetitionRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<CompetitionRoom | null>(null);
-  const [entries, setEntries] = useState<CompetitionEntry[]>([]);
-  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
-  const [votesMap, setVotesMap] = useState<VotesMap>({});
-  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [activeTab, setActiveTab]           = useState<TabType>('rooms');
+  const [rooms, setRooms]                   = useState<CompetitionRoom[]>([]);
+  const [selectedRoom, setSelectedRoom]     = useState<CompetitionRoom | null>(null);
+  const [entries, setEntries]               = useState<CompetitionEntry[]>([]);
+  const [allEntries, setAllEntries]         = useState<CompetitionEntry[]>([]);
+  const [votedIds, setVotedIds]             = useState<Set<string>>(new Set());
+  const [votesMap, setVotesMap]             = useState<VotesMap>({});
+  const [subtitleMap, setSubtitleMap]       = useState<SubtitleMap>({});
+  const [loadingRooms, setLoadingRooms]     = useState(true);
   const [loadingEntries, setLoadingEntries] = useState(false);
-  const [langModalVisible, setLangModalVisible] = useState(false);
-  const [selectedLang, setSelectedLang] = useState<string | null>(null);
-  const [subtitleEntryId, setSubtitleEntryId] = useState<string | null>(null);
+  const [langModalVisible, setLangModalVisible]   = useState(false);
+  const [subtitleEntryId, setSubtitleEntryId]     = useState<string | null>(null);
+  const [selectedSubtitleLang, setSelectedSubtitleLang] = useState<string | null>(null);
 
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -233,6 +311,24 @@ export default function TalentArenaScreen() {
     fetchRooms();
   }, [fetchRooms]);
 
+  // ── Fetch all entries for leaderboard tab ────────────────────────────────────
+  const fetchAllEntries = useCallback(async () => {
+    if (rooms.length === 0) return;
+    const roomIds = rooms.map((r) => r.id);
+    const { data } = await supabase
+      .from('competition_entries_v2')
+      .select('*')
+      .in('room_id', roomIds)
+      .order('votes_count', { ascending: false });
+    if (data) setAllEntries(data as CompetitionEntry[]);
+  }, [rooms]);
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && rooms.length > 0) {
+      fetchAllEntries();
+    }
+  }, [activeTab, rooms, fetchAllEntries]);
+
   // ── Fetch entries for selected room ──────────────────────────────────────────
   const fetchEntries = useCallback(async (roomId: string) => {
     setLoadingEntries(true);
@@ -251,7 +347,6 @@ export default function TalentArenaScreen() {
   useEffect(() => {
     if (!selectedRoom) return;
 
-    // Cleanup previous subscription
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
       realtimeChannelRef.current = null;
@@ -267,11 +362,15 @@ export default function TalentArenaScreen() {
           table: 'competition_votes',
         },
         (payload) => {
-          const vote = payload.new as { entry_id?: string; votes_count?: number };
+          const vote = payload.new as { entry_id?: string };
           if (!vote.entry_id) return;
+          const eid = vote.entry_id;
           setVotesMap((prev) => {
-            const current = prev[vote.entry_id!] ?? entries.find(e => e.id === vote.entry_id)?.votes_count ?? 0;
-            return { ...prev, [vote.entry_id!]: current + 1 };
+            const current =
+              prev[eid] ??
+              entries.find((e) => e.id === eid)?.votes_count ??
+              0;
+            return { ...prev, [eid]: current + 1 };
           });
         }
       )
@@ -285,7 +384,6 @@ export default function TalentArenaScreen() {
     };
   }, [selectedRoom, entries]);
 
-  // ── Cleanup on unmount ───────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (realtimeChannelRef.current) {
@@ -297,6 +395,7 @@ export default function TalentArenaScreen() {
   const handleWatchRoom = (room: CompetitionRoom) => {
     setSelectedRoom(room);
     setVotesMap({});
+    setActiveTab('rooms');
     fetchEntries(room.id);
   };
 
@@ -344,24 +443,82 @@ export default function TalentArenaScreen() {
     }
   };
 
-  // ── Subtitle language select ─────────────────────────────────────────────────
-  const openLangModal = (entryId: string) => {
+  // ── Subtitles ─────────────────────────────────────────────────────────────────
+  const openSubtitleModal = (entryId: string) => {
     setSubtitleEntryId(entryId);
     setLangModalVisible(true);
   };
 
-  const handleSelectLang = (lang: string) => {
-    setSelectedLang(lang);
+  const handleSelectSubtitleLang = async (langCode: string) => {
     setLangModalVisible(false);
+    setSelectedSubtitleLang(langCode);
+
+    if (!subtitleEntryId) return;
+    const eid = subtitleEntryId;
+
+    const { data } = await supabase
+      .from('competition_subtitles')
+      .select('vtt_url, language')
+      .eq('entry_id', eid)
+      .eq('language', langCode)
+      .maybeSingle();
+
+    if (data?.vtt_url) {
+      setSubtitleMap((prev) => ({
+        ...prev,
+        [eid]: { lang: langCode, vtt_url: data.vtt_url },
+      }));
+    } else {
+      setSubtitleMap((prev) => ({ ...prev, [eid]: null }));
+    }
+    setSubtitleEntryId(null);
   };
 
-  // Sorted entries (leaderboard)
+  // ── Sorted views ──────────────────────────────────────────────────────────────
   const sortedEntries = [...entries].sort(
-    (a, b) => (votesMap[b.id] ?? b.votes_count ?? 0) - (votesMap[a.id] ?? a.votes_count ?? 0)
+    (a, b) =>
+      (votesMap[b.id] ?? b.votes_count ?? 0) -
+      (votesMap[a.id] ?? a.votes_count ?? 0)
   );
+
+  const leaderboardEntries = [...allEntries].sort(
+    (a, b) =>
+      (votesMap[b.id] ?? b.votes_count ?? 0) -
+      (votesMap[a.id] ?? a.votes_count ?? 0)
+  );
+
+  const displayEntries =
+    activeTab === 'leaderboard' ? leaderboardEntries : sortedEntries;
 
   return (
     <View style={styles.container}>
+      {/* ── Top tabs ── */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'rooms' && styles.tabActive]}
+          onPress={() => setActiveTab('rooms')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, activeTab === 'rooms' && styles.tabTextActive]}>
+            Rooms
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'leaderboard' && styles.tabActive]}
+          onPress={() => setActiveTab('leaderboard')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'leaderboard' && styles.tabTextActive,
+            ]}
+          >
+            Leaderboard
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -373,46 +530,71 @@ export default function TalentArenaScreen() {
           <Text style={styles.headerSub}>Vote for your favourite creators</Text>
         </View>
 
-        {/* ── Rooms ── */}
-        <Text style={styles.sectionTitle}>Open Competitions</Text>
-        {loadingRooms ? (
-          <ActivityIndicator color="#00D9FF" style={styles.loader} />
-        ) : (
-          <FlatList
-            data={rooms}
-            keyExtractor={(r) => r.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.roomsList}
-            renderItem={({ item }) => (
-              <RoomCard
-                room={item}
-                selected={selectedRoom?.id === item.id}
-                onWatch={() => handleWatchRoom(item)}
-                onEnter={() => handleEnterRoom(item)}
+        {/* ── Rooms tab content ── */}
+        {activeTab === 'rooms' && (
+          <>
+            <Text style={styles.sectionLabel}>Open Competitions</Text>
+            {loadingRooms ? (
+              <ActivityIndicator color={CYAN} style={styles.loader} />
+            ) : (
+              <FlatList
+                data={rooms}
+                keyExtractor={(r) => r.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.roomsList}
+                renderItem={({ item }) => (
+                  <RoomCard
+                    room={item}
+                    selected={selectedRoom?.id === item.id}
+                    onWatch={() => handleWatchRoom(item)}
+                    onEnter={() => handleEnterRoom(item)}
+                  />
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>No open competitions right now</Text>
+                }
               />
             )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No open competitions right now</Text>
-            }
-          />
+
+            {selectedRoom && (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionLabel}>
+                    Entries — {selectedRoom.title}
+                  </Text>
+                </View>
+                {loadingEntries ? (
+                  <ActivityIndicator color={PURPLE} style={styles.loader} />
+                ) : sortedEntries.length === 0 ? (
+                  <Text style={styles.emptyText}>No entries yet. Be the first!</Text>
+                ) : (
+                  sortedEntries.map((entry, idx) => (
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      rank={idx + 1}
+                      onVote={() => handleVote(entry)}
+                      hasVoted={votedIds.has(entry.id)}
+                      votesOverride={votesMap[entry.id]}
+                      subtitle={subtitleMap[entry.id]}
+                      onSubtitle={() => openSubtitleModal(entry.id)}
+                    />
+                  ))
+                )}
+              </>
+            )}
+          </>
         )}
 
-        {/* ── Entries / Leaderboard ── */}
-        {selectedRoom && (
+        {/* ── Leaderboard tab content ── */}
+        {activeTab === 'leaderboard' && (
           <>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>
-                Leaderboard — {selectedRoom.title}
-              </Text>
-            </View>
-
-            {loadingEntries ? (
-              <ActivityIndicator color="#9D4EDD" style={styles.loader} />
-            ) : sortedEntries.length === 0 ? (
-              <Text style={styles.emptyText}>No entries yet. Be the first!</Text>
+            <Text style={styles.sectionLabel}>Global Leaderboard</Text>
+            {leaderboardEntries.length === 0 ? (
+              <ActivityIndicator color={CYAN} style={styles.loader} />
             ) : (
-              sortedEntries.map((entry, idx) => (
+              leaderboardEntries.map((entry, idx) => (
                 <EntryCard
                   key={entry.id}
                   entry={entry}
@@ -420,6 +602,8 @@ export default function TalentArenaScreen() {
                   onVote={() => handleVote(entry)}
                   hasVoted={votedIds.has(entry.id)}
                   votesOverride={votesMap[entry.id]}
+                  subtitle={subtitleMap[entry.id]}
+                  onSubtitle={() => openSubtitleModal(entry.id)}
                 />
               ))
             )}
@@ -429,7 +613,7 @@ export default function TalentArenaScreen() {
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      {/* ── Language Modal ── */}
+      {/* ── Subtitle language modal ── */}
       <Modal
         visible={langModalVisible}
         transparent
@@ -445,24 +629,25 @@ export default function TalentArenaScreen() {
             <View style={styles.langSheetHandle} />
             <Text style={styles.langSheetTitle}>Select Subtitle Language</Text>
             <ScrollView>
-              {LANGUAGES.map((lang) => (
+              {SUBTITLE_LANGUAGES.map((lang) => (
                 <TouchableOpacity
-                  key={lang}
+                  key={lang.code}
                   style={[
                     styles.langOption,
-                    selectedLang === lang && styles.langOptionActive,
+                    selectedSubtitleLang === lang.code && styles.langOptionActive,
                   ]}
-                  onPress={() => handleSelectLang(lang)}
+                  onPress={() => handleSelectSubtitleLang(lang.code)}
                 >
+                  <Text style={styles.langOptionFlag}>{lang.flag}</Text>
                   <Text
                     style={[
                       styles.langOptionText,
-                      selectedLang === lang && styles.langOptionTextActive,
+                      selectedSubtitleLang === lang.code && styles.langOptionTextActive,
                     ]}
                   >
-                    {lang}
+                    {lang.name}
                   </Text>
-                  {selectedLang === lang && (
+                  {selectedSubtitleLang === lang.code && (
                     <Text style={styles.langCheckmark}>✓</Text>
                   )}
                 </TouchableOpacity>
@@ -476,13 +661,39 @@ export default function TalentArenaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A1128' },
+  container: { flex: 1, backgroundColor: NAVY },
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    paddingTop: Platform.OS === 'ios' ? 54 : 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: NAVY,
+  },
+  tab: {
+    marginRight: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: CYAN,
+  },
+  tabText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: CYAN,
+  },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 140 },
   header: {
-    paddingTop: 56,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -494,7 +705,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  sectionTitle: {
+  sectionLabel: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
@@ -514,7 +725,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 8,
   },
-  roomsList: { paddingHorizontal: 16 },
+  // Rooms list
+  roomsList: { paddingHorizontal: 16, paddingBottom: 4 },
   roomCard: {
     width: SCREEN_WIDTH * 0.72,
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -524,32 +736,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
+  roomCardSelected: {
+    borderColor: CYAN,
+    borderWidth: 2,
+  },
   roomCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 8,
   },
   roomDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 8,
   },
-  roomCategory: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
+  categoryPill: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     flex: 1,
+  },
+  categoryPillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   roomStatusBadge: {
-    backgroundColor: '#00F5A0',
+    backgroundColor: GREEN,
     borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   roomStatusText: {
-    color: '#0A1128',
+    color: NAVY,
     fontSize: 10,
     fontWeight: '800',
   },
@@ -560,7 +782,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   roomPrize: {
-    color: '#FFB800',
+    color: GOLD,
     fontSize: 13,
     marginBottom: 8,
   },
@@ -579,24 +801,23 @@ const styles = StyleSheet.create({
   },
   watchBtn: {
     flex: 1,
-    backgroundColor: 'rgba(0,217,255,0.15)',
+    backgroundColor: CYAN,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  watchBtnText: {
+    color: NAVY,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  enterBtn: {
+    flex: 1,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0,217,255,0.3)',
-  },
-  watchBtnText: {
-    color: '#00D9FF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  enterBtn: {
-    flex: 1,
-    backgroundColor: '#9D4EDD',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
+    borderColor: '#FFFFFF',
   },
   enterBtnText: {
     color: '#FFFFFF',
@@ -605,78 +826,126 @@ const styles = StyleSheet.create({
   },
   // Entry card
   entryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: 'transparent',
+    overflow: 'hidden',
   },
   entryCardFirst: {
-    borderColor: '#FFB800',
-    backgroundColor: 'rgba(255,184,0,0.08)',
-  },
-  entryRankBadge: {
-    width: 28,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  entryRankText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 13,
-    fontWeight: '700',
+    borderColor: GOLD,
+    backgroundColor: 'rgba(255,184,0,0.06)',
   },
   entryThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: 8,
+    width: '100%',
+    aspectRatio: 16 / 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    overflow: 'hidden',
   },
-  entryThumbText: { fontSize: 28 },
+  entryThumbIcon: { fontSize: 40 },
+  entryRankBadgeOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  entryRankText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  entryBody: {
+    padding: 12,
+  },
+  entryBodyTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
   entryInfo: { flex: 1, marginRight: 8 },
   entryTitle: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   entryPerformer: {
     color: 'rgba(255,255,255,0.4)',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 3,
   },
-  entryLang: {
-    color: '#FFB800',
-    fontSize: 10,
-    marginTop: 2,
+  entryRight: { alignItems: 'flex-end', gap: 4 },
+  votesBadge: {
+    backgroundColor: 'rgba(157,78,221,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignItems: 'center',
   },
-  entryRight: { alignItems: 'center', minWidth: 60 },
-  entryVotes: {
-    color: '#9D4EDD',
-    fontSize: 15,
+  votesCount: {
+    color: PURPLE,
+    fontSize: 16,
     fontWeight: '800',
   },
-  entryVotesLabel: {
+  votesLabel: {
     color: 'rgba(255,255,255,0.3)',
     fontSize: 9,
   },
-  voteBtn: {
-    marginTop: 6,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(157,78,221,0.15)',
+  aiScoreBadge: {
+    backgroundColor: 'rgba(0,245,160,0.15)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  aiScoreText: {
+    color: GREEN,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  entryActions: {
+    flexDirection: 'row',
+    gap: 10,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  voteBtnActive: {
-    backgroundColor: 'rgba(157,78,221,0.4)',
+  voteBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: ORANGE,
   },
-  voteBtnText: { fontSize: 18 },
+  voteBtnVoted: {
+    backgroundColor: 'rgba(255,107,0,0.3)',
+  },
+  voteBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  subtitleBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+  },
+  subtitleBtnText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  subtitleActiveText: {
+    color: CYAN,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   bottomPad: { height: 20 },
   // Lang modal
   modalOverlay: {
@@ -718,11 +987,15 @@ const styles = StyleSheet.create({
   langOptionActive: {
     backgroundColor: 'rgba(0,217,255,0.08)',
   },
+  langOptionFlag: {
+    fontSize: 18,
+    marginRight: 12,
+  },
   langOptionText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 15,
     flex: 1,
   },
-  langOptionTextActive: { color: '#00D9FF', fontWeight: '700' },
-  langCheckmark: { color: '#00D9FF', fontSize: 16 },
+  langOptionTextActive: { color: CYAN, fontWeight: '700' },
+  langCheckmark: { color: CYAN, fontSize: 16 },
 });
