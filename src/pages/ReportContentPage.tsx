@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 const REPORT_TYPES = [
   'Copyright Infringement',
