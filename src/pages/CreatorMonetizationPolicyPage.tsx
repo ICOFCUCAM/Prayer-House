@@ -14,8 +14,7 @@ const REVENUE_SOURCES = [
 
 const COMMISSION_ROWS = [
   { type: 'Music Streaming', creator: '70%', platform: '30%' },
-  { type: 'Book Sales', creator: '70%', platform: '30%' },
-  { type: 'Audiobook Sales', creator: '70%', platform: '30%' },
+  { type: 'Book / Audiobook Sales', creator: '70%', platform: '30%' },
   { type: 'Fan Memberships', creator: '90%', platform: '10%' },
   { type: 'Competition Prizes', creator: '100%', platform: '0%' },
   { type: 'Distribution Royalties', creator: 'Per partner terms', platform: '—' },
@@ -27,7 +26,12 @@ const CREATOR_LEVELS = [
   { level: 'Gold', color: '#FFB800', bonus: '+2% bonus on all revenue streams', extra: '' },
   { level: 'Platinum', color: '#00D9FF', bonus: '+3% bonus on all revenue streams', extra: '' },
   { level: 'Diamond', color: '#9D4EDD', bonus: '+5% bonus on all revenue streams', extra: '' },
-  { level: 'Global Ambassador', color: '#00F5A0', bonus: '+7% bonus on all revenue streams', extra: 'Priority support + dedicated account manager' },
+  {
+    level: 'Global Ambassador',
+    color: '#00F5A0',
+    bonus: '+7% bonus on all revenue streams',
+    extra: 'Priority support + dedicated account manager',
+  },
 ];
 
 const PAYMENT_METHODS = [
@@ -65,8 +69,8 @@ export default function CreatorMonetizationPolicyPage() {
             <p className="text-white/75 leading-relaxed">
               WANKONG is built for creators. We maximize your earnings across every content type. This policy sets out how
               you earn money on the platform, the commission structure we use, the creator level bonus programme, payment
-              methods, schedules, and our fraud prevention rules. By publishing content and enabling monetization, you agree
-              to the terms described below.
+              methods, schedules, and our fraud prevention rules. By publishing content and enabling monetization, you
+              agree to the terms described below.
             </p>
           </section>
 
@@ -125,8 +129,8 @@ export default function CreatorMonetizationPolicyPage() {
           <section>
             <h2 className="text-2xl font-bold mb-2 text-[#00D9FF]">4. Creator Levels & Bonuses</h2>
             <p className="text-white/70 mb-6 leading-relaxed">
-              As you grow on WANKONG, you advance through creator levels. Each level unlocks bonus earnings on top of the
-              standard commission rates listed above.
+              As you grow on WANKONG, you advance through creator levels. Each level unlocks bonus earnings on top of
+              the standard commission rates listed above.
             </p>
             <div className="space-y-3">
               {CREATOR_LEVELS.map((lvl) => (
@@ -134,17 +138,12 @@ export default function CreatorMonetizationPolicyPage() {
                   key={lvl.level}
                   className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 hover:border-white/20 transition-colors"
                 >
-                  <div
-                    className="font-bold text-sm w-40 flex-shrink-0"
-                    style={{ color: lvl.color }}
-                  >
+                  <div className="font-bold text-sm w-44 flex-shrink-0" style={{ color: lvl.color }}>
                     {lvl.level}
                   </div>
                   <div className="flex-1">
                     <p className="text-white/80 text-sm">{lvl.bonus}</p>
-                    {lvl.extra && (
-                      <p className="text-white/50 text-xs mt-0.5">{lvl.extra}</p>
-                    )}
+                    {lvl.extra && <p className="text-white/50 text-xs mt-0.5">{lvl.extra}</p>}
                   </div>
                 </div>
               ))}
@@ -179,8 +178,8 @@ export default function CreatorMonetizationPolicyPage() {
               <div>
                 <p className="text-white font-semibold text-lg">$10 USD</p>
                 <p className="text-white/60 text-sm">
-                  Your balance must reach a minimum of $10 USD (or local equivalent) before you can request a withdrawal.
-                  Balances below this threshold roll over to the following month.
+                  Your balance must reach a minimum of $10 USD (or local equivalent) before you can request a
+                  withdrawal. Balances below this threshold roll over to the following month.
                 </p>
               </div>
             </div>
@@ -191,9 +190,10 @@ export default function CreatorMonetizationPolicyPage() {
             <h2 className="text-2xl font-bold mb-4 text-[#00D9FF]">7. Payment Schedule</h2>
             <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-5">
               <p className="text-white/80 leading-relaxed">
-                Earnings are calculated on the last day of each calendar month. Withdrawal requests are processed within{' '}
-                <span className="text-[#FFB800] font-semibold">5–7 business days</span> of submission. You will receive
-                a confirmation email once your payout has been dispatched.
+                Earnings are calculated on the last day of each calendar month. Withdrawal requests are processed
+                within{' '}
+                <span className="text-[#FFB800] font-semibold">5–7 business days</span> of submission. You will
+                receive a confirmation email once your payout has been dispatched.
               </p>
             </div>
           </section>
@@ -202,10 +202,10 @@ export default function CreatorMonetizationPolicyPage() {
           <section>
             <h2 className="text-2xl font-bold mb-4 text-[#00D9FF]">8. Tax Obligations</h2>
             <p className="text-white/75 leading-relaxed">
-              WANKONG does not withhold taxes on creator earnings. You are solely responsible for declaring and paying any
-              income tax, VAT, or other levies applicable in your jurisdiction. WANKONG will issue earnings statements and
-              transaction records via your Creator Dashboard that you can use for tax filing purposes. For tax
-              documentation requests, email{' '}
+              WANKONG does not withhold taxes on creator earnings. You are solely responsible for declaring and paying
+              any income tax, VAT, or other levies applicable in your jurisdiction. WANKONG will issue earnings
+              statements and transaction records via your Creator Dashboard that you can use for tax filing purposes.
+              For tax documentation requests, email{' '}
               <a href="mailto:tax@wankong.com" className="text-[#00D9FF] hover:underline">
                 tax@wankong.com
               </a>
@@ -218,9 +218,9 @@ export default function CreatorMonetizationPolicyPage() {
             <h2 className="text-2xl font-bold mb-4 text-[#00D9FF]">9. Fraud Prevention</h2>
             <div className="bg-red-500/5 border border-red-500/20 rounded-2xl px-6 py-5">
               <p className="text-white/80 leading-relaxed mb-4">
-                WANKONG actively monitors for fraudulent activity including, but not limited to: stream manipulation via
-                bots or scripts, fabricated sales, fake fan memberships, and coordinated vote inflation. Detection of any
-                fraudulent activity will result in:
+                WANKONG actively monitors for fraudulent activity including stream manipulation via bots or scripts,
+                fabricated sales, fake fan memberships, and coordinated vote inflation. Detection of any fraudulent
+                activity will result in:
               </p>
               <ul className="space-y-2">
                 {[
@@ -253,8 +253,8 @@ export default function CreatorMonetizationPolicyPage() {
                 📧 earnings@wankong.com
               </a>
               <p className="text-white/50 text-sm mt-3">
-                Response time is typically 3–5 business days. For urgent payout issues, include "URGENT" in your subject
-                line.
+                Response time is typically 3–5 business days. For urgent payout issues, include "URGENT" in your
+                subject line.
               </p>
             </div>
           </section>
