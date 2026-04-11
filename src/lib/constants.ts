@@ -29,7 +29,7 @@ export const IMAGES = {
 
 export type UserRole = 'viewer' | 'creator' | 'singer_artist' | 'admin' | 'moderator' | 'finance_manager' | 'distribution_manager' | 'marketing_manager' | 'analytics_manager';
 export type ContentType = 'book' | 'music' | 'video' | 'podcast' | 'article' | 'course';
-export type ViewPage = 'home' | 'marketplace' | 'competitions' | 'dashboard' | 'wallet' | 'admin' | 'distribution' | 'analytics' | 'upload' | 'settings' | 'notifications';
+export type ViewPage = 'home' | 'marketplace' | 'competitions' | 'dashboard' | 'wallet' | 'admin' | 'distribution' | 'analytics' | 'upload' | 'settings' | 'notifications' | 'library';
 
 export interface Creator {
   id: string;

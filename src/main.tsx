@@ -9,6 +9,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { ThemeProvider } from '@/components/theme-provider';
 import { PlayerProvider } from '@/components/GlobalPlayer';
+import { PlaylistProvider } from '@/contexts/PlaylistContext';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -91,8 +92,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <AppProvider>
                 <CartProvider>
                   <PlayerProvider>
-                    <App />
-                    <Toaster position="top-right" richColors closeButton />
+                    <PlaylistProvider>
+                      <App />
+                      <Toaster position="top-right" richColors closeButton />
+                    </PlaylistProvider>
                   </PlayerProvider>
                 </CartProvider>
               </AppProvider>

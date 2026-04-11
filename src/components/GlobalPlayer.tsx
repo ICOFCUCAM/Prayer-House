@@ -58,6 +58,7 @@ interface PlayerCtx {
   setShowNowPlaying: (v: boolean) => void;
   addToQueue: (track: Track) => void;
   removeFromQueue: (id: string) => void;
+  playPlaylist: (tracks: Track[], startIndex?: number) => void;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -268,6 +269,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setShowQueue, setShowNowPlaying,
     addToQueue:      (t: Track)    => setQueue(q => [...q, t]),
     removeFromQueue: (id: string)  => setQueue(q => q.filter(t => t.id !== id)),
+    playPlaylist: (tracks: Track[], startIndex = 0) => {
+      if (!tracks.length) return;
+      const idx    = Math.min(startIndex, tracks.length - 1);
+      const picked = tracks[idx];
+      const rest   = tracks.filter((_, i) => i !== idx);
+      // Using play() directly since it's in closure
+      setCurrentTrack(picked);
+      setQueue(rest);
+      addToRecent(picked);
+      const a = audioRef.current;
+      if (picked.audioUrl) { a.src = picked.audioUrl; a.play().catch(() => {}); }
+      else { a.pause(); }
+    },
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

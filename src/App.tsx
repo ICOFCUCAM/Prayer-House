@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import GlobalPlayer from './components/GlobalPlayer';
 import ProtectedRoute from './components/ProtectedRoute';
+import AddToPlaylistModal from './components/playlist/AddToPlaylistModal';
 
 // ── Public pages ───────────────────────────────────────────────────────────────
 const Index              = lazy(() => import('./pages/Index'));
@@ -75,6 +76,9 @@ const AuthorDashboardNewPage = lazy(() => import('./pages/dashboard/AuthorDashbo
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AcceptInvitePage   = lazy(() => import('./pages/admin/AcceptInvitePage'));
 
+// ── Library ────────────────────────────────────────────────────────────────────
+const LibraryPage = lazy(() => import('./pages/LibraryPage'));
+
 // ── Spinner ────────────────────────────────────────────────────────────────────
 
 const Spinner = () => (
@@ -89,6 +93,7 @@ export default function App() {
   return (
     <>
       <GlobalPlayer />
+      <AddToPlaylistModal />
       <Suspense fallback={<Spinner />}>
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────────── */}
@@ -178,6 +183,7 @@ export default function App() {
           <Route path="/dashboard/distribution"                element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
           <Route path="/dashboard/distribution/upload-release" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/memberships"            element={<ProtectedRoute><ComingSoonPage feature="Creator Memberships" /></ProtectedRoute>} />
+          <Route path="/library"                         element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
 
           {/* ── Admin invite accept (public — token is the auth) */}
           <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
