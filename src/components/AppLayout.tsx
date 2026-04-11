@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Component, ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Header from './Header';
@@ -10,6 +10,16 @@ import FeaturedPerformancesGrid from './home/FeaturedPerformancesGrid';
 import DefaultBookCover from './home/DefaultBookCover';
 import AudiobookCard from './home/AudiobookCard';
 import DefaultVideoThumbnail from './home/DefaultVideoThumbnail';
+
+// Lightweight section-level error boundary — if a section crashes, show nothing
+class SectionErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 const HERO_IMAGE = 'https://d64gsuwffb70l.cloudfront.net/69bdd0721a1fe097ab8615d8_1774047590438_0a152d8a.png';
 
@@ -145,6 +155,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     const fetchData = async () => {
+      try {
       const { data: cols } = await supabase
         .from('ecom_collections')
         .select('*')
@@ -254,18 +265,24 @@ export default function AppLayout() {
       }
 
       setLoading(false);
+      } catch {
+        setLoading(false);
+      }
     };
     fetchData();
 
     // Realtime: live vote counter for Talent Winner card
-    const voteChannel = supabase
-      .channel('homepage-votes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'competition_votes' }, () => {
-        setLiveVotes(v => v + 1);
-      })
-      .subscribe();
+    let voteChannel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      voteChannel = supabase
+        .channel('homepage-votes')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'competition_votes' }, () => {
+          setLiveVotes(v => v + 1);
+        })
+        .subscribe();
+    } catch { /* silent — Supabase not configured */ }
 
-    return () => { supabase.removeChannel(voteChannel); };
+    return () => { if (voteChannel) supabase.removeChannel(voteChannel); };
   }, []);
 
   const contentCollections = collections.filter(c => ['music', 'videos', 'books', 'podcasts'].includes(c.handle));
@@ -865,9 +882,12 @@ export default function AppLayout() {
               { name: 'Nathaniel Bassey', genre: 'Worship', streams_count: 12000000, country_code: 'NG', slug: 'nathaniel-bassey' },
             ]).map((artist: any, i: number) => {
               const GRADIENTS = ['from-[#9D4EDD] to-[#00D9FF]','from-[#FF6B00] to-[#FFB800]','from-[#00F5A0] to-[#00D9FF]','from-[#FFB800] to-[#FF6B00]','from-[#00D9FF] to-[#9D4EDD]','from-[#9D4EDD] to-[#FF6B00]'];
-              const flag = artist.country_code
-                ? String.fromCodePoint(...[...artist.country_code.toUpperCase()].map((c: string) => 127397 + c.charCodeAt(0)))
-                : '🌍';
+              let flag = '🌍';
+              try {
+                if (artist.country_code && /^[A-Z]{2}$/i.test(artist.country_code)) {
+                  flag = String.fromCodePoint(...[...artist.country_code.toUpperCase()].map((c: string) => 127397 + c.charCodeAt(0)));
+                }
+              } catch { /* keep default flag */ }
               const streams = artist.streams_count >= 1000000
                 ? `${(artist.streams_count / 1000000).toFixed(1)}M`
                 : artist.streams_count >= 1000 ? `${Math.round(artist.streams_count / 1000)}K` : String(artist.streams_count ?? 0);
@@ -1002,7 +1022,7 @@ export default function AppLayout() {
       </section>
 
       {/* ── Global Stage — Featured Performances ─────────────── */}
-      <FeaturedPerformancesGrid />
+      <SectionErrorBoundary><FeaturedPerformancesGrid /></SectionErrorBoundary>
 
       {/* Featured Content */}
       {featuredProducts.length > 0 && (
