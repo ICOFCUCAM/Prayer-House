@@ -54,10 +54,11 @@ export default function DistributeUploadPage() {
   const artRef    = useRef<HTMLInputElement>(null);
   const albumAudioRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep]           = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [done,       setDone]      = useState(false);
-  const [error,      setError]     = useState('');
+  const [step, setStep]             = useState(0);
+  const [submitting, setSubmitting]  = useState(false);
+  const [done,       setDone]        = useState(false);
+  const [error,      setError]       = useState('');
+  const [licenseAccepted, setLicenseAccepted] = useState(false);
 
   // Release mode: single or album/ep
   const [releaseMode, setReleaseMode] = useState<'single' | 'album'>('single');
@@ -180,10 +181,13 @@ export default function DistributeUploadPage() {
       );
 
       // Insert distribution_releases
+      const now = new Date().toISOString();
       await supabase.from('distribution_releases').insert([{
-        track_id:     trackRow.id,
-        status:       'pending_admin_review',
-        submitted_at: new Date().toISOString(),
+        track_id:                    trackRow.id,
+        status:                      'pending_admin_review',
+        submitted_at:                now,
+        content_license_accepted_at: now,
+        content_license_version:     '1.0',
       }]);
 
       setDone(true);
@@ -784,6 +788,37 @@ export default function DistributeUploadPage() {
               </div>
             </div>
 
+            {/* License Agreement */}
+            <div className={`rounded-2xl border p-4 transition-colors ${licenseAccepted ? 'border-[#00F5A0]/30 bg-[#00F5A0]/5' : 'border-white/10 bg-white/3'}`}>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <div className="mt-0.5 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={licenseAccepted}
+                    onChange={e => setLicenseAccepted(e.target.checked)}
+                    className="accent-[#00F5A0] w-4 h-4"
+                  />
+                </div>
+                <div className="text-sm leading-relaxed">
+                  <span className="text-white font-semibold">I accept the WANKONG Creator Content License Agreement.</span>
+                  <span className="text-gray-400">
+                    {' '}I confirm I own or have rights to this content and grant WANKONG a{' '}
+                    <strong className="text-white">non-exclusive worldwide license</strong>{' '}
+                    to host, stream, promote, sell, and distribute this recording across the platform and partner networks.
+                    I retain full ownership of my master recordings.{' '}
+                  </span>
+                  <Link
+                    to="/creator-license"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#9D4EDD] hover:text-[#9D4EDD]/80 underline underline-offset-2 font-semibold transition-colors"
+                  >
+                    Read full agreement
+                  </Link>
+                </div>
+              </label>
+            </div>
+
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" /> {error}
@@ -792,8 +827,8 @@ export default function DistributeUploadPage() {
 
             <div className="flex gap-3">
               <button onClick={() => setStep(3)} className="px-6 py-3 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors">Back</button>
-              <button onClick={submit} disabled={submitting}
-                className="flex-1 py-3.5 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black font-bold rounded-xl disabled:opacity-50 hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+              <button onClick={submit} disabled={submitting || !licenseAccepted}
+                className="flex-1 py-3.5 bg-gradient-to-r from-[#FFB800] to-[#FF6B00] text-black font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                 {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <><Globe className="w-4 h-4" /> Distribute Worldwide</>}
               </button>
             </div>

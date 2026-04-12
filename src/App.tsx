@@ -78,6 +78,7 @@ const FanMembershipsPage         = lazy(() => import('./pages/dashboard/FanMembe
 const PodcastPage                = lazy(() => import('./pages/PodcastPage'));
 const ReaderPage                 = lazy(() => import('./pages/ReaderPage'));
 const ModerationQueuePage        = lazy(() => import('./pages/admin/ModerationQueuePage'));
+const ContentLicensePage         = lazy(() => import('./pages/ContentLicensePage'));
 
 // ── Coming-soon placeholder ────────────────────────────────────────────────────
 const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="/community-guidelines"     element={<CommunityGuidelinesPage />} />
           <Route path="/competition-terms"        element={<CompetitionTermsPage />} />
           <Route path="/distribution-agreement"   element={<DistributionAgreementPage />} />
+          <Route path="/creator-license"          element={<ContentLicensePage />} />
           <Route path="/creator-monetization-policy" element={<CreatorMonetizationPolicyPage />} />
           <Route path="/subscription-terms"       element={<SubscriptionTermsPage />} />
           <Route path="/copyright"                element={<CopyrightPolicyPage />} />
