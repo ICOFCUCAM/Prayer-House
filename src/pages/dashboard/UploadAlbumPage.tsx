@@ -86,7 +86,9 @@ export default function UploadAlbumPage() {
 
   // Upload state
   const [uploading,     setUploading]     = useState(false);
+  const [draftSaving,   setDraftSaving]   = useState(false);
   const [done,          setDone]          = useState(false);
+  const [savedAsDraft,  setSavedAsDraft]  = useState(false);
   const [error,         setError]         = useState('');
   const [uploadStatus,  setUploadStatus]  = useState('');
 
@@ -178,23 +180,27 @@ export default function UploadAlbumPage() {
     setArtPreview(URL.createObjectURL(file));
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Shared upload logic ───────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation
-    if (!album.title.trim())   { setError('Album title is required.');  return; }
-    if (!album.artist.trim())  { setError('Artist name is required.');  return; }
-    if (!albumArtFile)         { setError('Album cover art is required.'); return; }
-    if (tracks.length === 0)   { setError('Add at least one track.');   return; }
+  const doUploadAndSave = async (releaseStatus: 'draft' | 'submitted') => {
+    // Validation — draft only needs title
+    if (!album.title.trim())  { setError('Album title is required.'); return; }
+    if (tracks.length === 0)  { setError('Add at least one track.'); return; }
     const missingTitle = tracks.find(t => !t.title.trim());
-    if (missingTitle)          { setError(`Track ${missingTitle.trackNum} needs a title.`); return; }
+    if (missingTitle)         { setError(`Track ${missingTitle.trackNum} needs a title.`); return; }
     const missingAudio = tracks.find(t => !t.audioFile);
-    if (missingAudio)          { setError(`Track ${missingAudio.trackNum} needs an audio file.`); return; }
-    if (!user)                 { setError('You must be logged in.'); return; }
+    if (missingAudio)         { setError(`Track ${missingAudio.trackNum} needs an audio file.`); return; }
+    if (!user)                { setError('You must be logged in.'); return; }
 
-    setUploading(true);
+    if (releaseStatus === 'submitted') {
+      if (!album.artist.trim()) { setError('Artist name is required for submission.'); return; }
+      if (!albumArtFile)        { setError('Album cover art (3000 × 3000 px) is required for distribution.'); return; }
+      if (!album.genre)         { setError('Genre is required for submission.'); return; }
+      if (!album.release_date)  { setError('Release date is required for submission.'); return; }
+    }
+
+    if (releaseStatus === 'draft') setDraftSaving(true);
+    else setUploading(true);
     setError('');
 
     try {
@@ -243,8 +249,8 @@ export default function UploadAlbumPage() {
           producer:        album.producer || null,
           label_name:      album.label_name || null,
           track_count:     tracks.length,
-          status:          'pending_admin_review',
-          submitted_at:    new Date().toISOString(),
+          status:          releaseStatus,
+          submitted_at:    releaseStatus === 'submitted' ? new Date().toISOString() : null,
         }])
         .select('id')
         .single();
@@ -297,14 +303,27 @@ export default function UploadAlbumPage() {
 
       setUploadStatus('Finalising…');
 
-      setDone(true);
+      if (releaseStatus === 'draft') setSavedAsDraft(true);
+      else setDone(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed.';
       setError(msg);
     } finally {
       setUploading(false);
+      setDraftSaving(false);
       setUploadStatus('');
     }
+  };
+
+  // ── Submit handlers ───────────────────────────────────────────────────────
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doUploadAndSave('submitted');
+  };
+
+  const handleSaveDraft = async () => {
+    await doUploadAndSave('draft');
   };
 
   const resetForm = () => {
@@ -313,6 +332,7 @@ export default function UploadAlbumPage() {
     setError('');
     setUploadStatus('');
     setDone(false);
+    setSavedAsDraft(false);
     setAlbum({
       title: '', artist: '', genre: '', language: 'English',
       release_date: '', description: '', type: 'album',
@@ -320,6 +340,43 @@ export default function UploadAlbumPage() {
     });
     setTracks([{ id: uid(), title: '', audioFile: null, explicit: false, trackNum: 1 }]);
   };
+
+  // ── Draft saved screen ────────────────────────────────────────────────────
+
+  if (savedAsDraft) {
+    return (
+      <div className="min-h-screen bg-[#0A1128] flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 rounded-full bg-[#FFB800]/15 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-[#FFB800]" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Draft Saved</h2>
+            <p className="text-gray-400 text-sm mb-8">
+              <span className="text-white font-medium">"{album.title}"</span> ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
+              {' '}is saved as a draft. Complete and submit for distribution when ready.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={resetForm}
+                className="px-5 py-2.5 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
+              >
+                Upload Another
+              </button>
+              <Link
+                to="/dashboard"
+                className="px-5 py-2.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm"
+              >
+                View Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   // ── Success screen ────────────────────────────────────────────────────────
 
@@ -333,11 +390,11 @@ export default function UploadAlbumPage() {
               <CheckCircle className="w-10 h-10 text-[#9D4EDD]" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">
-              {album.type === 'ep' ? 'EP' : 'Album'} Uploaded!
+              {album.type === 'ep' ? 'EP' : 'Album'} Submitted!
             </h2>
             <p className="text-gray-400 text-sm mb-8">
               <span className="text-white font-medium">"{album.title}"</span> ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
-              {' '}is pending review.
+              {' '}is pending admin review before going to Ditto Music.
             </p>
             <div className="flex gap-3 justify-center">
               <button
@@ -697,24 +754,38 @@ export default function UploadAlbumPage() {
             </div>
           )}
 
-          {/* ── Submit ────────────────────────────────────────────────── */}
-          <button
-            type="submit"
-            disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 py-4 mt-6 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {uploadStatus || 'Uploading…'}
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                Submit {album.type === 'ep' ? 'EP' : 'Album'} ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
-              </>
-            )}
-          </button>
+          {/* ── Actions ────────────────────────────────────────────────── */}
+          <div className="flex gap-3 mt-6">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={uploading || draftSaving}
+              className="flex-1 flex items-center justify-center gap-2 py-4 bg-white/5 border border-white/10 text-gray-300 font-bold rounded-2xl hover:bg-white/8 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {draftSaving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
+              ) : (
+                'Save Draft'
+              )}
+            </button>
+            <button
+              type="submit"
+              disabled={uploading || draftSaving}
+              className="flex-[2] flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {uploadStatus || 'Uploading…'}
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Submit {album.type === 'ep' ? 'EP' : 'Album'} ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
+                </>
+              )}
+            </button>
+          </div>
 
         </form>
       </main>

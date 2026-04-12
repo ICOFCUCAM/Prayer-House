@@ -19,7 +19,7 @@ interface Release {
   id: string;
   status: string;
   audio_url?: string | null;
-  artwork_url?: string | null;
+  cover_url?: string | null;
   ditto_release_id?: string | null;
   created_at: string;
   title?: string | null;
@@ -71,14 +71,22 @@ async function fetchPlatformStatuses(releaseId: string, releaseStatus: string): 
   }));
 }
 
-// Status badge colour map: queued=gray, pending_admin_review=gold,
-// approved_for_distribution=green, live=cyan, rejected=red
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  queued:                    { label: 'Queued',           color: '#9ca3af' },
-  pending_admin_review:      { label: 'Pending Review',   color: '#FFB800' },
-  approved_for_distribution: { label: 'Approved',         color: '#00F5A0' },
-  live:                      { label: 'Live',             color: '#00D9FF' },
-  rejected:                  { label: 'Rejected',         color: '#ef4444' },
+  draft:                       { label: 'Draft',             color: '#9ca3af' },
+  submitted:                   { label: 'Submitted',         color: '#FFB800' },
+  under_review:                { label: 'Under Review',      color: '#60a5fa' },
+  changes_requested:           { label: 'Changes Requested', color: '#FF6B00' },
+  approved:                    { label: 'Approved',          color: '#00F5A0' },
+  sent_to_ditto:               { label: 'Sent to Ditto',     color: '#9D4EDD' },
+  distributed:                 { label: 'Distributed',       color: '#00D9FF' },
+  live:                        { label: 'Live',              color: '#00D9FF' },
+  rejected:                    { label: 'Rejected',          color: '#ef4444' },
+  // legacy
+  queued:                      { label: 'Queued',            color: '#9ca3af' },
+  pending_admin_review:        { label: 'Pending Review',    color: '#FFB800' },
+  approved_for_distribution:   { label: 'Approved',          color: '#00F5A0' },
+  submitted_to_ditto:          { label: 'Sent to Ditto',     color: '#9D4EDD' },
+  priority_distribution_queue: { label: 'Priority (Winner)', color: '#FFB800' },
 };
 
 function getStatusCfg(status: string) {
@@ -147,8 +155,8 @@ function ReleaseCard({ release }: { release: Release }) {
     <div className="bg-white/5 border border-white/10 hover:border-white/15 rounded-2xl transition-all overflow-hidden">
       {/* Header row */}
       <div className="p-5 flex items-center gap-5">
-        {release.artwork_url ? (
-          <img src={release.artwork_url} alt={title}
+        {release.cover_url ? (
+          <img src={release.cover_url} alt={title}
             className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         ) : (
@@ -240,12 +248,12 @@ export default function ReleasesPage() {
       if (!user) { navigate('/'); return; }
       if (cancelled) return;
 
-      // Fetch distribution_releases — try user_id first, then artist_id
+      // Fetch distribution_releases — try user_id first, then artist_id fallback
       let data: Release[] = [];
 
       const res1 = await supabase
         .from('distribution_releases')
-        .select('id, status, audio_url, artwork_url, ditto_release_id, created_at')
+        .select('id, title, status, audio_url, cover_url, ditto_release_id, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -254,30 +262,14 @@ export default function ReleasesPage() {
       } else {
         const res2 = await supabase
           .from('distribution_releases')
-          .select('id, status, audio_url, artwork_url, ditto_release_id, created_at')
+          .select('id, title, status, audio_url, cover_url, ditto_release_id, created_at')
           .eq('artist_id', user.id)
           .order('created_at', { ascending: false });
         data = (res2.data ?? []) as Release[];
       }
 
-      // Enrich with title from release_metadata (if available)
-      const enriched: Release[] = await Promise.all(
-        data.map(async rel => {
-          try {
-            const { data: meta } = await supabase
-              .from('release_metadata')
-              .select('title')
-              .eq('release_id', rel.id)
-              .maybeSingle();
-            return { ...rel, title: meta?.title ?? null };
-          } catch {
-            return rel;
-          }
-        })
-      );
-
       if (!cancelled) {
-        setReleases(enriched);
+        setReleases(data);
         setLoading(false);
       }
     })();

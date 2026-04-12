@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { submitRelease } from '@/services/distribution/dittoDistributionService';
+import { generateDittoExport } from '@/services/distribution/dittoDistributionService';
 import {
   CheckCircle, XCircle, Eye, Music, Loader2, Send,
-  Clock, Radio, AlertCircle,
+  Clock, Radio, AlertCircle, RotateCcw, ArrowRight,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -31,22 +31,48 @@ interface PendingRelease {
   track_count:     number;
   ditto_release_id: string | null;
   admin_note:      string | null;
+  reviewed_by:     string | null;
 }
 
-type ActionState = 'idle' | 'approving' | 'submitting' | 'rejecting';
+type ActionState =
+  | 'idle'
+  | 'reviewing'
+  | 'approving'
+  | 'requesting_changes'
+  | 'forwarding'
+  | 'rejecting';
 
 const inputCls =
   'w-full bg-[#0A1128] border border-white/10 rounded-lg px-3 py-2 text-white text-sm ' +
   'focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/40';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending_admin_review:     { label: 'Pending Review',      color: '#FFB800' },
-  approved_for_distribution:{ label: 'Approved',            color: '#00D9FF' },
-  submitted_to_ditto:       { label: 'Sent to Ditto',       color: '#9D4EDD' },
-  live:                     { label: 'Live',                color: '#00F5A0' },
-  rejected:                 { label: 'Rejected',            color: '#FF4466' },
-  priority_distribution_queue:{ label: 'Priority (Winner)', color: '#FFB800' },
+  draft:                       { label: 'Draft',              color: '#9ca3af' },
+  submitted:                   { label: 'Submitted',          color: '#FFB800' },
+  under_review:                { label: 'Under Review',       color: '#60a5fa' },
+  changes_requested:           { label: 'Changes Requested',  color: '#FF6B00' },
+  approved:                    { label: 'Approved',           color: '#00F5A0' },
+  sent_to_ditto:               { label: 'Sent to Ditto',      color: '#9D4EDD' },
+  distributed:                 { label: 'Distributed',        color: '#00D9FF' },
+  live:                        { label: 'Live',               color: '#00F5A0' },
+  rejected:                    { label: 'Rejected',           color: '#FF4466' },
+  // legacy compat
+  pending_admin_review:        { label: 'Pending Review',     color: '#FFB800' },
+  approved_for_distribution:   { label: 'Approved',           color: '#00F5A0' },
+  submitted_to_ditto:          { label: 'Sent to Ditto',      color: '#9D4EDD' },
+  priority_distribution_queue: { label: 'Priority (Winner)',  color: '#FFB800' },
 };
+
+// Statuses visible in the admin queue (awaiting action)
+const QUEUE_STATUSES = [
+  'submitted',
+  'under_review',
+  'changes_requested',
+  'approved',
+  // legacy
+  'pending_admin_review',
+  'priority_distribution_queue',
+];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -59,14 +85,41 @@ export default function AdminDistributionPanel() {
   const [actingId,  setActingId]  = useState<string | null>(null);
   const [error,     setError]     = useState('');
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const getAdminId = async (): Promise<string | null> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+  };
+
+  const logReview = async (releaseId: string, adminId: string | null, reviewAction: string, notes?: string) => {
+    await supabase.from('release_reviews').insert([{
+      release_id: releaseId,
+      admin_id:   adminId,
+      action:     reviewAction,
+      notes:      notes ?? null,
+    }]).catch(() => { /* non-fatal */ });
+  };
+
+  const notifyArtist = async (userId: string | null, title: string, message: string) => {
+    if (!userId) return;
+    await supabase.from('user_notifications').insert([{
+      user_id: userId,
+      type:    'content',
+      title,
+      message,
+      read:    false,
+    }]).catch(() => { /* table may not exist yet */ });
+  };
+
   // ── Load + realtime ──────────────────────────────────────────────────────────
 
   const load = async () => {
     const { data } = await supabase
       .from('distribution_releases')
       .select('*')
-      .in('status', ['pending_admin_review', 'priority_distribution_queue'])
-      .order('submitted_at', { ascending: true });
+      .in('status', QUEUE_STATUSES)
+      .order('submitted_at', { ascending: true, nullsFirst: false });
     setReleases((data as PendingRelease[]) ?? []);
     setLoading(false);
   };
@@ -82,6 +135,28 @@ export default function AdminDistributionPanel() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // ── Open preview → mark under_review ─────────────────────────────────────────
+
+  const openPreview = async (r: PendingRelease) => {
+    setPreview(r);
+    setNote('');
+    setError('');
+
+    // Only auto-advance from submitted/pending_admin_review → under_review
+    if (r.status === 'submitted' || r.status === 'pending_admin_review' || r.status === 'priority_distribution_queue') {
+      const adminId = await getAdminId();
+      await supabase.from('distribution_releases').update({
+        status:      'under_review',
+        reviewed_by: adminId,
+        reviewed_at: new Date().toISOString(),
+        updated_at:  new Date().toISOString(),
+      }).eq('id', r.id);
+      await logReview(r.id, adminId, 'under_review');
+      setReleases(prev => prev.map(x => x.id === r.id ? { ...x, status: 'under_review' } : x));
+      setPreview(prev => prev ? { ...prev, status: 'under_review' } : null);
+    }
+  };
+
   // ── Approve: mark approved, activate product + tracks ────────────────────────
 
   const approve = async (r: PendingRelease) => {
@@ -89,12 +164,15 @@ export default function AdminDistributionPanel() {
     setAction('approving');
     setError('');
     try {
-      // 1. Mark distribution_release as approved
+      const adminId = await getAdminId();
+
+      // 1. Update distribution_release → approved
       const { error: e1 } = await supabase
         .from('distribution_releases')
         .update({
-          status:      'approved_for_distribution',
-          approved_at: new Date().toISOString(),
+          status:      'approved',
+          reviewed_by: adminId,
+          reviewed_at: new Date().toISOString(),
           updated_at:  new Date().toISOString(),
         })
         .eq('id', r.id);
@@ -107,39 +185,81 @@ export default function AdminDistributionPanel() {
           .eq('id', r.ecom_product_id);
       }
 
-      // 3. Activate all tracks linked to this release
+      // 3. Activate tracks
       if (r.track_id) {
         await supabase.from('tracks').update({ status: 'approved' }).eq('id', r.track_id);
       } else {
         await supabase.from('tracks').update({ status: 'approved' }).eq('release_id', r.id);
       }
 
-      // 4. Submit to Ditto (step labelled separately so admin sees progress)
-      setAction('submitting');
-      await submitRelease({
-        releaseId:      r.id,
-        trackId:        r.track_id ?? r.id,
-        title:          r.title,
-        artistName:     r.artist_name,
-        genre:          r.genre ?? '',
-        language:       r.release_type === 'single' ? (r.release_date ?? 'en') : 'en',
-        releaseDate:    r.release_date ?? new Date().toISOString().slice(0, 10),
-        audioUrl:       r.audio_url ?? '',
-        artworkUrl:     r.cover_url ?? '',
-        releaseType:    (r.release_type as 'single' | 'ep' | 'album') ?? 'single',
-        copyrightOwner: r.copyright_owner ?? `© ${r.artist_name}`,
-        composer:       r.composer ?? r.artist_name,
-        producer:       r.producer ?? '',
-        labelName:      r.label_name ?? r.artist_name,
-        explicit:       r.explicit,
-        isrc:           r.isrc ?? undefined,
-        platforms:      ['spotify', 'apple_music', 'tiktok', 'youtube_music', 'boomplay', 'audiomack'],
-      });
+      // 4. Log
+      await logReview(r.id, adminId, 'approved');
+
+      // 5. Notify artist
+      await notifyArtist(r.user_id, 'Release Approved!',
+        `Your release "${r.title}" has been approved and is ready to be sent to Ditto Music.`);
+
+      setReleases(prev => prev.map(x => x.id === r.id ? { ...x, status: 'approved' } : x));
+      setPreview(prev => prev ? { ...prev, status: 'approved' } : null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Approval failed. Please retry.');
+    } finally {
+      setActingId(null);
+      setAction('idle');
+    }
+  };
+
+  // ── Request Changes: return to artist with notes ──────────────────────────────
+
+  const requestChanges = async (r: PendingRelease) => {
+    if (!note.trim()) { setError('A note is required so the artist knows what to fix.'); return; }
+    setActingId(r.id);
+    setAction('requesting_changes');
+    setError('');
+    try {
+      const adminId = await getAdminId();
+
+      await supabase.from('distribution_releases').update({
+        status:     'changes_requested',
+        admin_note: note.trim(),
+        reviewed_by: adminId,
+        updated_at: new Date().toISOString(),
+      }).eq('id', r.id);
+
+      await logReview(r.id, adminId, 'changes_requested', note.trim());
+
+      await notifyArtist(r.user_id, 'Changes Requested',
+        `Your release "${r.title}" needs changes before it can be distributed: ${note.trim()}`);
+
+      setReleases(prev => prev.map(x => x.id === r.id ? { ...x, status: 'changes_requested', admin_note: note.trim() } : x));
+      setPreview(prev => prev ? { ...prev, status: 'changes_requested', admin_note: note.trim() } : null);
+      setNote('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Request changes failed.');
+    } finally {
+      setActingId(null);
+      setAction('idle');
+    }
+  };
+
+  // ── Forward to Ditto ──────────────────────────────────────────────────────────
+
+  const forwardToDitto = async (r: PendingRelease) => {
+    setActingId(r.id);
+    setAction('forwarding');
+    setError('');
+    try {
+      await generateDittoExport(r.id);
+
+      const adminId = await getAdminId();
+      await logReview(r.id, adminId, 'sent_to_ditto');
+      await notifyArtist(r.user_id, 'Release Sent to Ditto Music!',
+        `Your release "${r.title}" has been forwarded to Ditto Music for distribution.`);
 
       setReleases(prev => prev.filter(x => x.id !== r.id));
       setPreview(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Approval failed. Please retry.');
+      setError(err instanceof Error ? err.message : 'Forward to Ditto failed. Please retry.');
     } finally {
       setActingId(null);
       setAction('idle');
@@ -154,23 +274,19 @@ export default function AdminDistributionPanel() {
     setAction('rejecting');
     setError('');
     try {
+      const adminId = await getAdminId();
+
       await supabase.from('distribution_releases').update({
         status:     'rejected',
         admin_note: note.trim(),
+        reviewed_by: adminId,
         updated_at: new Date().toISOString(),
       }).eq('id', r.id);
 
-      // Keep tracks as 'pending' so artist can fix and resubmit
-      // Notify the artist via user_notifications
-      if (r.user_id) {
-        await supabase.from('user_notifications').insert([{
-          user_id:  r.user_id,
-          type:     'content',
-          title:    'Release Needs Changes',
-          message:  `Your release "${r.title}" was returned: ${note.trim()}`,
-          read:     false,
-        }]).catch(() => {});
-      }
+      await logReview(r.id, adminId, 'rejected', note.trim());
+
+      await notifyArtist(r.user_id, 'Release Rejected',
+        `Your release "${r.title}" was not approved: ${note.trim()}`);
 
       setReleases(prev => prev.filter(x => x.id !== r.id));
       setPreview(null);
@@ -190,7 +306,12 @@ export default function AdminDistributionPanel() {
   const ActionLabel = ({ id }: { id: string }) => {
     if (!isActing(id)) return null;
     const labels: Record<ActionState, string> = {
-      idle: '', approving: 'Approving…', submitting: 'Sending to Ditto…', rejecting: 'Rejecting…',
+      idle: '',
+      reviewing: 'Reviewing…',
+      approving: 'Approving…',
+      requesting_changes: 'Sending feedback…',
+      forwarding: 'Sending to Ditto…',
+      rejecting: 'Rejecting…',
     };
     return (
       <span className="text-xs text-[#00D9FF] flex items-center gap-1">
@@ -215,7 +336,7 @@ export default function AdminDistributionPanel() {
         <div>
           <h3 className="text-lg font-bold text-white">Music Release Queue</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Review and forward releases to Ditto Music for distribution
+            Review, approve, and forward releases to Ditto Music
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -238,7 +359,7 @@ export default function AdminDistributionPanel() {
       {releases.length === 0 && (
         <div className="text-center py-16 border-2 border-dashed border-white/10 rounded-2xl">
           <Radio className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">All caught up — no pending releases.</p>
+          <p className="text-gray-400 text-sm">All caught up — no releases awaiting action.</p>
         </div>
       )}
 
@@ -246,6 +367,7 @@ export default function AdminDistributionPanel() {
       <div className="space-y-3">
         {releases.map(r => {
           const statusInfo = STATUS_LABELS[r.status] ?? { label: r.status, color: '#999' };
+          const isApproved = r.status === 'approved';
           return (
             <div
               key={r.id}
@@ -271,9 +393,6 @@ export default function AdminDistributionPanel() {
                   >
                     {statusInfo.label}
                   </span>
-                  {r.status === 'priority_distribution_queue' && (
-                    <span className="text-[10px] text-[#FFB800]">⭐ Winner</span>
-                  )}
                   {r.submitted_at && (
                     <span className="text-[10px] text-gray-600 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
@@ -287,31 +406,34 @@ export default function AdminDistributionPanel() {
               {/* Actions */}
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => { setPreview(r); setNote(''); setError(''); }}
-                  title="Preview"
+                  onClick={() => openPreview(r)}
+                  title="Preview & Review"
                   className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => approve(r)}
-                  disabled={isActing(r.id)}
-                  title="Approve & Submit to Ditto"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00F5A0]/10 border border-[#00F5A0]/20 text-[#00F5A0] text-xs font-semibold rounded-lg hover:bg-[#00F5A0]/20 transition-colors disabled:opacity-50"
-                >
-                  {isActing(r.id) && action !== 'rejecting'
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <Send className="w-3 h-3" />}
-                  {isActing(r.id) && action === 'submitting' ? 'Sending…' : 'Approve'}
-                </button>
-                <button
-                  onClick={() => { setPreview(r); setNote(''); setError(''); }}
-                  disabled={isActing(r.id)}
-                  title="Reject"
-                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                >
-                  <XCircle className="w-4 h-4" />
-                </button>
+                {isApproved ? (
+                  <button
+                    onClick={() => forwardToDitto(r)}
+                    disabled={isActing(r.id)}
+                    title="Forward to Ditto Music"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#9D4EDD]/10 border border-[#9D4EDD]/30 text-[#9D4EDD] text-xs font-semibold rounded-lg hover:bg-[#9D4EDD]/20 transition-colors disabled:opacity-50"
+                  >
+                    {isActing(r.id) && action === 'forwarding'
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Send className="w-3 h-3" />}
+                    Forward
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openPreview(r)}
+                    disabled={isActing(r.id)}
+                    title="Review"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00D9FF]/10 border border-[#00D9FF]/20 text-[#00D9FF] text-xs font-semibold rounded-lg hover:bg-[#00D9FF]/20 transition-colors disabled:opacity-50"
+                  >
+                    Review
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -322,7 +444,7 @@ export default function AdminDistributionPanel() {
       {preview && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-          onClick={() => { setPreview(null); setError(''); }}
+          onClick={() => { setPreview(null); setError(''); setNote(''); }}
         >
           <div
             className="bg-[#0D1B3E] border border-white/10 rounded-2xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
@@ -336,8 +458,28 @@ export default function AdminDistributionPanel() {
                   by {preview.artist_name} · {preview.release_type.toUpperCase()}
                 </p>
               </div>
-              <button onClick={() => { setPreview(null); setError(''); }} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+              <button onClick={() => { setPreview(null); setError(''); setNote(''); }} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
             </div>
+
+            {/* Status badge */}
+            {(() => {
+              const si = STATUS_LABELS[preview.status] ?? { label: preview.status, color: '#999' };
+              return (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-bold px-3 py-1 rounded-full"
+                    style={{ background: si.color + '20', color: si.color, border: `1px solid ${si.color}33` }}
+                  >
+                    {si.label}
+                  </span>
+                  {preview.submitted_at && (
+                    <span className="text-xs text-gray-500">
+                      Submitted {new Date(preview.submitted_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Artwork */}
             {preview.cover_url && (
@@ -361,17 +503,17 @@ export default function AdminDistributionPanel() {
             {/* Metadata grid */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
               {[
-                ['Genre',     preview.genre ?? '—'],
-                ['Type',      preview.release_type],
-                ['Tracks',    String(preview.track_count)],
-                ['Language',  preview.release_date ? '—' : '—'],
-                ['Explicit',  preview.explicit ? 'Yes' : 'No'],
+                ['Genre',        preview.genre ?? '—'],
+                ['Type',         preview.release_type],
+                ['Tracks',       String(preview.track_count)],
+                ['Language',     '—'],
+                ['Explicit',     preview.explicit ? 'Yes' : 'No'],
                 ['Release Date', preview.release_date ?? '—'],
-                ['Label',     preview.label_name ?? '—'],
-                ['ISRC',      preview.isrc ?? '—'],
-                ['Copyright', preview.copyright_owner ?? '—'],
-                ['Composer',  preview.composer ?? '—'],
-                ['Producer',  preview.producer ?? '—'],
+                ['Label',        preview.label_name ?? '—'],
+                ['ISRC',         preview.isrc ?? '—'],
+                ['Copyright',    preview.copyright_owner ?? '—'],
+                ['Composer',     preview.composer ?? '—'],
+                ['Producer',     preview.producer ?? '—'],
               ].map(([k, v]) => (
                 <div key={k} className="flex flex-col">
                   <span className="text-gray-500">{k}</span>
@@ -382,7 +524,7 @@ export default function AdminDistributionPanel() {
 
             {/* Ditto platforms */}
             <div className="bg-[#9D4EDD]/8 border border-[#9D4EDD]/20 rounded-xl px-4 py-3">
-              <p className="text-xs font-semibold text-[#9D4EDD] mb-2">Will be submitted to:</p>
+              <p className="text-xs font-semibold text-[#9D4EDD] mb-2">Will be distributed to:</p>
               <div className="flex flex-wrap gap-1.5">
                 {['Spotify', 'Apple Music', 'TikTok', 'YouTube Music', 'Boomplay', 'Audiomack'].map(p => (
                   <span key={p} className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-gray-300">{p}</span>
@@ -398,41 +540,67 @@ export default function AdminDistributionPanel() {
               </div>
             )}
 
-            {/* Rejection note */}
-            <div>
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1 block">
-                Rejection Note <span className="text-gray-600 normal-case font-normal">(required to reject)</span>
-              </label>
-              <textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder="Explain what the artist needs to fix (e.g. artwork resolution too low, missing ISRC)…"
-                rows={3}
-                className={inputCls + ' resize-none'}
-              />
-            </div>
+            {/* Note field — used for request changes and reject */}
+            {preview.status !== 'approved' && (
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1 block">
+                  Admin Note <span className="text-gray-600 normal-case font-normal">(required for Request Changes or Reject)</span>
+                </label>
+                <textarea
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder="Explain what the artist needs to fix (e.g. artwork too small, missing ISRC)…"
+                  rows={3}
+                  className={inputCls + ' resize-none'}
+                />
+              </div>
+            )}
 
             {/* Modal actions */}
-            <div className="flex gap-3">
+            {preview.status === 'approved' ? (
+              /* Approved — only action is Forward to Ditto */
               <button
-                onClick={() => approve(preview)}
+                onClick={() => forwardToDitto(preview)}
                 disabled={isActing(preview.id)}
-                className="flex-1 py-3 bg-[#00F5A0] text-black font-bold rounded-xl text-sm hover:bg-[#00F5A0]/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#9D4EDD] text-white font-bold rounded-xl text-sm hover:bg-[#9D4EDD]/90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isActing(preview.id) && action !== 'rejecting'
-                  ? <><Loader2 className="w-4 h-4 animate-spin" />
-                    {action === 'submitting' ? 'Sending to Ditto…' : 'Approving…'}</>
-                  : <><CheckCircle className="w-4 h-4" /> Approve & Submit</>}
+                {isActing(preview.id) && action === 'forwarding'
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />Sending to Ditto…</>
+                  : <><ArrowRight className="w-4 h-4" />Forward to Ditto Music</>}
               </button>
-              <button
-                onClick={() => reject(preview)}
-                disabled={isActing(preview.id) || !note.trim()}
-                className="flex-1 py-3 bg-red-500/10 border border-red-500/20 text-red-400 font-bold rounded-xl text-sm hover:bg-red-500/20 disabled:opacity-40 flex items-center justify-center gap-2"
-              >
-                <XCircle className="w-4 h-4" />
-                {isActing(preview.id) && action === 'rejecting' ? 'Rejecting…' : 'Reject'}
-              </button>
-            </div>
+            ) : (
+              /* Review actions: Approve / Request Changes / Reject */
+              <div className="space-y-2">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => approve(preview)}
+                    disabled={isActing(preview.id)}
+                    className="flex-1 py-3 bg-[#00F5A0] text-black font-bold rounded-xl text-sm hover:bg-[#00F5A0]/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isActing(preview.id) && action === 'approving'
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />Approving…</>
+                      : <><CheckCircle className="w-4 h-4" />Approve</>}
+                  </button>
+                  <button
+                    onClick={() => requestChanges(preview)}
+                    disabled={isActing(preview.id) || !note.trim()}
+                    className="flex-1 py-3 bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] font-bold rounded-xl text-sm hover:bg-[#FF6B00]/20 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {isActing(preview.id) && action === 'requesting_changes'
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
+                      : <><RotateCcw className="w-4 h-4" />Request Changes</>}
+                  </button>
+                </div>
+                <button
+                  onClick={() => reject(preview)}
+                  disabled={isActing(preview.id) || !note.trim()}
+                  className="w-full py-3 bg-red-500/10 border border-red-500/20 text-red-400 font-bold rounded-xl text-sm hover:bg-red-500/20 disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  {isActing(preview.id) && action === 'rejecting' ? 'Rejecting…' : 'Reject Release'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -77,10 +77,12 @@ export default function UploadMusicPage() {
   const [audioFile,  setAudioFile]  = useState<File | null>(null);
   const [artFile,    setArtFile]    = useState<File | null>(null);
   const [artPreview, setArtPreview] = useState('');
-  const [uploading,  setUploading]  = useState(false);
-  const [done,       setDone]       = useState(false);
-  const [error,      setError]      = useState('');
-  const [progress,   setProgress]   = useState(0);
+  const [uploading,    setUploading]    = useState(false);
+  const [draftSaving,  setDraftSaving]  = useState(false);
+  const [done,         setDone]         = useState(false);
+  const [savedAsDraft, setSavedAsDraft] = useState(false);
+  const [error,        setError]        = useState('');
+  const [progress,     setProgress]     = useState(0);
 
   const [audioDragging, setAudioDragging] = useState(false);
   const [artDragging,   setArtDragging]   = useState(false);
@@ -126,15 +128,22 @@ export default function UploadMusicPage() {
     setArtPreview(URL.createObjectURL(file));
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Shared upload logic ───────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doUploadAndSave = async (status: 'draft' | 'submitted') => {
     if (!form.title.trim()) { setError('Track title is required.'); return; }
     if (!audioFile)          { setError('Please upload an audio file.'); return; }
     if (!user)               { setError('You must be logged in.'); return; }
 
-    setUploading(true);
+    if (status === 'submitted') {
+      if (!form.artist.trim())  { setError('Artist name is required for submission.'); return; }
+      if (!form.genre)          { setError('Genre is required for submission.'); return; }
+      if (!form.release_date)   { setError('Release date is required for submission.'); return; }
+      if (!artFile)             { setError('Cover art (3000 × 3000 px) is required for distribution.'); return; }
+    }
+
+    if (status === 'draft') setDraftSaving(true);
+    else setUploading(true);
     setError('');
     setProgress(0);
 
@@ -199,7 +208,7 @@ export default function UploadMusicPage() {
       }]).select('id').single();
       if (prodErr) throw prodErr;
 
-      // Create distribution_releases record → admin sees it in review queue
+      // Create distribution_releases record
       const { error: distErr } = await supabase.from('distribution_releases').insert([{
         track_id:        trackRow.id,
         ecom_product_id: prodRow.id,
@@ -219,19 +228,32 @@ export default function UploadMusicPage() {
         producer:        form.producer || null,
         label_name:      form.label_name || null,
         track_count:     1,
-        status:          'pending_admin_review',
-        submitted_at:    new Date().toISOString(),
+        status,
+        submitted_at:    status === 'submitted' ? new Date().toISOString() : null,
       }]);
       if (distErr) throw distErr;
 
       setProgress(100);
-      setDone(true);
+      if (status === 'draft') setSavedAsDraft(true);
+      else setDone(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed.';
       setError(msg);
     } finally {
       setUploading(false);
+      setDraftSaving(false);
     }
+  };
+
+  // ── Submit handlers ───────────────────────────────────────────────────────
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doUploadAndSave('submitted');
+  };
+
+  const handleSaveDraft = async () => {
+    await doUploadAndSave('draft');
   };
 
   const resetForm = () => {
@@ -241,12 +263,50 @@ export default function UploadMusicPage() {
     setProgress(0);
     setError('');
     setDone(false);
+    setSavedAsDraft(false);
     setForm({
       title: '', artist: '', genre: '', language: 'English',
       explicit: false, release_date: '', lyrics: '', description: '', bpm: '',
       isrc: '', copyright_owner: '', composer: '', producer: '', label_name: '',
     });
   };
+
+  // ── Draft saved screen ────────────────────────────────────────────────────
+
+  if (savedAsDraft) {
+    return (
+      <div className="min-h-screen bg-[#0A1128] flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 rounded-full bg-[#FFB800]/15 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-[#FFB800]" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Draft Saved</h2>
+            <p className="text-gray-400 text-sm mb-8">
+              <span className="text-white font-medium">"{form.title}"</span> is saved as a draft.
+              Complete it and submit for distribution when ready.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={resetForm}
+                className="px-5 py-2.5 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
+              >
+                Upload Another
+              </button>
+              <Link
+                to="/dashboard"
+                className="px-5 py-2.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm"
+              >
+                View Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   // ── Success screen ────────────────────────────────────────────────────────
 
@@ -259,10 +319,10 @@ export default function UploadMusicPage() {
             <div className="w-20 h-20 rounded-full bg-[#00D9FF]/15 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-[#00D9FF]" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Track Uploaded!</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Submitted for Distribution!</h2>
             <p className="text-gray-400 text-sm mb-8">
               <span className="text-white font-medium">"{form.title}"</span> has been submitted
-              and is pending review.
+              and is pending admin review before going to Ditto Music.
             </p>
             <div className="flex gap-3 justify-center">
               <button
@@ -640,24 +700,38 @@ export default function UploadMusicPage() {
             </div>
           )}
 
-          {/* ── Submit ────────────────────────────────────────────────── */}
-          <button
-            type="submit"
-            disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Uploading…
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                Upload Track
-              </>
-            )}
-          </button>
+          {/* ── Actions ───────────────────────────────────────────────── */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={uploading || draftSaving}
+              className="flex-1 flex items-center justify-center gap-2 py-4 bg-white/5 border border-white/10 text-gray-300 font-bold rounded-2xl hover:bg-white/8 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {draftSaving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
+              ) : (
+                'Save Draft'
+              )}
+            </button>
+            <button
+              type="submit"
+              disabled={uploading || draftSaving}
+              className="flex-[2] flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white font-bold rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Submit for Distribution
+                </>
+              )}
+            </button>
+          </div>
 
         </form>
       </main>
