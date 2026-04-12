@@ -465,7 +465,6 @@ export default function ArtistPublicPage() {
             </div>
           </div>
         )}
-      </div>
 
         {/* Support / Membership Tiers Tab */}
         {tab === 'support' && (
