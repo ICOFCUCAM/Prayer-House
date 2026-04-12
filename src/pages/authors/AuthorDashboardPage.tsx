@@ -87,7 +87,7 @@ function CreateProfileForm({
     setError('');
 
     const { data, error: err } = await supabase
-      .from('authors')
+      .from('author_profiles')
       .insert({
         user_id: userId,
         name: name.trim(),
@@ -206,7 +206,7 @@ export default function AuthorDashboardPage() {
     if (!userId) return;
     setProfileLoading(true);
     supabase
-      .from('authors')
+      .from('author_profiles')
       .select('*')
       .eq('user_id', userId)
       .maybeSingle()

@@ -271,7 +271,7 @@ export default function ModerationQueuePage() {
   const handleRemoveContent = useCallback(async (report: Report) => {
     setActionLoad(report.id);
     await Promise.all([
-      supabase.from('products').delete().eq('id', report.content_id),
+      supabase.from('ecom_products').delete().eq('id', report.content_id),
       supabase
         .from('content_reports')
         .update({ status: 'actioned' })

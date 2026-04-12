@@ -68,21 +68,44 @@ export default function DistributePage() {
   const [compSubmitting, setCompSubmitting] = useState(false);
   const [compSuccess, setCompSuccess] = useState(false);
 
-  const MOCK_RELEASES = [
-    { id: '1', title: 'Holy Ground', artist: user?.user_metadata?.full_name || 'You', status: 'live', platforms: 6, streams: 12400, royalties: 48.32, created_at: '2025-01-15' },
-    { id: '2', title: 'Grace Overflow', artist: user?.user_metadata?.full_name || 'You', status: 'processing', platforms: 8, streams: 0, royalties: 0, created_at: '2025-04-01' },
-    { id: '3', title: 'Morning Fire', artist: user?.user_metadata?.full_name || 'You', status: 'pending', platforms: 8, streams: 0, royalties: 0, created_at: '2025-04-06' },
-  ];
-
-  const MOCK_COMPETITIONS = [
-    { id: 'comp-1', title: 'Gospel Voices 2025', deadline: '2025-04-30', prize: '$2,000', entries: 47 },
-    { id: 'comp-2', title: 'Praise & Worship Challenge', deadline: '2025-05-15', prize: '$1,500', entries: 23 },
-  ];
-
   useEffect(() => {
-    setReleases(MOCK_RELEASES);
-    setCompetitions(MOCK_COMPETITIONS);
-  }, []);
+    if (!user) return;
+    // Load user's releases
+    supabase
+      .from('distribution_releases')
+      .select('id, title, artist_name, status, release_date, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) setReleases(data.map((r: any) => ({
+          id:         r.id,
+          title:      r.title,
+          artist:     r.artist_name ?? user.user_metadata?.full_name ?? 'You',
+          status:     r.status ?? 'pending',
+          platforms:  0,
+          streams:    0,
+          royalties:  0,
+          created_at: r.created_at?.slice(0, 10),
+        })));
+      });
+    // Load open competitions
+    supabase
+      .from('competition_rooms')
+      .select('id, title, end_date, prize_pool')
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) setCompetitions(data.map((r: any) => ({
+          id:      r.id,
+          title:   r.title,
+          deadline: r.end_date?.slice(0, 10) ?? '—',
+          prize:   r.prize_pool ?? '—',
+          entries: 0,
+        })));
+      });
+  }, [user]);
 
   const handleReleaseSubmit = async () => {
     setSubmitting(true);

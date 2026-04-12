@@ -23,22 +23,6 @@ interface Book {
   description: string;
 }
 
-// ── Mock catalogue (shown when Supabase returns nothing) ──────────────────────
-const MOCK_BOOKS: Book[] = [
-  { id: 'm1',  title: 'The Art of War',          author: 'Sun Tzu',          genre: 'Non-Fiction',  price: 11.99, rating: 5, reviews: 2400, pages: 128, language: 'English',    cover: 'from-[#1a1a2e] to-[#16213e]', coverEmoji: '⚔️',  isNew: false, isBestseller: true,  description: 'Ancient Chinese military treatise.' },
-  { id: 'm2',  title: 'Love in Paris',            author: 'Claire Fontaine',  genre: 'Romance',      price: 9.99,  rating: 4, reviews: 1890, pages: 312, language: 'English',    cover: 'from-[#2d1b69] to-[#11998e]', coverEmoji: '🗼',  isNew: false, isBestseller: false, description: 'A love story set in the heart of Paris.' },
-  { id: 'm3',  title: 'The Last Kingdom',         author: 'Bernard Cornwell', genre: 'Fiction',      price: 12.99, rating: 5, reviews: 3100, pages: 427, language: 'English',    cover: 'from-[#3d0c02] to-[#1a0533]', coverEmoji: '⚜️',  isNew: false, isBestseller: true,  description: 'Epic historical fiction set in Viking England.' },
-  { id: 'm4',  title: 'Python Programming',       author: 'Mark Lutz',        genre: 'Technology',   price: 29.99, rating: 4, reviews: 5200, pages: 640, language: 'English',    cover: 'from-[#0f0c29] to-[#302b63]', coverEmoji: '🐍',  isNew: false, isBestseller: false, description: 'The complete guide to Python development.' },
-  { id: 'm5',  title: 'Mindful Living',           author: 'Dr. Sarah Chen',   genre: 'Self-Help',    price: 8.99,  rating: 4, reviews: 780,  pages: 200, language: 'English',    cover: 'from-[#134e5e] to-[#71b280]', coverEmoji: '🧘',  isNew: false, isBestseller: false, description: 'A practical guide to mindfulness and peace.' },
-  { id: 'm6',  title: 'Space Odyssey',            author: 'A.J. Chen PhD',    genre: 'Sci-Fi',       price: 16.99, rating: 4, reviews: 2340, pages: 380, language: 'English',    cover: 'from-[#0a0a0a] to-[#0d47a1]', coverEmoji: '🚀',  isNew: false, isBestseller: false, description: 'A journey to the edge of the known universe.' },
-  { id: 'm7',  title: 'Cooking Masterclass',      author: 'Chef Marco Villa', genre: 'Cooking',      price: 24.99, rating: 5, reviews: 1560, pages: 290, language: 'English',    cover: 'from-[#f7971e] to-[#ffd200]', coverEmoji: '👨‍🍳', isNew: false, isBestseller: true,  description: 'Professional techniques for the home kitchen.' },
-  { id: 'm8',  title: 'The Digital Revolution',   author: 'Alex Chen',        genre: 'Technology',   price: 14.99, rating: 4, reviews: 920,  pages: 260, language: 'English',    cover: 'from-[#141e30] to-[#243b55]', coverEmoji: '💡',  isNew: false, isBestseller: false, description: 'How technology is reshaping our world.' },
-  { id: 'm9',  title: 'Modern Minds',             author: 'Dr. Aisha Diallo', genre: 'Self-Help',    price: 0,     rating: 5, reviews: 4100, pages: 176, language: 'English',    cover: 'from-[#0f2027] to-[#203a43]', coverEmoji: '🧠',  isNew: true,  isBestseller: false, description: 'A guide to unlocking your full potential.' },
-  { id: 'm10', title: 'Story Crafting',           author: 'Elena Vasquez',    genre: 'Writing',      price: 12.99, rating: 4, reviews: 1230, pages: 224, language: 'English',    cover: 'from-[#4a00e0] to-[#8e2de2]', coverEmoji: '✍️',  isNew: true,  isBestseller: false, description: 'Mastering the art of narrative storytelling.' },
-  { id: 'm11', title: 'Strategic Mindset',        author: 'James Okafor',     genre: 'Business',     price: 19.99, rating: 5, reviews: 3800, pages: 310, language: 'English',    cover: 'from-[#1f4037] to-[#99f2c8]', coverEmoji: '♟️',  isNew: true,  isBestseller: true,  description: 'Unleash your potential with strategic thinking.' },
-  { id: 'm12', title: 'Future of Work',           author: 'Alex Chen',        genre: 'Business',     price: 0,     rating: 4, reviews: 2700, pages: 198, language: 'English',    cover: 'from-[#0052d4] to-[#65c7f7]', coverEmoji: '🏢',  isNew: true,  isBestseller: false, description: 'Navigating the digital shift in careers.' },
-];
-
 const GENRES = ['All', 'Fiction', 'Non-Fiction', 'Technology', 'Business', 'Self-Help', 'Science', 'Romance', 'History', 'Cooking', 'Biography', 'Sci-Fi', 'Writing'];
 const SORTS  = ['Best Sellers', 'Newest', 'Top Rated', 'Price: Low → High', 'Price: High → Low', 'Free First'];
 const LANGS  = ['All Languages', 'English', 'French', 'Swahili', 'Yoruba', 'Igbo', 'Arabic', 'Portuguese'];
@@ -131,7 +115,7 @@ export default function EbookMarketplacePage() {
           .eq('product_type', 'Book')
           .eq('status', 'active')
           .limit(24);
-        if (data && data.length > 0) {
+        if (data) {
           setBooks(data.map((p: any) => ({
             id: p.id,
             title: p.title,
@@ -139,7 +123,7 @@ export default function EbookMarketplacePage() {
             genre: p.genre || 'Fiction',
             price: p.price ? p.price / 100 : 0,
             rating: 4,
-            reviews: Math.floor(Math.random() * 3000) + 100,
+            reviews: 0,
             pages: p.pages || 250,
             language: p.language || 'English',
             cover: 'from-[#1a1a2e] to-[#16213e]',
@@ -148,10 +132,8 @@ export default function EbookMarketplacePage() {
             isBestseller: false,
             description: p.body_html || '',
           })));
-        } else {
-          setBooks(MOCK_BOOKS);
         }
-      } catch { setBooks(MOCK_BOOKS); }
+      } catch (err) { console.error('Failed to load books:', err); }
       finally  { setLoading(false); }
     })();
   }, []);

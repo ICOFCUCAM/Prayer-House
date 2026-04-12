@@ -42,73 +42,12 @@ interface UpcomingComp {
   gradient: string;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_LIVE_ROOMS: RoomCardData[] = [
-  {
-    id: 'room-1',
-    title: 'Gospel Voices 2025',
-    category: 'Gospel',
-    description: 'Showcase your vocal talent in this premier gospel singing competition.',
-    prize_info: '$2,000',
-    entry_count: 47,
-    deadline: new Date(Date.now() + 5 * 86400000).toISOString(),
-    status: 'live',
-    gradient: 'from-[#9D4EDD]/50 to-[#00D9FF]/30',
-  },
-  {
-    id: 'room-2',
-    title: 'Praise & Worship Challenge',
-    category: 'Worship',
-    description: 'Submit your best praise and worship performance. Originals and covers welcome.',
-    prize_info: '$1,500',
-    entry_count: 23,
-    deadline: new Date(Date.now() + 9 * 86400000).toISOString(),
-    status: 'live',
-    gradient: 'from-[#FFB800]/40 to-[#FF6B00]/20',
-  },
-  {
-    id: 'room-3',
-    title: 'Christian Hip-Hop Cypher',
-    category: 'Hip-Hop',
-    description: 'Drop your best bars for Christ. 2-minute max freestyle or written verse.',
-    prize_info: '$1,000',
-    entry_count: 14,
-    deadline: new Date(Date.now() + 13 * 86400000).toISOString(),
-    status: 'live',
-    gradient: 'from-[#00F5A0]/40 to-[#00D9FF]/20',
-  },
-  {
-    id: 'room-4',
-    title: 'Afrobeats Gospel Fusion',
-    category: 'Afrobeats',
-    description: 'Blend afrobeats with gospel for a unique musical experience.',
-    prize_info: '$800',
-    entry_count: 8,
-    deadline: new Date(Date.now() + 6 * 86400000).toISOString(),
-    status: 'live',
-    gradient: 'from-[#FF6B00]/40 to-[#9D4EDD]/20',
-  },
-];
-
-const MOCK_VOTE_ENTRIES: Entry[] = [
-  { id: 'e1', competitionId: 'room-1', artistName: 'Grace Adele', title: 'His Mercy Endures', mediaUrl: '', mediaType: 'audio', votes: 234, avatarColor: 'from-[#9D4EDD] to-[#00D9FF]' },
-  { id: 'e2', competitionId: 'room-1', artistName: 'Samuel K', title: 'Amazing Grace (Reimagined)', mediaUrl: '', mediaType: 'audio', votes: 189, avatarColor: 'from-[#FFB800] to-[#FF6B00]' },
-  { id: 'e3', competitionId: 'room-1', artistName: 'Joy Ministries', title: 'Overflow', mediaUrl: '', mediaType: 'video', votes: 156, avatarColor: 'from-[#00F5A0] to-[#00D9FF]' },
-  { id: 'e4', competitionId: 'room-2', artistName: 'David Praise', title: 'Mountains Move', mediaUrl: '', mediaType: 'audio', votes: 98, avatarColor: 'from-[#FF6B00] to-[#FFB800]' },
-  { id: 'e5', competitionId: 'room-2', artistName: 'Faith Choir', title: 'Holy Atmosphere', mediaUrl: '', mediaType: 'video', votes: 76, avatarColor: 'from-[#00D9FF] to-[#9D4EDD]' },
-  { id: 'e6', competitionId: 'room-3', artistName: 'Blessed MC', title: 'Kingdom Flow', mediaUrl: '', mediaType: 'audio', votes: 62, avatarColor: 'from-[#9D4EDD] to-[#FF6B00]' },
-];
-
-const MOCK_UPCOMING: UpcomingComp[] = [
-  { id: 'u1', title: 'Traditional Worship Showdown', category: 'Traditional', prize: '$3,000', startsAt: new Date(Date.now() + 21 * 86400000).toISOString(), gradient: 'from-[#9D4EDD]/50 to-[#00D9FF]/30' },
-  { id: 'u2', title: 'Choir Battle Season 2', category: 'Choir', prize: '$2,500', startsAt: new Date(Date.now() + 30 * 86400000).toISOString(), gradient: 'from-[#FFB800]/40 to-[#FF6B00]/20' },
-  { id: 'u3', title: 'Spoken Word Sunday', category: 'Spoken Word', prize: '$1,200', startsAt: new Date(Date.now() + 45 * 86400000).toISOString(), gradient: 'from-[#00F5A0]/40 to-[#00D9FF]/20' },
-];
-
-const MOCK_WINNERS: WeeklyWinner[] = [
-  { week: 'Week of Apr 1, 2025', competitionTitle: 'Easter Special Praise', artistName: 'Emmanuel Voices', prize: '$800', votes: 1204, gradient: 'from-[#FFB800]/40 to-[#FF6B00]/20' },
-  { week: 'Week of Mar 24, 2025', competitionTitle: 'Midnight Worship Battle', artistName: 'Zion Heights', prize: '$800', votes: 987, gradient: 'from-[#9D4EDD]/50 to-[#00D9FF]/30' },
-  { week: 'Week of Mar 17, 2025', competitionTitle: "God's Grace Challenge", artistName: 'Miriam D.', prize: '$600', votes: 834, gradient: 'from-[#00F5A0]/40 to-[#00D9FF]/20' },
+const GRADIENTS = [
+  'from-[#9D4EDD]/50 to-[#00D9FF]/30',
+  'from-[#FFB800]/40 to-[#FF6B00]/20',
+  'from-[#00F5A0]/40 to-[#00D9FF]/20',
+  'from-[#FF6B00]/40 to-[#9D4EDD]/20',
+  'from-[#00D9FF]/50 to-[#9D4EDD]/30',
 ];
 
 const CATEGORY_FILTERS = ['All', 'Music', 'Dance', 'Comedy', 'Spoken Word', 'Choir', 'Gospel', 'Traditional', 'Afrobeats'];
@@ -174,7 +113,10 @@ export default function TalentArenaPage() {
   const [loading,   setLoading]   = useState(true);
   const [category,  setCategory]  = useState('All');
   const [sort,      setSort]      = useState('Most Voted');
-  const [entries,   setEntries]   = useState<Entry[]>(MOCK_VOTE_ENTRIES);
+  const [entries,   setEntries]   = useState<Entry[]>([]);
+  const [liveRooms, setLiveRooms] = useState<RoomCardData[]>([]);
+  const [upcoming,  setUpcoming]  = useState<UpcomingComp[]>([]);
+  const [winners,   setWinners]   = useState<WeeklyWinner[]>([]);
   const [notified,  setNotified]  = useState<Set<string>>(new Set());
   const [heroBg,    setHeroBg]    = useState(0);
 
@@ -193,10 +135,91 @@ export default function TalentArenaPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Simulate loading
+  // Load real data
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 900);
-    return () => clearTimeout(id);
+    const load = async () => {
+      const [roomsRes, entriesRes] = await Promise.all([
+        supabase
+          .from('competition_rooms')
+          .select('id, title, category, description, prize_pool, end_date, status, cover_url')
+          .neq('status', 'draft')
+          .order('created_at', { ascending: false })
+          .limit(12),
+        supabase
+          .from('competition_entries_v2')
+          .select('id, room_id, title, performer_name, video_url, preview_clip_url, thumbnail_url, votes_count, is_winner, reviewed_at, profiles:user_id(display_name, avatar_url), competition_rooms:room_id(title, prize_pool)')
+          .in('status', ['live', 'approved', 'winner'])
+          .order('votes_count', { ascending: false })
+          .limit(18),
+      ]);
+
+      const rooms = roomsRes.data ?? [];
+
+      // Partition rooms
+      const live: RoomCardData[]    = [];
+      const upcoming: UpcomingComp[] = [];
+      rooms.forEach((r: any, i: number) => {
+        const gradient = GRADIENTS[i % GRADIENTS.length];
+        if (r.status === 'open') {
+          live.push({
+            id:          r.id,
+            title:       r.title,
+            category:    r.category,
+            description: r.description,
+            prize_info:  r.prize_pool,
+            deadline:    r.end_date,
+            status:      'live',
+            gradient,
+          });
+        } else if (r.status === 'draft' || r.status === 'closed') {
+          upcoming.push({
+            id:       r.id,
+            title:    r.title,
+            category: r.category ?? '',
+            prize:    r.prize_pool ?? '—',
+            startsAt: r.end_date ?? new Date(Date.now() + 21 * 86400000).toISOString(),
+            gradient,
+          });
+        }
+      });
+      setLiveRooms(live);
+      setUpcoming(upcoming.slice(0, 3));
+
+      // Winners from is_winner entries
+      const allEntries = entriesRes.data ?? [];
+      const winnerRows = allEntries.filter((e: any) => e.is_winner);
+      setWinners(winnerRows.slice(0, 3).map((e: any, i: number) => {
+        const profile = Array.isArray(e.profiles) ? e.profiles[0] : e.profiles;
+        const room    = Array.isArray(e.competition_rooms) ? e.competition_rooms[0] : e.competition_rooms;
+        return {
+          week:             e.reviewed_at ? `Week of ${new Date(e.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '—',
+          competitionTitle: room?.title ?? 'Competition',
+          artistName:       profile?.display_name ?? e.performer_name ?? 'Artist',
+          prize:            room?.prize_pool ?? '—',
+          votes:            e.votes_count ?? 0,
+          gradient:         GRADIENTS[i % GRADIENTS.length],
+        };
+      }));
+
+      // Voteable entries (non-winner live entries)
+      const voteEntries = allEntries.filter((e: any) => !e.is_winner).map((e: any, i: number) => {
+        const profile = Array.isArray(e.profiles) ? e.profiles[0] : e.profiles;
+        return {
+          id:            e.id,
+          competitionId: e.room_id ?? '',
+          artistName:    profile?.display_name ?? e.performer_name ?? 'Artist',
+          title:         e.title ?? 'Untitled',
+          mediaUrl:      e.video_url ?? e.preview_clip_url ?? '',
+          mediaType:     e.video_url ? 'video' as const : 'audio' as const,
+          votes:         e.votes_count ?? 0,
+          avatarColor:   GRADIENTS[i % GRADIENTS.length].replace('from-', 'from-').replace('/50', '').replace('/40', ''),
+          thumbnailUrl:  e.thumbnail_url ?? null,
+        };
+      });
+      setEntries(voteEntries);
+      setLoading(false);
+    };
+    load();
   }, []);
 
   // Realtime votes subscription
@@ -238,8 +261,8 @@ export default function TalentArenaPage() {
 
   // Filter + sort entries
   const filteredRooms = category === 'All'
-    ? MOCK_LIVE_ROOMS
-    : MOCK_LIVE_ROOMS.filter(r => r.category?.toLowerCase() === category.toLowerCase());
+    ? liveRooms
+    : liveRooms.filter(r => r.category?.toLowerCase() === category.toLowerCase());
 
   const sortedEntries = [...entries].sort((a, b) =>
     sort === 'Most Voted' ? b.votes - a.votes : b.id.localeCompare(a.id)
@@ -497,7 +520,7 @@ export default function TalentArenaPage() {
           <h2 className="text-2xl font-black text-white mb-6">Upcoming Competitions</h2>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {MOCK_UPCOMING.map(comp => {
+            {upcoming.map(comp => {
               const isNotified = notified.has(comp.id);
               return (
                 <div key={comp.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-[#00D9FF]/30 transition-all">
@@ -560,7 +583,7 @@ export default function TalentArenaPage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {MOCK_WINNERS.map((w, i) => (
+            {winners.map((w, i) => (
               <div key={i} className="bg-white/5 border border-[#FFB800]/20 rounded-xl overflow-hidden hover:border-[#FFB800]/40 transition-all">
                 {/* Thumbnail */}
                 <div className="relative h-32 overflow-hidden">

@@ -1,10 +1,48 @@
-import React, { useState } from 'react';
-import { MOCK_CREATORS, MOCK_CONTENT, PLATFORM_STATS, formatNumber, formatCurrency } from '@/lib/constants';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { PLATFORM_STATS, formatNumber, formatCurrency } from '@/lib/constants';
+
+interface Profile {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  role: string | null;
+  country: string | null;
+  follower_count: number;
+  verified: boolean;
+}
+
+interface Product {
+  id: string;
+  title: string;
+  product_type: string;
+  cover_url: string | null;
+  vendor_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface Withdrawal {
+  id: string;
+  user_id: string;
+  amount_cents: number;
+  method: string | null;
+  status: string;
+  created_at: string;
+  profiles: { display_name: string | null; username: string | null } | null;
+}
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'content' | 'withdrawals' | 'competitions'>('overview');
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-  const [contentStatus, setContentStatus] = useState<Record<string, string>>({});
+  const [selectedUsers,  setSelectedUsers]  = useState<Set<string>>(new Set());
+  const [contentStatus,  setContentStatus]  = useState<Record<string, string>>({});
+  const [withdrawalStatus, setWithdrawalStatus] = useState<Record<string, string>>({});
+
+  const [users,       setUsers]       = useState<Profile[]>([]);
+  const [products,    setProducts]    = useState<Product[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [loading,     setLoading]     = useState(false);
 
   const toggleUser = (id: string) => {
     setSelectedUsers(prev => {
@@ -14,26 +52,59 @@ export default function AdminPanel() {
     });
   };
 
-  const approveContent = (id: string) => setContentStatus(prev => ({ ...prev, [id]: 'approved' }));
-  const rejectContent = (id: string) => setContentStatus(prev => ({ ...prev, [id]: 'rejected' }));
+  const approveContent = async (id: string) => {
+    setContentStatus(prev => ({ ...prev, [id]: 'approved' }));
+    await supabase.from('ecom_products').update({ status: 'active' }).eq('id', id);
+  };
+  const rejectContent = async (id: string) => {
+    setContentStatus(prev => ({ ...prev, [id]: 'rejected' }));
+    await supabase.from('ecom_products').update({ status: 'rejected' }).eq('id', id);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users' && users.length === 0) {
+      setLoading(true);
+      supabase
+        .from('profiles')
+        .select('id, display_name, username, avatar_url, role, country, follower_count, verified')
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => { if (data) setUsers(data as Profile[]); setLoading(false); });
+    }
+    if (activeTab === 'content' && products.length === 0) {
+      setLoading(true);
+      supabase
+        .from('ecom_products')
+        .select('id, title, product_type, cover_url, vendor_id, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false); });
+    }
+    if (activeTab === 'withdrawals' && withdrawals.length === 0) {
+      setLoading(true);
+      supabase
+        .from('creator_earnings')
+        .select('id, user_id, amount_cents, method, status, created_at, profiles:user_id(display_name, username)')
+        .eq('type', 'payout')
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => {
+          if (data) setWithdrawals(data.map((w: any) => ({
+            ...w,
+            profiles: Array.isArray(w.profiles) ? w.profiles[0] : w.profiles,
+          })) as Withdrawal[]);
+          setLoading(false);
+        });
+    }
+  }, [activeTab]);
 
   const tabs = [
-    { id: 'overview' as const, label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    { id: 'users' as const, label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-    { id: 'content' as const, label: 'Content', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
-    { id: 'withdrawals' as const, label: 'Withdrawals', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+    { id: 'overview'     as const, label: 'Overview',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+    { id: 'users'        as const, label: 'Users',        icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+    { id: 'content'      as const, label: 'Content',      icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+    { id: 'withdrawals'  as const, label: 'Withdrawals',  icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
     { id: 'competitions' as const, label: 'Competitions', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z' },
   ];
-
-  const mockWithdrawals = [
-    { id: 'w1', user: 'Amara Okafor', amount: 500, method: 'M-Pesa', status: 'pending', date: '2026-03-20' },
-    { id: 'w2', user: 'Zuri Mwangi', amount: 1200, method: 'Stripe', status: 'pending', date: '2026-03-19' },
-    { id: 'w3', user: 'Marcus Johnson', amount: 350, method: 'Paystack', status: 'approved', date: '2026-03-18' },
-    { id: 'w4', user: 'David Chen', amount: 890, method: 'Stripe', status: 'completed', date: '2026-03-17' },
-    { id: 'w5', user: 'Kwame Asante', amount: 200, method: 'MTN MoMo', status: 'pending', date: '2026-03-16' },
-  ];
-
-  const [withdrawalStatus, setWithdrawalStatus] = useState<Record<string, string>>({});
 
   return (
     <div className="space-y-6">
@@ -86,48 +157,54 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-xs text-gray-500 border-b border-gray-800">
-                  <th className="p-4 text-left"><input type="checkbox" className="rounded" /></th>
-                  <th className="p-4 text-left">User</th>
-                  <th className="p-4 text-left">Role</th>
-                  <th className="p-4 text-left">Country</th>
-                  <th className="p-4 text-right">Followers</th>
-                  <th className="p-4 text-right">Earnings</th>
-                  <th className="p-4 text-left">Status</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {MOCK_CREATORS.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="p-4"><input type="checkbox" checked={selectedUsers.has(c.id)} onChange={() => toggleUser(c.id)} className="rounded" /></td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <img src={c.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                        <div>
-                          <p className="text-sm font-medium text-white">{c.name}</p>
-                          <p className="text-xs text-gray-500">@{c.username}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4"><span className="text-xs text-gray-300 capitalize">{c.category}</span></td>
-                    <td className="p-4"><span className="text-xs text-gray-300">{c.country}</span></td>
-                    <td className="p-4 text-right text-sm text-gray-300">{formatNumber(c.followers)}</td>
-                    <td className="p-4 text-right text-sm text-emerald-400">{formatCurrency(c.earnings)}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${c.verified ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                        {c.verified ? 'Verified' : 'Pending'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right"><button className="text-xs text-indigo-400 hover:text-indigo-300">Edit</button></td>
+          {loading ? (
+            <div className="divide-y divide-gray-800">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 animate-pulse bg-white/3" />)}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-xs text-gray-500 border-b border-gray-800">
+                    <th className="p-4 text-left"><input type="checkbox" className="rounded" /></th>
+                    <th className="p-4 text-left">User</th>
+                    <th className="p-4 text-left">Role</th>
+                    <th className="p-4 text-left">Country</th>
+                    <th className="p-4 text-right">Followers</th>
+                    <th className="p-4 text-left">Status</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {users.length === 0 ? (
+                    <tr><td colSpan={7} className="p-8 text-center text-gray-500">No users found.</td></tr>
+                  ) : users.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="p-4"><input type="checkbox" checked={selectedUsers.has(u.id)} onChange={() => toggleUser(u.id)} className="rounded" /></td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <img src={u.avatar_url ?? `https://api.dicebear.com/7.x/initials/svg?seed=${u.id}`} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          <div>
+                            <p className="text-sm font-medium text-white">{u.display_name ?? u.username ?? '—'}</p>
+                            <p className="text-xs text-gray-500">@{u.username ?? u.id.slice(0, 8)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4"><span className="text-xs text-gray-300 capitalize">{u.role ?? 'user'}</span></td>
+                      <td className="p-4"><span className="text-xs text-gray-300">{u.country ?? '—'}</span></td>
+                      <td className="p-4 text-right text-sm text-gray-300">{formatNumber(u.follower_count ?? 0)}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${u.verified ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                          {u.verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right"><button className="text-xs text-indigo-400 hover:text-indigo-300">Edit</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -136,29 +213,39 @@ export default function AdminPanel() {
           <div className="p-4 border-b border-gray-800">
             <h3 className="font-semibold text-white">Content Moderation Queue</h3>
           </div>
-          <div className="divide-y divide-gray-800">
-            {MOCK_CONTENT.slice(0, 6).map(item => (
-              <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-gray-800/30 transition-colors">
-                <img src={item.thumbnail} alt="" className="w-16 h-12 rounded-lg object-cover" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{item.title}</p>
-                  <p className="text-xs text-gray-400">{item.creator} · {item.type} · {item.category}</p>
+          {loading ? (
+            <div className="divide-y divide-gray-800">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 animate-pulse bg-white/3" />)}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800">
+              {products.length === 0 ? (
+                <p className="p-8 text-center text-gray-500">No content yet.</p>
+              ) : products.map(item => (
+                <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-gray-800/30 transition-colors">
+                  {item.cover_url
+                    ? <img src={item.cover_url} alt="" className="w-16 h-12 rounded-lg object-cover" />
+                    : <div className="w-16 h-12 rounded-lg bg-indigo-600/20 flex items-center justify-center shrink-0"><svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg></div>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{item.title}</p>
+                    <p className="text-xs text-gray-400 capitalize">{item.product_type} · {item.created_at?.slice(0, 10)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {contentStatus[item.id] ? (
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${contentStatus[item.id] === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {contentStatus[item.id]}
+                      </span>
+                    ) : (
+                      <>
+                        <button onClick={() => approveContent(item.id)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg transition-colors">Approve</button>
+                        <button onClick={() => rejectContent(item.id)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors">Reject</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {contentStatus[item.id] ? (
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${contentStatus[item.id] === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {contentStatus[item.id]}
-                    </span>
-                  ) : (
-                    <>
-                      <button onClick={() => approveContent(item.id)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg transition-colors">Approve</button>
-                      <button onClick={() => rejectContent(item.id)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors">Reject</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -167,33 +254,53 @@ export default function AdminPanel() {
           <div className="p-4 border-b border-gray-800">
             <h3 className="font-semibold text-white">Withdrawal Requests</h3>
           </div>
-          <div className="divide-y divide-gray-800">
-            {mockWithdrawals.map(w => (
-              <div key={w.id} className="flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors">
-                <div>
-                  <p className="text-sm font-medium text-white">{w.user}</p>
-                  <p className="text-xs text-gray-400">{w.method} · {w.date}</p>
+          {loading ? (
+            <div className="divide-y divide-gray-800">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 animate-pulse bg-white/3" />)}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800">
+              {withdrawals.length === 0 ? (
+                <p className="p-8 text-center text-gray-500">No withdrawal requests.</p>
+              ) : withdrawals.map(w => (
+                <div key={w.id} className="flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors">
+                  <div>
+                    <p className="text-sm font-medium text-white">{w.profiles?.display_name ?? w.profiles?.username ?? w.user_id.slice(0, 8)}</p>
+                    <p className="text-xs text-gray-400">{w.method ?? 'Bank'} · {w.created_at?.slice(0, 10)}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm font-semibold text-white">{formatCurrency((w.amount_cents ?? 0) / 100)}</p>
+                    {withdrawalStatus[w.id] ? (
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${withdrawalStatus[w.id] === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {withdrawalStatus[w.id]}
+                      </span>
+                    ) : w.status === 'pending' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            setWithdrawalStatus(prev => ({ ...prev, [w.id]: 'approved' }));
+                            await supabase.from('creator_earnings').update({ status: 'completed' }).eq('id', w.id);
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg transition-colors"
+                        >Approve</button>
+                        <button
+                          onClick={async () => {
+                            setWithdrawalStatus(prev => ({ ...prev, [w.id]: 'rejected' }));
+                            await supabase.from('creator_earnings').update({ status: 'rejected' }).eq('id', w.id);
+                          }}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors"
+                        >Reject</button>
+                      </div>
+                    ) : (
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${w.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {w.status}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <p className="text-sm font-semibold text-white">{formatCurrency(w.amount)}</p>
-                  {withdrawalStatus[w.id] ? (
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${withdrawalStatus[w.id] === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {withdrawalStatus[w.id]}
-                    </span>
-                  ) : w.status === 'pending' ? (
-                    <div className="flex gap-2">
-                      <button onClick={() => setWithdrawalStatus(prev => ({ ...prev, [w.id]: 'approved' }))} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg transition-colors">Approve</button>
-                      <button onClick={() => setWithdrawalStatus(prev => ({ ...prev, [w.id]: 'rejected' }))} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors">Reject</button>
-                    </div>
-                  ) : (
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${w.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                      {w.status}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -204,7 +311,7 @@ export default function AdminPanel() {
             Create Competition
           </button>
           <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
-            <p className="text-gray-400 text-sm">Competition management tools - create, edit, and manage competitions from here.</p>
+            <p className="text-gray-400 text-sm">Competition management tools — create, edit, and manage competitions from here.</p>
           </div>
         </div>
       )}

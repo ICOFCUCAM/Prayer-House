@@ -103,7 +103,7 @@ export default function PreSavePage() {
     }], { onConflict: 'user_id,release_id' });
     // Send notification to creator
     if (release) {
-      await supabase.from('notifications').insert([{
+      await supabase.from('user_notifications').insert([{
         user_id:  releaseId, // creator's id would be fetched separately in production
         type:     'presave',
         title:    'New Pre-save!',

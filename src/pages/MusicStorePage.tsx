@@ -24,26 +24,6 @@ interface StoreTrack {
   isFeatured?: boolean;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_TRACKS: StoreTrack[] = [
-  { id: 'm1',  title: 'Heaven Gates',       artist: 'Prophet Elijah',   genre: 'Gospel',   price: 0,    streams: 128400, downloads: 4210,  duration: '4:15', gradient: 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)', emoji: '🙏', isNew: true  },
-  { id: 'm2',  title: 'Afro Vibration',     artist: 'Kojo Mensah',      genre: 'Afrobeats',price: 1.99, streams: 89200,  downloads: 2890,  duration: '3:28', gradient: 'linear-gradient(135deg,#f7971e,#ffd200,#f7971e)', emoji: '🌍'                },
-  { id: 'm3',  title: 'Midnight Jazz',      artist: 'Adaeze Obi',       genre: 'Jazz',     price: 2.99, streams: 45300,  downloads: 1540,  duration: '5:02', gradient: 'linear-gradient(135deg,#2c3e50,#3498db,#2c3e50)', emoji: '🎷', isFeatured: true },
-  { id: 'm4',  title: 'Street Gospel',      artist: 'MC Zion',          genre: 'Hip-Hop',  price: 0,    streams: 203000, downloads: 8700,  duration: '3:55', gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)', emoji: '🎤', isNew: true  },
-  { id: 'm5',  title: 'Lagos Nights',       artist: 'Funmi Adeyemi',    genre: 'RnB',      price: 1.49, streams: 67800,  downloads: 2200,  duration: '3:44', gradient: 'linear-gradient(135deg,#ee0979,#ff6a00,#ee0979)', emoji: '🌃'                },
-  { id: 'm6',  title: 'Electric Soul',      artist: 'DJ Beacon',        genre: 'EDM',      price: 2.49, streams: 112000, downloads: 5600,  duration: '4:33', gradient: 'linear-gradient(135deg,#00d2ff,#3a7bd5,#00d2ff)', emoji: '⚡', isFeatured: true },
-  { id: 'm7',  title: 'Yoruba Praise',      artist: 'Sis. Busayo',      genre: 'Gospel',   price: 0,    streams: 94500,  downloads: 3800,  duration: '6:12', gradient: 'linear-gradient(135deg,#f093fb,#f5576c,#4facfe)', emoji: '✨'                },
-  { id: 'm8',  title: 'Cape Town Blues',    artist: 'Sipho Dlamini',    genre: 'Blues',    price: 1.99, streams: 28700,  downloads: 920,   duration: '4:48', gradient: 'linear-gradient(135deg,#4b79a1,#283e51,#4b79a1)', emoji: '🎸'                },
-  { id: 'm9',  title: 'Highlife Remix',     artist: 'Kwame Asante',     genre: 'Highlife', price: 0,    streams: 51200,  downloads: 2100,  duration: '3:22', gradient: 'linear-gradient(135deg,#11998e,#38ef7d,#11998e)', emoji: '🥁', isNew: true  },
-  { id: 'm10', title: 'Nairobi Bounce',     artist: 'Zawadi Kamau',     genre: 'Afrobeats',price: 1.29, streams: 73400,  downloads: 2950,  duration: '3:38', gradient: 'linear-gradient(135deg,#f7971e,#ffd200,#f7971e)', emoji: '🎶'                },
-  { id: 'm11', title: 'Sacred Hymns',       artist: 'Choir of Grace',   genre: 'Gospel',   price: 0,    streams: 156000, downloads: 6700,  duration: '5:30', gradient: 'linear-gradient(135deg,#667eea,#764ba2,#667eea)', emoji: '🎵', isFeatured: true },
-  { id: 'm12', title: 'Kizomba Fire',       artist: 'Luísa Ferreira',   genre: 'Kizomba',  price: 2.99, streams: 38100,  downloads: 1280,  duration: '4:10', gradient: 'linear-gradient(135deg,#f64f59,#c471ed,#12c2e9)', emoji: '💃'                },
-  { id: 'm13', title: 'Trap Kingdom',       artist: 'Ayoub Karim',      genre: 'Hip-Hop',  price: 1.99, streams: 182000, downloads: 7400,  duration: '2:58', gradient: 'linear-gradient(135deg,#232526,#414345,#232526)', emoji: '👑'                },
-  { id: 'm14', title: 'Ocean Waves',        artist: 'Seun Kuti Jr.',    genre: 'Afrobeats',price: 0,    streams: 44300,  downloads: 1850,  duration: '4:05', gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed,#2193b0)', emoji: '🌊', isNew: true  },
-  { id: 'm15', title: 'Dancehall Glory',    artist: 'Roots Empress',    genre: 'Reggae',   price: 1.49, streams: 61700,  downloads: 2400,  duration: '3:50', gradient: 'linear-gradient(135deg,#56ab2f,#a8e063,#56ab2f)', emoji: '🌿'                },
-  { id: 'm16', title: 'Piano Meditation',   artist: 'Amara Nwosu',      genre: 'Classical',price: 3.99, streams: 19200,  downloads: 880,   duration: '7:18', gradient: 'linear-gradient(135deg,#bdc3c7,#2c3e50,#bdc3c7)', emoji: '🎹', isFeatured: true },
-];
-
 const GENRES = ['All', 'Gospel', 'Afrobeats', 'Hip-Hop', 'RnB', 'Jazz', 'EDM', 'Blues', 'Highlife', 'Reggae', 'Kizomba', 'Classical', 'Rock'];
 
 const SORT_OPTIONS = [
@@ -172,7 +152,8 @@ function TrackCard({ track, liked, onLike, onPlay }: {
 export default function MusicStorePage() {
   const { play } = usePlayer();
 
-  const [tracks, setTracks]     = useState<StoreTrack[]>(MOCK_TRACKS);
+  const [tracks, setTracks]     = useState<StoreTrack[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [genre, setGenre]       = useState('All');
   const [sort, setSort]         = useState('popular');
   const [search, setSearch]     = useState('');
@@ -180,15 +161,18 @@ export default function MusicStorePage() {
   const [liked, setLiked]       = useState<Set<string>>(new Set());
   const [showSort, setShowSort] = useState(false);
 
-  // Supabase fetch — fall back to MOCK_TRACKS
+  // Supabase fetch
   useEffect(() => {
     supabase
       .from('ecom_products')
       .select('*')
       .eq('product_type', 'Music')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(60)
       .then(({ data }) => {
-        if (data && data.length > 0) {
-          const mapped: StoreTrack[] = data.map((r: any) => ({
+        if (data) {
+          setTracks(data.map((r: any) => ({
             id:        r.id,
             title:     r.title,
             artist:    r.vendor || r.artist || 'Unknown',
@@ -201,9 +185,9 @@ export default function MusicStorePage() {
             emoji:     '🎵',
             audioUrl:  r.audio_url,
             coverUrl:  r.cover_url,
-          }));
-          setTracks(mapped);
+          })));
         }
+        setLoading(false);
       });
   }, []);
 
@@ -402,15 +386,29 @@ export default function MusicStorePage() {
         </div>
 
         {/* Track grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="bg-[#0D1B3E] rounded-2xl overflow-hidden animate-pulse">
+                <div className="aspect-square bg-white/5" />
+                <div className="p-4 space-y-2">
+                  <div className="h-3 bg-white/5 rounded w-3/4" />
+                  <div className="h-3 bg-white/5 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-24">
             <div className="w-16 h-16 rounded-2xl bg-[#0D1B3E] flex items-center justify-center mx-auto mb-4">
               <Music className="w-8 h-8 text-gray-600" />
             </div>
             <p className="text-gray-400 mb-2">No tracks found</p>
-            <button onClick={() => { setSearch(''); setGenre('All'); setPriceFilter('all'); }} className="text-sm text-[#00D9FF] hover:underline">
-              Clear filters
-            </button>
+            {(search || genre !== 'All' || priceFilter !== 'all') && (
+              <button onClick={() => { setSearch(''); setGenre('All'); setPriceFilter('all'); }} className="text-sm text-[#00D9FF] hover:underline">
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

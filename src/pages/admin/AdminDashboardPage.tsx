@@ -71,7 +71,7 @@ function Overview() {
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('tracks').select('*', { count: 'exact', head: true }),
       supabase.from('ecom_products').select('*', { count: 'exact', head: true }).eq('product_type', 'Book'),
-      supabase.from('audiobooks').select('*', { count: 'exact', head: true }),
+      supabase.from('ecom_products').select('*', { count: 'exact', head: true }).ilike('product_type', 'audiobook'),
       supabase.from('competition_entries_v2').select('*', { count: 'exact', head: true }),
       supabase.from('distribution_releases').select('*', { count: 'exact', head: true }),
     ]).then(([users, tracks, books, audio, comps, releases]) => {
@@ -348,7 +348,7 @@ function AdminAuthors() {
     setLoading(true);
     Promise.all([
       supabase.from('book_translations').select('id,book_id,language,status,created_at,title').order('created_at', { ascending: false }).limit(50),
-      supabase.from('audiobooks').select('id,title,status,narrator,created_at').order('created_at', { ascending: false }).limit(50),
+      supabase.from('ecom_products').select('id,title,status,created_at').ilike('product_type', 'audiobook').order('created_at', { ascending: false }).limit(50),
     ]).then(([tr, ab]) => {
       setTranslations((tr.data ?? []) as TranslationRow[]);
       setAudiobooks((ab.data ?? []) as AudiobookRow[]);
@@ -365,7 +365,7 @@ function AdminAuthors() {
 
   const approveAudiobook = async (id: string) => {
     setActing(id);
-    await supabase.from('audiobooks').update({ status: 'active' }).eq('id', id);
+    await supabase.from('ecom_products').update({ status: 'active' }).eq('id', id);
     setAudiobooks(prev => prev.map(a => a.id === id ? { ...a, status: 'active' } : a));
     setActing(null);
   };
@@ -373,7 +373,7 @@ function AdminAuthors() {
   const saveMetadata = async () => {
     if (!editMeta) return;
     setActing(editMeta.id);
-    await supabase.from('audiobooks').update({ title: editMeta.title }).eq('id', editMeta.id);
+    await supabase.from('ecom_products').update({ title: editMeta.title }).eq('id', editMeta.id);
     setAudiobooks(prev => prev.map(a => a.id === editMeta.id ? { ...a, title: editMeta.title } : a));
     setEditMeta(null);
     setActing(null);
@@ -522,7 +522,7 @@ function AdminReports() {
     await supabase.from(table).update({ status: 'suspended' }).eq('id', r.content_id);
     await supabase.from('content_reports').update({ status: 'resolved', notes: (r.notes || '') + ' [DMCA Takedown]', resolved_at: new Date().toISOString() }).eq('id', r.id);
     if (r.reported_user_id) {
-      await supabase.from('notifications').insert({ user_id: r.reported_user_id, title: 'Content Removed — DMCA', body: `Your ${r.content_type} was removed following a DMCA copyright claim.`, read: false, created_at: new Date().toISOString() }).catch(() => {});
+      await supabase.from('user_notifications').insert({ user_id: r.reported_user_id, title: 'Content Removed — DMCA', body: `Your ${r.content_type} was removed following a DMCA copyright claim.`, read: false, created_at: new Date().toISOString() }).catch(() => {});
     }
     setRows(prev => prev.map(x => x.id === r.id ? { ...x, status: 'resolved' } : x));
     setSelected(null);
@@ -534,7 +534,7 @@ function AdminReports() {
     setActing(reportId + 'ban');
     await supabase.from('profiles').update({ suspended: true }).eq('id', userId);
     await supabase.from('content_reports').update({ status: 'resolved', notes: 'User banned.', resolved_at: new Date().toISOString() }).eq('id', reportId);
-    await supabase.from('notifications').insert({ user_id: userId, title: 'Account Suspended', body: 'Your account has been suspended for violating community guidelines.', read: false, created_at: new Date().toISOString() }).catch(() => {});
+    await supabase.from('user_notifications').insert({ user_id: userId, title: 'Account Suspended', body: 'Your account has been suspended for violating community guidelines.', read: false, created_at: new Date().toISOString() }).catch(() => {});
     setRows(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
     setSelected(null);
     setActing(null);

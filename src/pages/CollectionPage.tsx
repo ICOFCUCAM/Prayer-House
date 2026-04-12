@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { MOCK_COMPETITIONS, MOCK_CREATORS, formatCurrency, formatNumber } from '@/lib/constants';
+import { formatCurrency, formatNumber } from '@/lib/constants';
 import { usePlayer } from '@/components/GlobalPlayer';
 
 const MUSIC_LANGUAGES = ['All', 'Afrobeats', 'Bongo Flava', 'Highlife', 'Amapiano', 'Benga', 'Mbalax', 'Afro House', 'Hip-Hop', 'Gospel', 'Dancehall'];
@@ -17,6 +17,8 @@ export default function CollectionPage() {
 
   const [collection, setCollection] = useState<{ id: string; title: string; description?: string } | null>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [rooms,    setRooms]    = useState<any[]>([]);
+  const [artists,  setArtists]  = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('newest');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -61,6 +63,28 @@ export default function CollectionPage() {
 
         const { data: productData } = await query.limit(48);
         if (productData) setProducts(productData);
+
+        // Talent Arena rooms
+        if (isTalentArena) {
+          const { data: roomData } = await supabase
+            .from('competition_rooms')
+            .select('id, title, category, prize_pool, status, cover_url')
+            .neq('status', 'draft')
+            .order('created_at', { ascending: false })
+            .limit(12);
+          if (roomData) setRooms(roomData);
+        }
+
+        // Artists
+        if (isArtists) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, display_name, username, avatar_url, follower_count, role')
+            .in('role', ['artist', 'author', 'creator'])
+            .order('follower_count', { ascending: false })
+            .limit(48);
+          if (profileData) setArtists(profileData);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -68,7 +92,7 @@ export default function CollectionPage() {
       }
     }
     fetchCollection();
-  }, [handle, sortBy, selectedLanguage, selectedGenre]);
+  }, [handle, sortBy, selectedLanguage, selectedGenre, isTalentArena, isArtists]);
 
   // Talent Arena / Competitions
   if (isTalentArena) {
@@ -85,27 +109,33 @@ export default function CollectionPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Talent Arena</h1>
           <p className="text-gray-400 mb-8">AI-powered competitions. Compete, get scored, win prizes.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {MOCK_COMPETITIONS.map(comp => (
-              <div key={comp.id} className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden hover:border-indigo-500/20 transition-all group">
+            {loading ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-40 bg-white/5" />
+                <div className="p-5 space-y-2"><div className="h-4 bg-white/5 rounded w-2/3" /><div className="h-3 bg-white/5 rounded w-1/2" /></div>
+              </div>
+            )) : rooms.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-gray-500">No competitions yet.</div>
+            ) : rooms.map((room: any) => (
+              <div key={room.id} className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden hover:border-indigo-500/20 transition-all group">
                 <div className="relative h-40 overflow-hidden">
-                  <img src={comp.banner} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  {room.cover_url
+                    ? <img src={room.cover_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    : <div className="w-full h-full bg-gradient-to-br from-indigo-600/30 to-purple-600/30" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent" />
                   <div className="absolute top-3 right-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[comp.status]} capitalize`}>{comp.status}</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${statusColors[room.status] ?? statusColors.completed}`}>{room.status}</span>
                   </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="text-lg font-bold text-white mb-1">{comp.name}</h3>
-                  <p className="text-sm text-gray-400 mb-3">by {comp.sponsor}</p>
+                  <h3 className="text-lg font-bold text-white mb-1">{room.title}</h3>
+                  {room.category && <p className="text-sm text-gray-400 mb-3">{room.category}</p>}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-lg font-bold text-emerald-400">{formatCurrency(comp.prizePool)}</p>
+                      <p className="text-lg font-bold text-emerald-400">{room.prize_pool ?? '—'}</p>
                       <p className="text-xs text-gray-500">Prize Pool</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-indigo-400">{comp.entries}</p>
-                      <p className="text-xs text-gray-500">Entries</p>
-                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${statusColors[room.status] ?? statusColors.completed}`}>{room.status}</span>
                   </div>
                 </div>
               </div>
@@ -126,12 +156,19 @@ export default function CollectionPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Artists</h1>
           <p className="text-gray-400 mb-8">Discover talented creators from across the world</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {MOCK_CREATORS.map(creator => (
-              <Link key={creator.id} to={`/artist/${creator.id}`} className="group flex flex-col items-center text-center p-4 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-indigo-500/30 transition-all">
-                <img src={creator.avatar} alt={creator.name} className="w-16 h-16 rounded-full object-cover mb-3 ring-2 ring-transparent group-hover:ring-indigo-500/50 transition-all" />
-                <p className="text-sm font-medium text-white truncate w-full">{creator.name}</p>
-                <p className="text-xs text-gray-400">{creator.category}</p>
-                <p className="text-xs text-indigo-400 mt-0.5">{formatNumber(creator.followers)} followers</p>
+            {loading ? Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl animate-pulse">
+                <div className="w-16 h-16 rounded-full bg-white/5 mx-auto mb-3" />
+                <div className="h-3 bg-white/5 rounded w-3/4 mx-auto mb-1" />
+              </div>
+            )) : artists.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-gray-500">No artists yet.</div>
+            ) : artists.map((p: any) => (
+              <Link key={p.id} to={`/artists/${p.username ?? p.id}`} className="group flex flex-col items-center text-center p-4 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-indigo-500/30 transition-all">
+                <img src={p.avatar_url ?? `https://api.dicebear.com/7.x/initials/svg?seed=${p.id}`} alt={p.display_name ?? ''} className="w-16 h-16 rounded-full object-cover mb-3 ring-2 ring-transparent group-hover:ring-indigo-500/50 transition-all" />
+                <p className="text-sm font-medium text-white truncate w-full">{p.display_name ?? p.username}</p>
+                <p className="text-xs text-gray-400 capitalize">{p.role}</p>
+                <p className="text-xs text-indigo-400 mt-0.5">{formatNumber(p.follower_count ?? 0)} followers</p>
               </Link>
             ))}
           </div>
