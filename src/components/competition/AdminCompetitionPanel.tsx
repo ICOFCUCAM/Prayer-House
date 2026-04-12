@@ -76,8 +76,17 @@ export default function AdminCompetitionPanel({ roomId }: { roomId?: string }) {
     if (!winnerId) return alert('No live entries to score.');
     const winner = entries.find(e => e.id === winnerId);
     if (winner) {
-      // TODO: link to a track — for now use entry ID as placeholder track_id
-      await autoQueueWinnerRelease(winnerId, winnerId).catch(() => {});
+      // Look up the ecom_product linked to this competition entry (via user_id + title match)
+      const { data: productRow } = await supabase
+        .from('ecom_products')
+        .select('id')
+        .eq('vendor_id', winner.user_id)
+        .ilike('title', winner.title)
+        .limit(1)
+        .maybeSingle();
+
+      const trackId = productRow?.id ?? winnerId; // fall back to entry id if no product found
+      await autoQueueWinnerRelease(winnerId, trackId).catch(() => {});
     }
     load();
   };

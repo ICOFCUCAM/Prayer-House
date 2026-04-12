@@ -48,10 +48,12 @@ export default function ArtistPublicPage() {
   const [releases, setReleases] = useState<any[]>([]);
   const [competitionEntries, setCompetitionEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'releases' | 'competition' | 'about'>('releases');
+  const [tab, setTab] = useState<'releases' | 'competition' | 'about' | 'support'>('releases');
   const [followCount, setFollowCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [creatorLevel, setCreatorLevel] = useState<string>('Bronze');
+  const [membershipTiers, setMembershipTiers] = useState<any[]>([]);
+  const [subscribing, setSubscribing] = useState<string | null>(null);
 
   // Get current user session
   useEffect(() => {
@@ -113,9 +115,47 @@ export default function ArtistPublicPage() {
         setTracks(tracksRes.data ?? []);
         setReleases(releasesRes.data ?? []);
         setCompetitionEntries(entriesRes.data ?? []);
+
+        // Fetch active membership tiers for this artist
+        const { data: tiersData } = await supabase
+          .from('membership_tiers')
+          .select('*')
+          .eq('creator_id', userId)
+          .eq('is_active', true)
+          .order('price_usd', { ascending: true });
+        setMembershipTiers(tiersData ?? []);
+
         setLoading(false);
       });
   }, [slug]);
+
+  const handleSubscribe = async (tierId: string, tierName: string, priceUsd: number) => {
+    if (!currentUserId) { navigate('/auth/login'); return; }
+    setSubscribing(tierId);
+    try {
+      const res = await fetch('/api/create-subscription', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ tierId, userId: currentUserId }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (url) { window.location.href = url; return; }
+      }
+      // Fallback: record subscription directly (demo mode)
+      await supabase.from('fan_subscriptions').upsert([{
+        fan_id:    currentUserId,
+        tier_id:   tierId,
+        status:    'active',
+        created_at: new Date().toISOString(),
+      }], { onConflict: 'fan_id,tier_id' });
+      alert(`Successfully subscribed to ${tierName}!`);
+    } catch {
+      alert('Subscription failed. Please try again.');
+    } finally {
+      setSubscribing(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -257,12 +297,12 @@ export default function ArtistPublicPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-white/10 mb-8">
-          {(['releases', 'competition', 'about'] as const).map(t => (
+        <div className="flex gap-1 border-b border-white/10 mb-8 overflow-x-auto">
+          {(['releases', 'competition', 'about', 'support'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+              className={`px-5 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px whitespace-nowrap ${
                 tab === t
                   ? 'border-[#00D9FF] text-[#00D9FF]'
                   : 'border-transparent text-gray-400 hover:text-gray-200'
@@ -272,6 +312,8 @@ export default function ArtistPublicPage() {
                 ? `Releases (${totalReleases})`
                 : t === 'competition'
                 ? `Competition Videos (${competitionEntries.length})`
+                : t === 'support'
+                ? `Support${membershipTiers.length > 0 ? ` (${membershipTiers.length})` : ''}`
                 : 'About'}
             </button>
           ))}
@@ -421,6 +463,77 @@ export default function ArtistPublicPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </div>
+
+        {/* Support / Membership Tiers Tab */}
+        {tab === 'support' && (
+          <div className="max-w-2xl pb-16">
+            {membershipTiers.length === 0 ? (
+              <div className="text-center py-20 text-gray-500">
+                <div className="text-5xl mb-4">⭐</div>
+                <p className="text-lg">No membership tiers available yet.</p>
+                <p className="text-sm mt-2 text-gray-600">Check back later to support this artist.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-gray-400 text-sm mb-6">
+                  Support <span className="text-white font-semibold">{artist.name}</span> with a monthly membership
+                  and unlock exclusive perks.
+                </p>
+                {membershipTiers.map((tier: any) => (
+                  <div
+                    key={tier.id}
+                    className="rounded-2xl border p-5"
+                    style={{ background: `${tier.color}08`, borderColor: `${tier.color}30` }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-black text-lg" style={{ color: tier.color }}>{tier.name}</h3>
+                        <p className="text-gray-400 text-sm">${tier.price_usd}/month</p>
+                      </div>
+                      <button
+                        onClick={() => handleSubscribe(tier.id, tier.name, tier.price_usd)}
+                        disabled={subscribing === tier.id}
+                        className="px-5 py-2.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                        style={{ background: `linear-gradient(135deg, ${tier.color}, #9D4EDD)` }}
+                      >
+                        {subscribing === tier.id ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Processing…
+                          </>
+                        ) : (
+                          <>⭐ Subscribe</>
+                        )}
+                      </button>
+                    </div>
+                    {tier.description && (
+                      <p className="text-gray-400 text-sm mb-3">{tier.description}</p>
+                    )}
+                    {tier.perks && tier.perks.length > 0 && (
+                      <ul className="space-y-1.5">
+                        {tier.perks.map((perk: string, i: number) => (
+                          <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20" style={{ color: tier.color }}>
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            {perk}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="text-xs text-gray-600 mt-3">
+                      {tier.subscriber_count ?? 0} active subscriber{(tier.subscriber_count ?? 0) !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -21,75 +21,6 @@ interface Podcast {
   authors?: { name: string } | null;
 }
 
-// ── Mock Data (fallback when Supabase is empty) ───────────────────────────────
-
-const MOCK_PODCASTS: Podcast[] = [
-  {
-    id: 'mock-1',
-    title: 'Faith & Finance: Building Kingdom Wealth',
-    cover_url: null,
-    audio_url: null,
-    price: 0,
-    description: 'Practical financial wisdom rooted in biblical principles for the modern creator.',
-    duration_minutes: 42,
-    episode_number: 1,
-    category: 'Faith',
-    created_at: '2026-03-01',
-    authors: { name: 'Pastor David Osei' },
-  },
-  {
-    id: 'mock-2',
-    title: 'The Creative Gospel — Ep. 12: Making Music for God',
-    cover_url: null,
-    audio_url: null,
-    price: 0,
-    description: 'An interview with gospel producers about the creative process and staying inspired.',
-    duration_minutes: 58,
-    episode_number: 12,
-    category: 'Music',
-    created_at: '2026-03-08',
-    authors: { name: 'WANKONG Studio' },
-  },
-  {
-    id: 'mock-3',
-    title: 'African Voices: Stories of Revival',
-    cover_url: null,
-    audio_url: null,
-    price: 0,
-    description: 'Testimonies and revival stories from across Sub-Saharan Africa.',
-    duration_minutes: 35,
-    episode_number: 5,
-    category: 'Testimonies',
-    created_at: '2026-03-15',
-    authors: { name: 'Zion Radio' },
-  },
-  {
-    id: 'mock-4',
-    title: 'Tech & Faith: Navigating the Digital World Christianly',
-    cover_url: null,
-    audio_url: null,
-    price: 0,
-    description: 'How creators can use technology wisely while staying grounded in faith.',
-    duration_minutes: 47,
-    episode_number: 3,
-    category: 'Technology',
-    created_at: '2026-03-22',
-    authors: { name: 'Emmanuel Digital' },
-  },
-  {
-    id: 'mock-5',
-    title: 'Worship Leader Secrets — Building Your Sound',
-    cover_url: null,
-    audio_url: null,
-    price: 0,
-    description: 'Top worship leaders share how they craft their unique sound and lead congregations.',
-    duration_minutes: 63,
-    episode_number: 7,
-    category: 'Worship',
-    created_at: '2026-03-29',
-    authors: { name: 'Praise Network' },
-  },
-];
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
   Faith:       'from-[#9D4EDD]/40 to-[#00D9FF]/20',
@@ -210,14 +141,12 @@ export default function PodcastsCollectionPage() {
     supabase
       .from('ecom_products')
       .select('id, title, cover_url, audio_url, price, description, duration_minutes, episode_number, category, created_at, authors(name)')
-      .eq('product_type', 'Podcast')
+      .ilike('product_type', 'podcast')
       .order('created_at', { ascending: false })
       .limit(50)
       .then(({ data, error }) => {
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           setPodcasts(data as Podcast[]);
-        } else {
-          setPodcasts(MOCK_PODCASTS);
         }
         setLoading(false);
       });

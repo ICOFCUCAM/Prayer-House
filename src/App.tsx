@@ -86,6 +86,8 @@ const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
 const DashboardPage         = lazy(() => import('./pages/DashboardPage'));
 const ArtistDashboardPage   = lazy(() => import('./pages/dashboard/ArtistDashboardPage'));
 const AuthorDashboardNewPage = lazy(() => import('./pages/dashboard/AuthorDashboardPage'));
+const UploadMusicPage        = lazy(() => import('./pages/dashboard/UploadMusicPage'));
+const UploadAlbumPage        = lazy(() => import('./pages/dashboard/UploadAlbumPage'));
 
 // ── Phase 4 — Admin ────────────────────────────────────────────────────────────
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
@@ -202,8 +204,8 @@ export default function App() {
 
           {/* ── Coming-soon stubs for footer creator links ─────────────────── */}
           <Route path="/dashboard/artist/upload-performance" element={<ProtectedRoute><TalentArenaUploadPage /></ProtectedRoute>} />
-          <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Music" /></ProtectedRoute>} />
-          <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><ComingSoonPage feature="Upload Album" /></ProtectedRoute>} />
+          <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><UploadMusicPage /></ProtectedRoute>} />
+          <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><UploadAlbumPage /></ProtectedRoute>} />
           <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><BookUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Audiobook" /></ProtectedRoute>} />
           <Route path="/dashboard/distribution"                element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />

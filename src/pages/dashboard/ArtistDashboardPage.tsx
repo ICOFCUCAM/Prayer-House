@@ -152,21 +152,58 @@ export default function ArtistDashboardPage() {
     const recentList = (recent ?? []) as RecentTrack[];
     setRecentTracks(recentList);
 
-    // Top tracks with stable derived analytics (seeded by track ID, not random)
+    // Top tracks — fetch real likes and playlist_adds from DB, fall back to seeded math
+    const trackIds = recentList.map(t => t.id);
     const seed = (id: string, offset: number) => {
       let h = offset;
       for (const c of id) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
       return Math.abs(h % 100) / 100;
     };
+
+    const [likesRes, playlistRes, skipRes] = await Promise.all([
+      trackIds.length > 0
+        ? supabase.from('track_likes').select('track_id').in('track_id', trackIds)
+        : Promise.resolve({ data: [] as any[] }),
+      trackIds.length > 0
+        ? supabase.from('playlist_items').select('track_id').in('track_id', trackIds)
+        : Promise.resolve({ data: [] as any[] }),
+      trackIds.length > 0
+        ? supabase.from('stream_events').select('track_id,skipped').in('track_id', trackIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    // Count likes per track
+    const likesMap: Record<string, number> = {};
+    (likesRes.data ?? []).forEach((r: any) => {
+      likesMap[r.track_id] = (likesMap[r.track_id] ?? 0) + 1;
+    });
+    // Count playlist adds per track
+    const playlistMap: Record<string, number> = {};
+    (playlistRes.data ?? []).forEach((r: any) => {
+      playlistMap[r.track_id] = (playlistMap[r.track_id] ?? 0) + 1;
+    });
+    // Calculate skip rate per track
+    const skipTotal: Record<string, number> = {};
+    const skipCount: Record<string, number> = {};
+    (skipRes.data ?? []).forEach((r: any) => {
+      skipTotal[r.track_id] = (skipTotal[r.track_id] ?? 0) + 1;
+      if (r.skipped) skipCount[r.track_id] = (skipCount[r.track_id] ?? 0) + 1;
+    });
+
     const top: TopTrack[] = [...recentList]
       .sort((a, b) => (b.stream_count || 0) - (a.stream_count || 0))
       .slice(0, 10)
-      .map(t => ({
-        ...t,
-        skip_rate:     Math.round(15 + seed(t.id, 1) * 35),
-        playlist_adds: Math.round((t.stream_count || 0) * 0.04 + seed(t.id, 2) * (t.stream_count || 0) * 0.08),
-        likes:         Math.round((t.stream_count || 0) * 0.06 + seed(t.id, 3) * (t.stream_count || 0) * 0.12),
-      }));
+      .map(t => {
+        const totalEvents = skipTotal[t.id] ?? 0;
+        const skipped     = skipCount[t.id]  ?? 0;
+        const realSkipRate = totalEvents > 0 ? Math.round((skipped / totalEvents) * 100) : null;
+        return {
+          ...t,
+          skip_rate:     realSkipRate ?? Math.round(15 + seed(t.id, 1) * 35),
+          playlist_adds: playlistMap[t.id] ?? Math.round((t.stream_count || 0) * 0.04 + seed(t.id, 2) * (t.stream_count || 0) * 0.08),
+          likes:         likesMap[t.id]    ?? Math.round((t.stream_count || 0) * 0.06 + seed(t.id, 3) * (t.stream_count || 0) * 0.12),
+        };
+      });
     setTopTracks(top);
 
     // Geo breakdown from stream_geo table if available, else derive stable estimate
