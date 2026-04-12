@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import GlobalPlayer from './components/GlobalPlayer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddToPlaylistModal from './components/playlist/AddToPlaylistModal';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // ── Public pages ───────────────────────────────────────────────────────────────
 const Index              = lazy(() => import('./pages/Index'));
@@ -65,6 +66,12 @@ const SelectRolePage  = lazy(() => import('./pages/auth/SelectRolePage'));
 const RegisterPage    = lazy(() => import('./pages/auth/RegisterPage'));
 const LoginPage       = lazy(() => import('./pages/auth/LoginPage'));
 
+// ── New feature pages ─────────────────────────────────────────────────────────
+const PricingPage                = lazy(() => import('./pages/PricingPage'));
+const OnboardingPage             = lazy(() => import('./pages/OnboardingPage'));
+const PreSavePage                = lazy(() => import('./pages/PreSavePage'));
+const NotificationSettingsPage   = lazy(() => import('./pages/NotificationSettingsPage'));
+
 // ── Coming-soon placeholder ────────────────────────────────────────────────────
 const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
 
@@ -94,6 +101,7 @@ export default function App() {
   return (
     <>
       <GlobalPlayer />
+      <MobileBottomNav />
       <AddToPlaylistModal />
       <Suspense fallback={<Spinner />}>
         <Routes>
@@ -131,6 +139,11 @@ export default function App() {
           <Route path="/mobile"                   element={<MobileAppPage />} />
           <Route path="/partners/:type"           element={<PartnersPage />} />
           <Route path="/api-access"               element={<ApiAccessPage />} />
+
+          {/* ── Subscriptions & onboarding ─────────────────────────────────── */}
+          <Route path="/pricing"                  element={<PricingPage />} />
+          <Route path="/onboarding"               element={<OnboardingPage />} />
+          <Route path="/presave/:releaseId"        element={<PreSavePage />} />
 
           {/* ── Auth (Phase 4) ─────────────────────────────────────────────── */}
           <Route path="/auth/login"               element={<LoginPage />} />
@@ -186,6 +199,7 @@ export default function App() {
           <Route path="/dashboard/distribution/upload-release" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/memberships"            element={<ProtectedRoute><ComingSoonPage feature="Creator Memberships" /></ProtectedRoute>} />
           <Route path="/library"                         element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
+          <Route path="/settings/notifications"          element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
 
           {/* ── Admin invite accept (public — token is the auth) */}
           <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />

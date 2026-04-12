@@ -1,6 +1,6 @@
 import React, {
   createContext, useContext, useState, useRef, useEffect,
-  useCallback, ReactNode,
+  useCallback, useMemo, ReactNode,
 } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
@@ -415,6 +415,100 @@ function QueueSidebar() {
   );
 }
 
+// ─── LRC Lyrics utilities ─────────────────────────────────────────────────────
+interface LrcLine { time: number; text: string }
+
+function parseLrc(src: string): LrcLine[] {
+  const timeRx = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const result: LrcLine[] = [];
+  for (const line of src.split('\n')) {
+    const times: number[] = [];
+    let m: RegExpExecArray | null;
+    timeRx.lastIndex = 0;
+    while ((m = timeRx.exec(line)) !== null) {
+      const ms = (m[3] || '0').padEnd(3, '0').slice(0, 3);
+      times.push(Number(m[1]) * 60 + Number(m[2]) + Number(ms) / 1000);
+    }
+    const text = line.replace(/\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim();
+    if (text) times.forEach(t => result.push({ time: t, text }));
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
+
+function isLrc(s: string): boolean {
+  return /\[\d{1,2}:\d{2}/.test(s);
+}
+
+// ─── Lyrics Panel ─────────────────────────────────────────────────────────────
+function LyricsPanel({ lyrics, currentTime }: { lyrics?: string; currentTime: number }) {
+  const text      = lyrics || '';
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lineRefs  = useRef<(HTMLParagraphElement | null)[]>([]);
+
+  const lrc = useMemo(() => isLrc(text) ? parseLrc(text) : null, [text]);
+
+  const activeIdx = useMemo(() => {
+    if (!lrc) return -1;
+    let idx = -1;
+    for (let i = 0; i < lrc.length; i++) {
+      if (currentTime >= lrc[i].time) idx = i; else break;
+    }
+    return idx;
+  }, [lrc, currentTime]);
+
+  useEffect(() => {
+    const el = lineRefs.current[activeIdx];
+    if (el && scrollRef.current) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [activeIdx]);
+
+  const placeholder =
+    'Lyrics not available for this track.\n\nSync your lyrics via the Creator Dashboard\nand they will appear here in real time.';
+
+  if (!lrc) {
+    return (
+      <div ref={scrollRef} className="flex-1 w-full overflow-y-auto py-4 mb-4" style={{ scrollbarWidth: 'none' }}>
+        <div className="space-y-4 text-center px-2">
+          {(text || placeholder).split('\n').map((line, i) => (
+            <p key={i} className={`text-lg leading-relaxed transition-all ${line.trim() ? 'text-white font-medium' : 'py-1'}`}>
+              {line || '\u00a0'}
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={scrollRef} className="flex-1 w-full overflow-y-auto py-4 mb-4" style={{ scrollbarWidth: 'none' }}>
+      <div className="space-y-5 text-center px-2 pb-24">
+        {lrc.map((line, i) => (
+          <p
+            key={i}
+            ref={el => { lineRefs.current[i] = el; }}
+            className={`text-xl leading-snug font-bold transition-all duration-300 ${
+              i === activeIdx
+                ? 'text-white scale-105'
+                : i < activeIdx
+                  ? 'text-white/25 scale-95'
+                  : 'text-white/45 scale-95'
+            }`}
+            style={i === activeIdx ? {
+              background: 'linear-gradient(135deg,#00D9FF,#9D4EDD)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 10px rgba(0,217,255,0.4))',
+            } : undefined}
+          >
+            {line.text}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Now Playing Full-Screen Modal ────────────────────────────────────────────
 function NowPlayingModal() {
   const {
@@ -486,17 +580,7 @@ function NowPlayingModal() {
             </div>
           </>
         ) : (
-          /* Lyrics panel */
-          <div className="flex-1 w-full overflow-y-auto py-4 mb-4" style={{ scrollbarWidth: 'none' }}>
-            <div className="space-y-4 text-center px-2">
-              {(currentTrack.lyrics || 'Lyrics not available for this track.\n\nSync your lyrics via the Creator Dashboard\nand they will appear here in real time.')
-                .split('\n').map((line, i) => (
-                <p key={i} className={`text-lg leading-relaxed transition-all ${line.trim() ? 'text-white font-medium' : 'py-1'}`}>
-                  {line || '\u00a0'}
-                </p>
-              ))}
-            </div>
-          </div>
+          <LyricsPanel lyrics={currentTrack.lyrics} currentTime={currentTime} />
         )}
 
         {/* Scrubber */}

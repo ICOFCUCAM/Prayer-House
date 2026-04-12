@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import RoyaltySplitEditor, { type Split } from '@/components/distribution/RoyaltySplitEditor';
 import {
   Music, ImageIcon, Upload, ChevronRight, Globe, DollarSign,
-  CheckCircle, Loader2, AlertCircle,
+  CheckCircle, Loader2, AlertCircle, Calendar, Zap,
 } from 'lucide-react';
 
 // ── constants ────────────────────────────────────────────────────────────────
@@ -83,6 +83,8 @@ export default function DistributeUploadPage() {
   const [meta, setMeta] = useState({
     release_type: 'single' as 'single' | 'ep' | 'album',
     release_date: '',
+    release_time: '00:00',
+    scheduled:    false,   // true = schedule for future date, false = release immediately
     copyright_owner: 'WANKONG Records',
     composer: '',
     producer: '',
@@ -133,6 +135,11 @@ export default function DistributeUploadPage() {
         artworkUrl = publicUrl;
       }
 
+      // Compute publish_at for scheduled releases
+      const publishAt = meta.scheduled && meta.release_date
+        ? new Date(`${meta.release_date}T${meta.release_time || '00:00'}:00Z`).toISOString()
+        : null;
+
       // Insert track
       const { data: trackRow, error: trackErr } = await supabase
         .from('tracks')
@@ -144,7 +151,8 @@ export default function DistributeUploadPage() {
           explicit:    track.explicit,
           audio_url:   audioUrl,
           artwork_url: artworkUrl,
-          status:      'pending_review',
+          status:      publishAt ? 'scheduled' : 'pending_review',
+          publish_at:  publishAt,
         }])
         .select()
         .single();
@@ -579,13 +587,56 @@ export default function DistributeUploadPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Release Date</label>
-                <input type="date" value={meta.release_date}
-                  onChange={e => setMeta(p => ({ ...p, release_date: e.target.value }))}
-                  className={inputCls} />
+            {/* Scheduled release toggle */}
+            <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
+              <p className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#00D9FF]" />
+                Release Timing
+              </p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button type="button"
+                  onClick={() => setMeta(p => ({ ...p, scheduled: false }))}
+                  className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-semibold transition-all ${
+                    !meta.scheduled ? 'border-[#00D9FF] bg-[#00D9FF]/10 text-white' : 'border-white/10 text-white/50 hover:border-white/25'
+                  }`}>
+                  <Zap className="w-4 h-4" />
+                  Release Now
+                </button>
+                <button type="button"
+                  onClick={() => setMeta(p => ({ ...p, scheduled: true }))}
+                  className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-semibold transition-all ${
+                    meta.scheduled ? 'border-[#9D4EDD] bg-[#9D4EDD]/10 text-white' : 'border-white/10 text-white/50 hover:border-white/25'
+                  }`}>
+                  <Calendar className="w-4 h-4" />
+                  Schedule
+                </button>
               </div>
+              {meta.scheduled && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Date</label>
+                    <input type="date" value={meta.release_date}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={e => setMeta(p => ({ ...p, release_date: e.target.value }))}
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Time (UTC)</label>
+                    <input type="time" value={meta.release_time}
+                      onChange={e => setMeta(p => ({ ...p, release_time: e.target.value }))}
+                      className={inputCls} />
+                  </div>
+                  {meta.release_date && (
+                    <p className="col-span-2 text-[11px] text-[#9D4EDD] flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Scheduled: {new Date(`${meta.release_date}T${meta.release_time}:00Z`).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' })} UTC
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Copyright Owner</label>
                 <input type="text" value={meta.copyright_owner}

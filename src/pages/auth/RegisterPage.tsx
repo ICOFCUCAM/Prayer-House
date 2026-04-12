@@ -47,12 +47,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // Redirect by role
-    switch (role) {
-      case 'artist': navigate('/dashboard/artist', { replace: true }); break;
-      case 'author': navigate('/dashboard/author', { replace: true }); break;
-      default:       navigate('/dashboard',         { replace: true }); break;
-    }
+    // Always send new users through onboarding first
+    navigate('/onboarding', { replace: true });
   };
 
   return (
