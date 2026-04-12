@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CommentsSection from '@/components/CommentsSection';
 import RelatedProducts from '@/components/RelatedProducts';
+import ShareClipModal from '@/components/ShareClipModal';
 
 const TYPE_COLORS: Record<string, string> = {
   music:    'from-indigo-500 to-purple-600',
@@ -45,6 +46,7 @@ export default function ProductPage() {
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [quantity,        setQuantity]        = useState(1);
   const [loading,         setLoading]         = useState(true);
+  const [showClipModal,   setShowClipModal]   = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -383,6 +385,20 @@ export default function ProductPage() {
                 </svg>
                 Add to Playlist
               </button>
+
+              {/* Share Clip — only for tracks with audio */}
+              {previewUrl && (contentType === 'music' || contentType === 'podcast') && (
+                <button
+                  onClick={() => setShowClipModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm bg-gray-800 text-gray-400 hover:text-[#00D9FF] rounded-xl transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6-6 6 6M6 15l6 6 6-6" />
+                  </svg>
+                  Share Clip
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -396,6 +412,21 @@ export default function ProductPage() {
         </div>
       </div>
       <Footer />
+
+      {/* Share Clip Modal */}
+      {showClipModal && (
+        <ShareClipModal
+          track={{
+            id:       product.id,
+            title:    product.title,
+            artist:   creator || 'Unknown',
+            albumArt: image   || undefined,
+            audioUrl: previewUrl!,
+            type:     contentType,
+          }}
+          onClose={() => setShowClipModal(false)}
+        />
+      )}
     </div>
   );
 }

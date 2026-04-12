@@ -10,6 +10,7 @@ import FeaturedPerformancesGrid from './home/FeaturedPerformancesGrid';
 import DefaultBookCover from './home/DefaultBookCover';
 import AudiobookCard from './home/AudiobookCard';
 import DefaultVideoThumbnail from './home/DefaultVideoThumbnail';
+import PersonalizedSections from './home/PersonalizedSections';
 
 // Lightweight section-level error boundary — if a section crashes, show nothing
 class SectionErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -452,6 +453,11 @@ export default function AppLayout() {
           </div>
         </div>
       </section>
+
+      {/* ── PERSONALIZED SECTIONS (for you / follow feed / trending genre) ── */}
+      <SectionErrorBoundary>
+        <PersonalizedSections />
+      </SectionErrorBoundary>
 
       {/* ── 2. MUSIC BY LANGUAGE — FLAGSHIP DISCOVERY ──────────────────────── */}
       <section className="py-12 relative overflow-hidden border-t border-white/5">

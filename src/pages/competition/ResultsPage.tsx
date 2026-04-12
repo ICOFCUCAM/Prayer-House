@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Loader2 } from 'lucide-react';
+import CompetitionLeaderboard from '@/components/competition/CompetitionLeaderboard';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -181,10 +182,17 @@ export default function ResultsPage() {
           </div>
         )}
 
+        {/* Real-time leaderboard */}
+        {roomId && (
+          <div className="mb-10">
+            <CompetitionLeaderboard roomId={roomId} isLive={room?.status === 'active'} />
+          </div>
+        )}
+
         {/* Full leaderboard: rank, thumbnail, title, performer, votes, AI score */}
         {leaderboard.length > 0 ? (
           <div>
-            <h2 className="text-xl font-black text-white mb-4">Full Leaderboard</h2>
+            <h2 className="text-xl font-black text-white mb-4">All Entries</h2>
             <div className="bg-[#1A2240] rounded-2xl overflow-hidden">
               <div className="grid grid-cols-[48px_1fr_auto_auto] gap-3 px-5 py-3 border-b border-white/10">
                 <span className="text-gray-500 text-xs font-semibold">#</span>

@@ -71,6 +71,11 @@ const PricingPage                = lazy(() => import('./pages/PricingPage'));
 const OnboardingPage             = lazy(() => import('./pages/OnboardingPage'));
 const PreSavePage                = lazy(() => import('./pages/PreSavePage'));
 const NotificationSettingsPage   = lazy(() => import('./pages/NotificationSettingsPage'));
+const ChartsPage                 = lazy(() => import('./pages/ChartsPage'));
+const AlbumPage                  = lazy(() => import('./pages/AlbumPage'));
+const CreatorStudioPage          = lazy(() => import('./pages/dashboard/CreatorStudioPage'));
+const FanMembershipsPage         = lazy(() => import('./pages/dashboard/FanMembershipsPage'));
+const PodcastPage                = lazy(() => import('./pages/PodcastPage'));
 
 // ── Coming-soon placeholder ────────────────────────────────────────────────────
 const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
@@ -144,6 +149,9 @@ export default function App() {
           <Route path="/pricing"                  element={<PricingPage />} />
           <Route path="/onboarding"               element={<OnboardingPage />} />
           <Route path="/presave/:releaseId"        element={<PreSavePage />} />
+          <Route path="/charts"                   element={<ChartsPage />} />
+          <Route path="/album/:albumId"           element={<AlbumPage />} />
+          <Route path="/podcast/:podcastId"       element={<PodcastPage />} />
 
           {/* ── Auth (Phase 4) ─────────────────────────────────────────────── */}
           <Route path="/auth/login"               element={<LoginPage />} />
@@ -197,7 +205,8 @@ export default function App() {
           <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Audiobook" /></ProtectedRoute>} />
           <Route path="/dashboard/distribution"                element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
           <Route path="/dashboard/distribution/upload-release" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
-          <Route path="/dashboard/memberships"            element={<ProtectedRoute><ComingSoonPage feature="Creator Memberships" /></ProtectedRoute>} />
+          <Route path="/dashboard/studio"                  element={<ProtectedRoute><CreatorStudioPage /></ProtectedRoute>} />
+          <Route path="/dashboard/memberships"            element={<ProtectedRoute><FanMembershipsPage /></ProtectedRoute>} />
           <Route path="/library"                         element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
           <Route path="/settings/notifications"          element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
 
