@@ -1,19 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
-import { MOCK_CONTENT, MOCK_TRANSACTIONS, formatCurrency, formatNumber, PLATFORM_STATS } from '@/lib/constants';
+import { formatCurrency, formatNumber, PLATFORM_STATS } from '@/lib/constants';
 import { getCreatorSocialStatus } from '@/services/socialPublisher';
 import { supabase } from '@/lib/supabase';
+
+interface RecentProduct {
+  id: string;
+  title: string;
+  product_type: string;
+  price_cents: number;
+  cover_url: string | null;
+  created_at: string;
+}
+
+interface RecentTx {
+  id: string;
+  description: string;
+  amount_cents: number;
+  type: string;
+  status: string;
+  created_at: string;
+}
 
 export default function CreatorDashboard() {
   const { user, wallet, setCurrentPage } = useApp();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [socialItems, setSocialItems] = useState<Awaited<ReturnType<typeof getCreatorSocialStatus>>>([]);
 
+  const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([]);
+  const [recentTxs,      setRecentTxs]      = useState<RecentTx[]>([]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        getCreatorSocialStatus(session.user.id).then(setSocialItems).catch(() => {});
-      }
+      if (!session?.user) return;
+      const uid = session.user.id;
+      getCreatorSocialStatus(uid).then(setSocialItems).catch(() => {});
+
+      // Recent content
+      supabase
+        .from('ecom_products')
+        .select('id, title, product_type, price_cents, cover_url, created_at')
+        .eq('vendor_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(5)
+        .then(({ data }) => { if (data) setRecentProducts(data as RecentProduct[]); });
+
+      // Recent transactions
+      supabase
+        .from('creator_earnings')
+        .select('id, description, amount_cents, type, status, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(5)
+        .then(({ data }) => { if (data) setRecentTxs(data as RecentTx[]); });
     });
   }, []);
 
@@ -117,19 +156,26 @@ export default function CreatorDashboard() {
           <button onClick={() => setCurrentPage('marketplace')} className="text-sm text-indigo-400 hover:text-indigo-300">View All</button>
         </div>
         <div className="divide-y divide-gray-800">
-          {MOCK_CONTENT.slice(0, 5).map(item => (
+          {recentProducts.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 text-sm">No content uploaded yet.</div>
+          ) : recentProducts.map(item => (
             <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-gray-800/30 transition-colors">
-              <img src={item.thumbnail} alt="" className="w-12 h-12 rounded-lg object-cover" />
+              {item.cover_url ? (
+                <img src={item.cover_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-indigo-600/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{item.title}</p>
-                <p className="text-xs text-gray-400 capitalize">{item.type} · {item.category}</p>
+                <p className="text-xs text-gray-400 capitalize">{item.product_type}</p>
               </div>
               <div className="text-right hidden sm:block">
-                <p className="text-sm text-white">{formatNumber(item.views)} views</p>
-                <p className="text-xs text-gray-400">{item.createdAt}</p>
+                <p className="text-xs text-gray-400">{item.created_at?.slice(0, 10)}</p>
               </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.isPaid ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-300'}`}>
-                {item.isPaid ? formatCurrency(item.price) : 'Free'}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${(item.price_cents ?? 0) > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-300'}`}>
+                {(item.price_cents ?? 0) > 0 ? formatCurrency(item.price_cents / 100) : 'Free'}
               </span>
             </div>
           ))}
@@ -200,27 +246,32 @@ export default function CreatorDashboard() {
           <button onClick={() => setCurrentPage('wallet')} className="text-sm text-indigo-400 hover:text-indigo-300">View All</button>
         </div>
         <div className="divide-y divide-gray-800">
-          {MOCK_TRANSACTIONS.slice(0, 5).map(tx => (
-            <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tx.amount > 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-                  <svg className={`w-4 h-4 ${tx.amount > 0 ? 'text-emerald-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tx.amount > 0 ? 'M7 11l5-5m0 0l5 5m-5-5v12' : 'M17 13l-5 5m0 0l-5-5m5 5V6'} />
-                  </svg>
+          {recentTxs.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 text-sm">No transactions yet.</div>
+          ) : recentTxs.map(tx => {
+            const isCredit = (tx.amount_cents ?? 0) >= 0;
+            return (
+              <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-gray-800/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCredit ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+                    <svg className={`w-4 h-4 ${isCredit ? 'text-emerald-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isCredit ? 'M7 11l5-5m0 0l5 5m-5-5v12' : 'M17 13l-5 5m0 0l-5-5m5 5V6'} />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{tx.description ?? 'Transaction'}</p>
+                    <p className="text-xs text-gray-400 capitalize">{(tx.type ?? 'earnings').replace('_', ' ')} · {tx.created_at?.slice(0, 10)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{tx.description}</p>
-                  <p className="text-xs text-gray-400 capitalize">{tx.type.replace('_', ' ')} · {tx.date}</p>
+                <div className="text-right">
+                  <p className={`text-sm font-semibold ${isCredit ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isCredit ? '+' : ''}{formatCurrency((tx.amount_cents ?? 0) / 100)}
+                  </p>
+                  <span className={`text-xs ${tx.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>{tx.status ?? 'pending'}</span>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`text-sm font-semibold ${tx.amount > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {tx.amount > 0 ? '+' : ''}{formatCurrency(tx.amount)}
-                </p>
-                <span className={`text-xs ${tx.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>{tx.status}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MOCK_NOTIFICATIONS, ViewPage, Notification } from '@/lib/constants';
+import { ViewPage, Notification } from '@/lib/constants';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface WalletState {
@@ -41,6 +41,11 @@ interface AppContextType {
   toggleSidebar: () => void;
 }
 
+const EMPTY_WALLET: WalletState = {
+  available: 0, pending: 0, subscriptions: 0,
+  distributions: 0, tips: 0, competitions: 0, currency: 'USD',
+};
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -48,10 +53,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [currentPage, setCurrentPage] = useState<ViewPage>('dashboard');
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [wallet, setWallet] = useState<WalletState>(EMPTY_WALLET);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // ── Auth listener ────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSupabaseUser(session?.user ?? null);
@@ -61,6 +68,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── Per-user data: notifications + wallet ────────────────────────────────────
+  useEffect(() => {
+    if (!supabaseUser) {
+      setNotifications([]);
+      setWallet(EMPTY_WALLET);
+      return;
+    }
+
+    const uid = supabaseUser.id;
+
+    // Notifications
+    supabase
+      .from('user_notifications')
+      .select('id, title, body, type, read, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) {
+          setNotifications(data.map((n: any) => ({
+            id: n.id,
+            type: n.type ?? 'system',
+            title: n.title ?? '',
+            message: n.body ?? '',
+            read: n.read ?? false,
+            date: n.created_at,
+          })));
+        }
+      });
+
+    // Wallet from creator_balances
+    supabase
+      .from('creator_balances')
+      .select('available_cents, pending_cents, currency')
+      .eq('user_id', uid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setWallet(prev => ({
+            ...prev,
+            available: (data.available_cents ?? 0) / 100,
+            pending:   (data.pending_cents   ?? 0) / 100,
+            currency:  data.currency ?? 'USD',
+          }));
+        }
+      });
+
+    // Realtime — new notifications pushed from server
+    const channel = supabase
+      .channel(`notifications:${uid}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${uid}` },
+        (payload) => {
+          const n = payload.new as any;
+          setNotifications(prev => [{
+            id:      n.id,
+            type:    n.type ?? 'system',
+            title:   n.title ?? '',
+            message: n.body ?? '',
+            read:    false,
+            date:    n.created_at,
+          }, ...prev.slice(0, 19)]);
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [supabaseUser]);
 
   const user: AppUser | null = supabaseUser ? {
     id: supabaseUser.id,
@@ -72,18 +149,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     role: supabaseUser.user_metadata?.role ?? 'creator',
   } : null;
 
-  const wallet: WalletState = {
-    available: 2847.50,
-    pending: 1234.00,
-    subscriptions: 4560.00,
-    distributions: 892.30,
-    tips: 345.00,
-    competitions: 500.00,
-    currency: 'USD',
-  };
-
   const markNotificationRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    supabase.from('user_notifications').update({ read: true }).eq('id', id).then(() => {});
   };
 
   return (
