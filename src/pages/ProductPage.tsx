@@ -401,6 +401,83 @@ export default function ProductPage() {
                 </button>
               )}
             </div>
+
+
+            {/* ── External streaming buttons ── */}
+            {(product.spotify_url || product.apple_music_url || product.youtube_music_url || product.deezer_url) && (
+              <div className="mt-6 pt-5 border-t border-white/8">
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-3">Also available on</p>
+                <div className="flex flex-wrap gap-2">
+                  {product.spotify_url && (
+                    <a
+                      href={product.spotify_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                      style={{ background: '#1DB95415', border: '1px solid #1DB95430', color: '#1DB954' }}
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                      </svg>
+                      Play on Spotify
+                    </a>
+                  )}
+                  {product.spotify_url && (
+                    <a
+                      href={`https://open.spotify.com/search/${encodeURIComponent(product.title)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                      style={{ background: '#1DB95410', border: '1px solid #1DB95420', color: '#1DB95490' }}
+                    >
+                      Add to Spotify Playlist
+                    </a>
+                  )}
+                  {product.apple_music_url && (
+                    <a
+                      href={product.apple_music_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                      style={{ background: '#FC3C4415', border: '1px solid #FC3C4430', color: '#FC3C44' }}
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15c-.04-.003-.083-.01-.124-.013H5.986c-.152.01-.303.017-.455.026C4.786.07 4.043.15 3.34.428 2.004.958 1.04 1.88.475 3.208c-.192.448-.292.925-.363 1.408-.056.392-.088.785-.1 1.18 0 .032-.007.062-.01.093v12.223c.01.14.017.283.027.424.05.815.154 1.624.497 2.373.65 1.42 1.738 2.353 3.234 2.802.42.127.848.187 1.286.218.332.024.665.034 1 .04h11.95c.338-.005.676-.015 1.01-.044.584-.05 1.16-.157 1.698-.4 1.298-.57 2.147-1.504 2.6-2.829.144-.42.216-.853.26-1.292.045-.426.056-.852.056-1.278 0-4.152 0-8.304-.003-12.455zM7.952 4.72c-.18.002-.332-.148-.337-.33a.34.34 0 01.33-.34c.181-.003.334.146.337.327a.34.34 0 01-.33.342zm4.029 9.296c-1.977 0-3.58-1.6-3.58-3.577 0-1.977 1.603-3.58 3.58-3.58 1.977 0 3.577 1.603 3.577 3.58 0 1.977-1.6 3.577-3.577 3.577zm5.765-9.296a.34.34 0 01-.34-.333.34.34 0 01.33-.34c.184-.002.338.148.34.33a.34.34 0 01-.33.342z"/>
+                      </svg>
+                      Open in Apple Music
+                    </a>
+                  )}
+                  {product.youtube_music_url && (
+                    <a
+                      href={product.youtube_music_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                      style={{ background: '#FF000015', border: '1px solid #FF000030', color: '#FF4444' }}
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 19.104c-3.924 0-7.104-3.18-7.104-7.104S8.076 4.896 12 4.896s7.104 3.18 7.104 7.104-3.18 7.104-7.104 7.104zm0-13.332c-3.432 0-6.228 2.796-6.228 6.228S8.568 18.228 12 18.228s6.228-2.796 6.228-6.228S15.432 5.772 12 5.772zM9.684 15.54V8.46L15.816 12l-6.132 3.54z"/>
+                      </svg>
+                      Open in YouTube Music
+                    </a>
+                  )}
+                  {product.deezer_url && (
+                    <a
+                      href={product.deezer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                      style={{ background: '#A238FF15', border: '1px solid #A238FF30', color: '#A238FF' }}
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M18.81 4.16v3.03H24V4.16h-5.19zM6.27 8.38v3.03h5.19V8.38H6.27zm6.27 0v3.03h5.19V8.38h-5.19zm6.27 0v3.03H24V8.38h-5.19zM6.27 12.6v3.04h5.19V12.6H6.27zm6.27 0v3.04h5.19V12.6h-5.19zm6.27 0v3.04H24V12.6h-5.19zM0 16.81v3.03h5.19v-3.03H0zm6.27 0v3.03h5.19v-3.03H6.27zm6.27 0v3.03h5.19v-3.03h-5.19zm6.27 0v3.03H24v-3.03h-5.19z"/>
+                      </svg>
+                      Open in Deezer
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -4,7 +4,7 @@ import type { User, Session } from '@supabase/supabase-js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type UserRole  = 'fan' | 'artist' | 'author';
+export type UserRole  = 'fan' | 'listener' | 'artist' | 'author' | 'creator';
 export type AdminRole =
   | 'super_admin' | 'moderator' | 'competition_admin'
   | 'distribution_admin' | 'publishing_admin'

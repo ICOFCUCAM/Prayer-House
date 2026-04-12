@@ -86,6 +86,8 @@ const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
 const DashboardPage         = lazy(() => import('./pages/DashboardPage'));
 const ArtistDashboardPage   = lazy(() => import('./pages/dashboard/ArtistDashboardPage'));
 const AuthorDashboardNewPage = lazy(() => import('./pages/dashboard/AuthorDashboardPage'));
+const ListenerDashboardPage  = lazy(() => import('./pages/dashboard/ListenerDashboardPage'));
+const CreatorDashboardPage   = lazy(() => import('./pages/dashboard/CreatorDashboardPage'));
 const UploadMusicPage        = lazy(() => import('./pages/dashboard/UploadMusicPage'));
 const UploadAlbumPage        = lazy(() => import('./pages/dashboard/UploadAlbumPage'));
 const UploadAudiobookPage    = lazy(() => import('./pages/dashboard/UploadAudiobookPage'));
@@ -195,6 +197,12 @@ export default function App() {
           } />
           <Route path="/dashboard/author"   element={
             <ProtectedRoute requiredRole="author"><AuthorDashboardNewPage /></ProtectedRoute>
+          } />
+          <Route path="/dashboard/listener" element={
+            <ProtectedRoute><ListenerDashboardPage /></ProtectedRoute>
+          } />
+          <Route path="/dashboard/creator"  element={
+            <ProtectedRoute><CreatorDashboardPage /></ProtectedRoute>
           } />
           <Route path="/authors/dashboard"  element={
             <ProtectedRoute requiredRole="author"><AuthorDashboardPage /></ProtectedRoute>

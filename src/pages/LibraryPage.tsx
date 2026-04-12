@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Music, BookOpen, Video, Mic, Trophy, Plus, Play, Pause,
-  Heart, Shuffle, MoreVertical, Trash2, Edit2,
+  Heart, Shuffle, MoreVertical, Trash2, Edit2, Disc3,
 } from 'lucide-react';
 import { usePlaylist, Playlist, SavedTrack, PlaylistTrack } from '@/hooks/usePlaylist';
 import { usePlayer } from '@/components/GlobalPlayer';
@@ -11,14 +11,16 @@ import PlaylistCreateModal from '@/components/playlist/PlaylistCreateModal';
 
 // ── Section tabs ──────────────────────────────────────────────────────────────
 
-type Tab = 'all' | 'playlists' | 'tracks' | 'audiobooks' | 'performances';
+type Tab = 'all' | 'playlists' | 'tracks' | 'albums' | 'audiobooks' | 'podcasts' | 'performances';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'all',          label: 'All',           icon: <Music  className="w-3.5 h-3.5" /> },
-  { id: 'playlists',    label: 'Playlists',     icon: <Play   className="w-3.5 h-3.5" /> },
-  { id: 'tracks',       label: 'Saved Tracks',  icon: <Heart  className="w-3.5 h-3.5" /> },
+  { id: 'all',          label: 'All',           icon: <Music    className="w-3.5 h-3.5" /> },
+  { id: 'playlists',    label: 'Playlists',     icon: <Play     className="w-3.5 h-3.5" /> },
+  { id: 'tracks',       label: 'Liked Songs',   icon: <Heart    className="w-3.5 h-3.5" /> },
+  { id: 'albums',       label: 'Albums',        icon: <Disc3    className="w-3.5 h-3.5" /> },
   { id: 'audiobooks',   label: 'Audiobooks',    icon: <BookOpen className="w-3.5 h-3.5" /> },
-  { id: 'performances', label: 'Performances',  icon: <Trophy className="w-3.5 h-3.5" /> },
+  { id: 'podcasts',     label: 'Podcasts',      icon: <Mic      className="w-3.5 h-3.5" /> },
+  { id: 'performances', label: 'Performances',  icon: <Trophy   className="w-3.5 h-3.5" /> },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -144,7 +146,9 @@ export default function LibraryPage() {
   useEffect(() => { pl.loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savedMusic         = pl.savedTracks.filter(t => t.content_type === 'music');
+  const savedAlbums        = pl.savedTracks.filter(t => t.content_type === 'album');
   const savedAudiobooks    = pl.savedTracks.filter(t => t.content_type === 'audiobook');
+  const savedPodcasts      = pl.savedTracks.filter(t => t.content_type === 'podcast');
   const savedPerformances  = pl.savedTracks.filter(t => t.content_type === 'competition' || t.content_type === 'video');
 
   const playTrack = (track: SavedTrack) => {
@@ -254,6 +258,52 @@ export default function LibraryPage() {
                   See all {savedMusic.length} saved tracks →
                 </button>
               )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Saved Albums ── */}
+      {showSection('albums') && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Disc3 className="w-5 h-5 text-indigo-400" /> Saved Albums
+            {savedAlbums.length > 0 && <span className="text-sm font-normal text-gray-400">({savedAlbums.length})</span>}
+          </h2>
+          {savedAlbums.length === 0 ? (
+            <div className="py-10 text-center bg-gray-900/30 rounded-2xl border border-gray-800">
+              <Disc3 className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-400">No saved albums yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Save albums from the music store to find them here.</p>
+            </div>
+          ) : (
+            <div className="bg-gray-900/30 border border-gray-800 rounded-2xl p-3 space-y-1">
+              {savedAlbums.map(track => (
+                <SavedTrackRow key={track.id} track={track} onPlay={() => playTrack(track)} onUnsave={() => pl.unsaveTrack(track.track_id)} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Saved Podcasts ── */}
+      {showSection('podcasts') && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Mic className="w-5 h-5 text-green-400" /> Saved Podcasts
+            {savedPodcasts.length > 0 && <span className="text-sm font-normal text-gray-400">({savedPodcasts.length})</span>}
+          </h2>
+          {savedPodcasts.length === 0 ? (
+            <div className="py-10 text-center bg-gray-900/30 rounded-2xl border border-gray-800">
+              <Mic className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-400">No saved podcasts yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Save podcast episodes to find them here.</p>
+            </div>
+          ) : (
+            <div className="bg-gray-900/30 border border-gray-800 rounded-2xl p-3 space-y-1">
+              {savedPodcasts.map(track => (
+                <SavedTrackRow key={track.id} track={track} onPlay={() => playTrack(track)} onUnsave={() => pl.unsaveTrack(track.track_id)} />
+              ))}
             </div>
           )}
         </section>

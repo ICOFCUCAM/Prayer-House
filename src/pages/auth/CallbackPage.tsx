@@ -11,10 +11,12 @@ const CYAN = '#00D9FF';
 
 function redirectByRole(role: string | null, navigate: ReturnType<typeof useNavigate>) {
   switch (role) {
-    case 'artist': navigate('/dashboard/artist', { replace: true }); break;
-    case 'author': navigate('/dashboard/author', { replace: true }); break;
-    case 'fan':    navigate('/dashboard',         { replace: true }); break;
-    default:       navigate('/auth/select-role',  { replace: true }); break;
+    case 'artist':   navigate('/dashboard/artist',   { replace: true }); break;
+    case 'author':   navigate('/dashboard/author',   { replace: true }); break;
+    case 'creator':  navigate('/dashboard/creator',  { replace: true }); break;
+    case 'listener': navigate('/dashboard/listener', { replace: true }); break;
+    case 'fan':      navigate('/dashboard/listener', { replace: true }); break;
+    default:         navigate('/auth/select-role',   { replace: true }); break;
   }
 }
 
