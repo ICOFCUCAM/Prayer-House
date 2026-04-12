@@ -62,7 +62,7 @@ export function AuthorProfilePage() {
       try {
         // Fetch author by slug
         const { data: authorData, error: authorErr } = await supabase
-          .from('authors')
+          .from('author_profiles')
           .select('*')
           .eq('slug', slug)
           .maybeSingle();

@@ -24,7 +24,7 @@ export function AuthorTranslationToggle({ userId }: AuthorTranslationToggleProps
     setLoading(true);
 
     supabase
-      .from('authors')
+      .from('author_profiles')
       .select('auto_translate')
       .eq('user_id', userId)
       .maybeSingle()
@@ -44,7 +44,7 @@ export function AuthorTranslationToggle({ userId }: AuthorTranslationToggleProps
 
     try {
       const { error: updateErr } = await supabase
-        .from('authors')
+        .from('author_profiles')
         .update({ auto_translate: newValue, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
 

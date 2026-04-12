@@ -89,7 +89,7 @@ export function AuthorDashboard() {
       setError('');
       try {
         const { data: authorData, error: authorErr } = await supabase
-          .from('authors')
+          .from('author_profiles')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();

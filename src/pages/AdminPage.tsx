@@ -2,9 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Users, DollarSign, TrendingUp, Shield, CheckCircle, XCircle, AlertTriangle, BarChart2, FileText, Bell } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Shield, CheckCircle, XCircle, AlertTriangle, BarChart2, FileText } from 'lucide-react';
 
 type Tab = 'overview' | 'withdrawals' | 'creators' | 'moderation' | 'analytics' | 'logs';
+
+interface Withdrawal { id: string; creator: string; amount: number; method: string; status: string; date: string; country: string; }
+interface Creator { id: string; name: string; email: string; type: string; status: string; joined: string; country: string; content: number; }
+interface ContentItem { id: string; title: string; creator: string; type: string; status: string; flagged: string; date: string; }
+interface AuditLog { id: string; admin: string; action: string; target: string; timestamp: string; }
 
 const STATS = [
   { label: 'Total Users', value: '12,847', change: '+124 today', icon: Users, color: '#00D9FF' },
@@ -13,49 +18,96 @@ const STATS = [
   { label: 'Pending Payouts', value: '$14,320', change: '23 requests', icon: DollarSign, color: '#00F5A0' },
 ];
 
-const MOCK_WITHDRAWALS = [
-  { id: 'w1', creator: 'Amara Okafor', amount: 850.00, method: 'M-Pesa', status: 'pending', date: '2026-04-06', country: 'NG' },
-  { id: 'w2', creator: 'Zuri Mwangi', amount: 1240.50, method: 'Stripe', status: 'pending', date: '2026-04-06', country: 'KE' },
-  { id: 'w3', creator: 'Marcus Johnson', amount: 2100.00, method: 'Stripe', status: 'pending', date: '2026-04-05', country: 'US' },
-  { id: 'w4', creator: 'Fatima Diallo', amount: 320.75, method: 'MTN MoMo', status: 'pending', date: '2026-04-05', country: 'SN' },
-  { id: 'w5', creator: 'David Chen', amount: 980.00, method: 'Stripe', status: 'approved', date: '2026-04-04', country: 'US' },
-];
-
-const MOCK_CREATORS = [
-  { id: 'c1', name: 'Kwame Asante', email: 'kwame@example.com', type: 'creator', status: 'pending', joined: '2026-04-05', country: 'GH', content: 3 },
-  { id: 'c2', name: 'Yuki Tanaka', email: 'yuki@example.com', type: 'singer_artist', status: 'pending', joined: '2026-04-04', country: 'JP', content: 0 },
-  { id: 'c3', name: 'Carlos Rivera', email: 'carlos@example.com', type: 'creator', status: 'pending', joined: '2026-04-03', country: 'MX', content: 7 },
-];
-
-const MOCK_CONTENT = [
-  { id: 'm1', title: 'Afro House Mix Vol. 3', creator: 'Marcus Johnson', type: 'Music', status: 'pending', flagged: 'copyright', date: '2026-04-06' },
-  { id: 'm2', title: 'Lagos Stories', creator: 'Kwame Asante', type: 'Video', status: 'pending', flagged: 'review', date: '2026-04-05' },
-  { id: 'm3', title: 'Startup Blueprint', creator: 'David Chen', type: 'Book', status: 'pending', flagged: 'review', date: '2026-04-05' },
-];
-
-const MOCK_LOGS = [
-  { id: 'l1', admin: 'admin@wankong.com', action: 'Approved withdrawal', target: 'David Chen — $980', timestamp: '2026-04-04T14:32:00' },
-  { id: 'l2', admin: 'admin@wankong.com', action: 'Approved creator', target: 'Amara Okafor', timestamp: '2026-04-03T10:15:00' },
-  { id: 'l3', admin: 'admin@wankong.com', action: 'Removed content', target: 'Suspicious Upload #441', timestamp: '2026-04-02T09:00:00' },
-];
-
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('overview');
-  const [withdrawals, setWithdrawals] = useState(MOCK_WITHDRAWALS);
-  const [creators, setCreators] = useState(MOCK_CREATORS);
-  const [content, setContent] = useState(MOCK_CONTENT);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loadedTabs, setLoadedTabs] = useState<Set<Tab>>(new Set());
+
+  useEffect(() => {
+    if (loadedTabs.has(tab)) return;
+    setLoadedTabs(prev => new Set([...prev, tab]));
+
+    if (tab === 'withdrawals') {
+      supabase.from('creator_earnings').select('id, user_id, amount, payout_method, status, created_at, profiles:user_id(display_name, country)')
+        .eq('type', 'payout').order('created_at', { ascending: false }).limit(20)
+        .then(({ data }) => {
+          setWithdrawals((data ?? []).map((r: any) => ({
+            id: r.id,
+            creator: r.profiles?.display_name ?? r.user_id,
+            amount: r.amount ?? 0,
+            method: r.payout_method ?? '—',
+            status: r.status ?? 'pending',
+            date: r.created_at?.slice(0, 10) ?? '',
+            country: r.profiles?.country ?? '—',
+          })));
+        });
+    }
+
+    if (tab === 'creators') {
+      supabase.from('profiles').select('id, display_name, email, role, status, created_at, country')
+        .in('role', ['creator', 'singer_artist', 'author']).order('created_at', { ascending: false }).limit(20)
+        .then(({ data }) => {
+          setCreators((data ?? []).map((r: any) => ({
+            id: r.id,
+            name: r.display_name ?? r.email ?? r.id,
+            email: r.email ?? '',
+            type: r.role ?? 'creator',
+            status: r.status ?? 'pending',
+            joined: r.created_at?.slice(0, 10) ?? '',
+            country: r.country ?? '—',
+            content: 0,
+          })));
+        });
+    }
+
+    if (tab === 'moderation') {
+      supabase.from('ecom_products').select('id, title, vendor, product_type, status, created_at, flag_reason')
+        .eq('status', 'pending').order('created_at', { ascending: false }).limit(20)
+        .then(({ data }) => {
+          setContent((data ?? []).map((r: any) => ({
+            id: r.id,
+            title: r.title ?? 'Untitled',
+            creator: r.vendor ?? '—',
+            type: r.product_type ?? '—',
+            status: r.status ?? 'pending',
+            flagged: r.flag_reason ?? 'review',
+            date: r.created_at?.slice(0, 10) ?? '',
+          })));
+        });
+    }
+
+    if (tab === 'logs') {
+      supabase.from('admin_logs').select('id, admin_id, action, target_id, created_at')
+        .order('created_at', { ascending: false }).limit(30)
+        .then(({ data }) => {
+          setLogs((data ?? []).map((r: any) => ({
+            id: r.id,
+            admin: r.admin_id ?? 'system',
+            action: r.action ?? '',
+            target: r.target_id ?? '',
+            timestamp: r.created_at ?? '',
+          })));
+        });
+    }
+  }, [tab]);
 
   const handleWithdrawal = async (id: string, action: 'approved' | 'rejected') => {
+    await supabase.from('creator_earnings').update({ status: action === 'approved' ? 'completed' : 'rejected' }).eq('id', id);
     setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status: action } : w));
     await supabase.from('admin_logs').insert([{ action: `${action} withdrawal`, target_id: id, created_at: new Date().toISOString() }]).catch(() => {});
   };
 
   const handleCreator = async (id: string, action: 'approved' | 'rejected') => {
+    await supabase.from('profiles').update({ status: action }).eq('id', id);
     setCreators(prev => prev.map(c => c.id === id ? { ...c, status: action } : c));
     await supabase.from('admin_logs').insert([{ action: `${action} creator`, target_id: id, created_at: new Date().toISOString() }]).catch(() => {});
   };
 
   const handleContent = async (id: string, action: 'approved' | 'removed') => {
+    await supabase.from('ecom_products').update({ status: action === 'approved' ? 'active' : 'removed' }).eq('id', id);
     setContent(prev => prev.map(c => c.id === id ? { ...c, status: action } : c));
     await supabase.from('admin_logs').insert([{ action: `${action} content`, target_id: id, created_at: new Date().toISOString() }]).catch(() => {});
   };
@@ -294,7 +346,7 @@ export default function AdminPage() {
               <h3 className="text-white font-semibold">Audit Logs</h3>
             </div>
             <div className="divide-y divide-white/5">
-              {MOCK_LOGS.map(log => (
+              {logs.map(log => (
                 <div key={log.id} className="flex items-center gap-4 p-4">
                   <div className="w-8 h-8 rounded-lg bg-[#00D9FF]/10 flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4 text-[#00D9FF]" />

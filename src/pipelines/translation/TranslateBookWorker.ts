@@ -48,7 +48,7 @@ export async function getBookTranslations(bookId: string) {
 
 export async function setAutoTranslate(userId: string, enabled: boolean): Promise<void> {
   await supabase
-    .from('authors')
+    .from('author_profiles')
     .update({ auto_translate: enabled, updated_at: new Date().toISOString() })
     .eq('user_id', userId);
 }

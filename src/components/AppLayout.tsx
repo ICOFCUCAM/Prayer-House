@@ -104,42 +104,6 @@ function getPriorityLanguages(country: string) {
   return [...head, ...tail].slice(0, 11);
 }
 
-// ── Mock fallback products for homepage sections ──────────────────────────────
-// Used when Supabase collections are empty — all three sections share one format.
-
-const MOCK_BOOK_PRODUCTS = [
-  { id: 'b1',  handle: 'the-gospel-of-grace',       title: 'The Gospel of Grace',       author: 'Pastor E. Ofori',        product_type: 'Books', price: 1299 },
-  { id: 'b2',  handle: 'kingdom-business-secrets',   title: 'Kingdom Business Secrets',  author: 'Dr. Faith Mensah',       product_type: 'Books', price: 1899 },
-  { id: 'b3',  handle: 'midnight-prayers',           title: 'Midnight Prayers',          author: 'Rev. Samuel Asante',     product_type: 'Books', price: 999  },
-  { id: 'b4',  handle: 'african-praise-anthology',   title: 'African Praise Anthology',  author: 'Various Authors',        product_type: 'Books', price: 2499 },
-  { id: 'b5',  handle: 'the-prophetic-voice',        title: 'The Prophetic Voice',       author: 'Apostle Grace Oduya',    product_type: 'Books', price: 1599 },
-  { id: 'b6',  handle: 'healing-in-his-wings',       title: 'Healing in His Wings',      author: 'Dr. Emmanuel Yaw',       product_type: 'Books', price: 1399 },
-  { id: 'b7',  handle: 'the-digital-christian',      title: 'The Digital Christian',     author: 'Tech Pastor Kwame',      product_type: 'Books', price: 1199 },
-  { id: 'b8',  handle: 'songs-of-ascent',            title: 'Songs of Ascent',           author: 'Choir Master David',     product_type: 'Books', price: 899  },
-  { id: 'b9',  handle: 'raising-kingdom-kids',       title: 'Raising Kingdom Kids',      author: 'Pastor Mary Adofo',      product_type: 'Books', price: 1699 },
-  { id: 'b10', handle: 'the-fast-that-breaks-chains',title: 'The Fast That Breaks Chains',author: 'Bishop John Asare',     product_type: 'Books', price: 1099 },
-];
-
-const MOCK_FEATURED_PRODUCTS = [
-  { id: 'f1', handle: 'amazing-grace-reimagined',  title: 'Amazing Grace Reimagined',    artist: 'Grace Ensemble',         product_type: 'Music',      price: 0    },
-  { id: 'f2', handle: 'kingdom-worship-vol-2',     title: 'Kingdom Worship Vol. 2',      artist: 'Bethel Africa',          product_type: 'Music',      price: 0    },
-  { id: 'f3', handle: 'prophetic-songs',           title: 'Prophetic Songs',             artist: 'Emmanuel Choir',         product_type: 'Music',      price: 999  },
-  { id: 'f4', handle: 'faith-in-action-series',   title: 'Faith in Action Series',      vendor: 'WANKONG Studios',        product_type: 'Videos',     price: 0    },
-  { id: 'f5', handle: 'deep-worship-experience',  title: 'Deep Worship Experience',     artist: 'New Life Worship',       product_type: 'Music',      price: 0    },
-];
-
-const MOCK_NEW_RELEASES = [
-  { id: 'n1',  handle: 'victory-in-worship',       title: 'Victory in Worship',          artist: 'Triumphant Sound',       product_type: 'Music',      price: 0    },
-  { id: 'n2',  handle: 'healing-waters-series',    title: 'Healing Waters Series',       vendor: 'New Life Ministry',      product_type: 'Videos',     price: 0    },
-  { id: 'n3',  handle: 'kingdom-principles-2025',  title: 'Kingdom Principles 2025',     author: 'Bishop John Asare',      product_type: 'Books',      price: 1499 },
-  { id: 'n4',  handle: 'africa-gospel-radio-ep',   title: 'Africa Gospel Radio EP',      artist: 'Zion Radio',             product_type: 'Music',      price: 0    },
-  { id: 'n5',  handle: 'the-prayer-warrior',       title: 'The Prayer Warrior',          vendor: 'Prayer House',           product_type: 'Audiobooks', price: 799  },
-  { id: 'n6',  handle: 'fire-from-heaven',         title: 'Fire from Heaven',            artist: 'Mountain Fire Choir',    product_type: 'Music',      price: 0    },
-  { id: 'n7',  handle: 'digital-discipleship',     title: 'Digital Discipleship',        author: 'Tech Pastor Kwame',      product_type: 'Courses',    price: 2999 },
-  { id: 'n8',  handle: 'praise-from-africa',       title: 'Praise from Africa',          artist: 'Afro Praise Collective', product_type: 'Music',      price: 0    },
-  { id: 'n9',  handle: 'the-overcomer',            title: 'The Overcomer',               author: 'Dr. E. Mensah',          product_type: 'Books',      price: 999  },
-  { id: 'n10', handle: 'live-worship-nairobi',     title: 'Live Worship Nairobi',        artist: 'Praise Network',         product_type: 'Music',      price: 0    },
-];
 
 export default function AppLayout() {
   const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
@@ -397,15 +361,6 @@ export default function AppLayout() {
       default: return 'from-[#00D9FF] to-[#9D4EDD]';
     }
   };
-
-  // ── Mock audiobooks (used when Supabase returns empty) ────────────────────────
-  const MOCK_AUDIOBOOKS = [
-    { id: 'a1', handle: 'prayer-that-moves-mountains', title: 'Prayer That Moves Mountains', vendor: 'E.M. Bounds',    product_type: 'Audiobooks', price: 0,    language: 'EN', duration: '4.2h' },
-    { id: 'a2', handle: 'purpose-driven-life',          title: 'Purpose Driven Life',          vendor: 'Rick Warren',   product_type: 'Audiobooks', price: 999,  language: 'FR', duration: '8.5h' },
-    { id: 'a3', handle: 'kingdom-principles',           title: 'Kingdom Principles',           vendor: 'Myles Munroe',  product_type: 'Audiobooks', price: 0,    language: 'SW', duration: '6.1h' },
-    { id: 'a4', handle: 'power-of-now',                 title: 'The Power of Now',             vendor: 'Eckhart Tolle', product_type: 'Audiobooks', price: 1299, language: 'AR', duration: '7.3h' },
-    { id: 'a5', handle: 'battlefield-of-the-mind',      title: 'Battlefield of the Mind',      vendor: 'Joyce Meyer',   product_type: 'Audiobooks', price: 0,    language: 'YO', duration: '5.8h' },
-  ];
 
   return (
     <div className="min-h-screen bg-[#0A1128] pb-20">
@@ -746,7 +701,7 @@ export default function AppLayout() {
             </Link>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
-            {(newReleases.length > 0 ? newReleases : MOCK_NEW_RELEASES).map((product: any) => (
+            {newReleases.map((product: any) => (
               <div key={product.id} className="shrink-0 w-[200px]">
                 <ProductCard product={product} variant="square" />
               </div>
@@ -825,7 +780,7 @@ export default function AppLayout() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-8">
-            {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOK_PRODUCTS).slice(0, 10).map((product: any) => (
+            {trendingBooks.slice(0, 10).map((product: any) => (
               <ProductCard key={product.id} product={product} variant="portrait" />
             ))}
           </div>
@@ -859,7 +814,7 @@ export default function AppLayout() {
             <Link to="/collections/audiobooks" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
-            {(audiobooks.length > 0 ? audiobooks : MOCK_AUDIOBOOKS).map((product: any) => (
+            {audiobooks.map((product: any) => (
               <div key={product.id} className="shrink-0 w-[200px]">
                 <ProductCard product={product} variant="square" />
               </div>

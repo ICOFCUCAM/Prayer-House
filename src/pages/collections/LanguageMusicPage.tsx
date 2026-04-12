@@ -97,41 +97,6 @@ function fmt(n: number): string {
   return String(n);
 }
 
-// ── Mock Data (fallback when DB returns empty) ────────────────────────────────
-
-function buildMock(language: string): Release[] {
-  const names: [string, string, string, 'album' | 'EP' | 'single', number, number][] = [
-    ['Victory Anthem',              'Triumphant Sound',       'Gospel',       'single', 7890, 3100],
-    ['Gospel Vol. 1',               'Grace Ensemble',         'Gospel',       'album',  4820, 1200],
-    ['Hallelujah Chorus',           'Emmanuel Choir',         'Worship',      'single', 6540, 2300],
-    ['African Gospel Rhythms',      'Afro Praise Collective', 'Afrobeats',    'EP',     5100, 1800],
-    ['Morning Devotion',            'House of Prayer Band',   'Worship',      'single', 2780,  720],
-    ['Praise Medley',               'Zion Voices',            'Praise',       'EP',     3210,  890],
-    ['Kingdom Songs',               "David's Harp",           'Gospel',       'album',  1890,  450],
-    ['Deeper Worship Experience',   'Bethel Music Africa',    'Worship',      'album',  3450,  980],
-    ['Holy Ground',                 'Sanctuary Choir',        'Contemporary', 'single', 5670, 2100],
-    ['Flames of Revival',           'New Life Worship',       'Gospel',       'EP',     4230, 1560],
-    ['Songs of Zion',               'Mountain of Fire Choir', 'Praise',       'album',  2910,  830],
-    ['Crowned with Glory',          'Royal Priesthood Band',  'Contemporary', 'single', 6120, 2400],
-  ];
-
-  return names.map(([title, artist, genre, release_type, play_count, download_count], i) => ({
-    id:             `mock-${i + 1}`,
-    title,
-    cover_art:      null,
-    genre,
-    language,
-    play_count,
-    download_count,
-    price:          i % 4 === 3 ? (i + 1) * 249 : 0,
-    audio_url:      null,
-    created_at:     `2025-${String(12 - i % 12).padStart(2, '0')}-01T00:00:00`,
-    release_type,
-    release_date:   `2025-${String(12 - i % 12).padStart(2, '0')}-01`,
-    artists:        { name: artist, slug: artist.toLowerCase().replace(/[^a-z0-9]+/g, '-') },
-  }));
-}
-
 // ── Release Card ─────────────────────────────────────────────────────────────
 
 function ReleaseCard({
@@ -491,10 +456,7 @@ export default function LanguageMusicPage() {
     buildQuery(0).then(({ data, error, count }) => {
       if (cancelled) return;
 
-      const rows: Release[] =
-        !error && data && data.length > 0
-          ? (data as unknown as Release[])
-          : buildMock(langKey);
+      const rows: Release[] = (!error && data) ? (data as unknown as Release[]) : [];
 
       setReleases(rows);
       setTotalCount(count ?? rows.length);
@@ -524,14 +486,8 @@ export default function LanguageMusicPage() {
       .order('play_count', { ascending: false })
       .limit(3)
       .then(({ data, error }) => {
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           setTrending(data as unknown as Release[]);
-        } else {
-          setTrending(
-            buildMock(langKey)
-              .sort((a, b) => b.play_count - a.play_count)
-              .slice(0, 3),
-          );
         }
       });
   }, [langKey]);
