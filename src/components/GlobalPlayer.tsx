@@ -7,6 +7,7 @@ import {
   Shuffle, Repeat, Repeat1, ListMusic, Maximize2, X,
   Heart, Share2, ChevronDown, Music,
 } from 'lucide-react';
+import SleepTimer from '@/components/SleepTimer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Track {
@@ -740,6 +741,9 @@ export default function GlobalPlayer() {
               </button>
               <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={e => setVolume(Number(e.target.value))}
                 className="w-20 h-1 rounded-full accent-[#00D9FF] cursor-pointer hidden md:block" />
+              <div className="hidden md:block">
+                <SleepTimer onStop={() => { if (isPlaying) togglePlay(); }} />
+              </div>
               <button onClick={() => setShowQueue(q => !q)}
                 className={`p-1.5 rounded-lg transition-all relative ${showQueue ? 'text-[#00D9FF] bg-[#00D9FF]/10' : 'text-white/30 hover:text-white'}`}>
                 <ListMusic className="w-4 h-4" />

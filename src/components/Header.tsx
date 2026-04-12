@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useApp } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { SUPPORTED_LANGUAGES, applyLangDir } from '@/lib/i18n';
+import NotificationBellComponent from '@/components/NotificationBell';
 
 // ── Language Switcher ─────────────────────────────────────────────────────────
 
@@ -84,112 +84,7 @@ const NAV_ITEMS: Array<{ key: string; href?: string; handle?: string }> = [
   { key: 'nav.artists',     handle: 'artists'             },
 ];
 
-// ── Notification Bell ─────────────────────────────────────────────────────────
-
-interface Notification {
-  id:         string;
-  title:      string;
-  body:       string;
-  read:       boolean;
-  created_at: string;
-  link?:      string;
-}
-
-function NotificationBell({ userId }: { userId?: string }) {
-  const [notifs,  setNotifs]  = useState<Notification[]>([]);
-  const [open,    setOpen]    = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    if (!userId) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setNotifs((data ?? []) as Notification[]);
-  }, [userId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  // Close on outside click
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const unread = notifs.filter(n => !n.read).length;
-
-  const markAllRead = async () => {
-    if (!userId || unread === 0) return;
-    await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
-    setNotifs(n => n.map(x => ({ ...x, read: true })));
-  };
-
-  const timeAgo = (d: string) => {
-    const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
-    if (mins < 60) return `${mins}m`;
-    if (mins < 1440) return `${Math.floor(mins / 60)}h`;
-    return `${Math.floor(mins / 1440)}d`;
-  };
-
-  if (!userId) return null;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => { setOpen(o => !o); if (!open) markAllRead(); }}
-        className="relative p-2 text-gray-400 hover:text-white transition-colors"
-        aria-label="Notifications"
-      >
-        <Bell className="w-5 h-5" />
-        {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF006E] text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <span className="text-white font-semibold text-sm">Notifications</span>
-            {unread > 0 && (
-              <button onClick={markAllRead} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                Mark all read
-              </button>
-            )}
-          </div>
-
-          <div className="max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-            {notifs.length === 0 ? (
-              <div className="py-8 text-center">
-                <Bell className="w-6 h-6 text-gray-700 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No notifications yet</p>
-              </div>
-            ) : (
-              notifs.map(n => (
-                <div key={n.id}
-                  className={`flex gap-3 px-4 py-3 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50 last:border-0 ${!n.read ? 'bg-indigo-950/20' : ''}`}>
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? 'bg-gray-700' : 'bg-indigo-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-medium">{n.title}</p>
-                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-2">{n.body}</p>
-                  </div>
-                  <span className="text-gray-600 text-[10px] shrink-0 mt-0.5">{timeAgo(n.created_at)}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// NotificationBell is extracted to src/components/NotificationBell.tsx
 
 // ── Header Component ──────────────────────────────────────────────────────────
 
@@ -280,7 +175,7 @@ export default function Header() {
               </Link>
 
               {/* Notification bell */}
-              {isAuthenticated && <NotificationBell userId={currentUserId} />}
+              {isAuthenticated && <NotificationBellComponent />}
 
               {/* Language switcher */}
               <LanguageSwitcher />

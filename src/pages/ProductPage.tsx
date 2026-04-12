@@ -10,6 +10,7 @@ import Footer from '@/components/Footer';
 import CommentsSection from '@/components/CommentsSection';
 import RelatedProducts from '@/components/RelatedProducts';
 import ShareClipModal from '@/components/ShareClipModal';
+import ReactionBar from '@/components/ReactionBar';
 
 const TYPE_COLORS: Record<string, string> = {
   music:    'from-indigo-500 to-purple-600',
@@ -401,6 +402,11 @@ export default function ProductPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Reactions */}
+        <div className="mt-8">
+          <ReactionBar contentId={product.id} contentType={rawType || 'product'} />
         </div>
 
         {/* Related products */}

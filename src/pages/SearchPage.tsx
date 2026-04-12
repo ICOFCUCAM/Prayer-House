@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import { TrendingUp, SlidersHorizontal, X as XIcon, User } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -11,10 +12,21 @@ type ContentType = 'all' | 'music' | 'podcast' | 'book' | 'audiobook' | 'video';
 type SortOption  = 'relevance' | 'newest' | 'price_asc' | 'price_desc' | 'free';
 
 interface FilterState {
-  type:   ContentType;
-  sort:   SortOption;
-  lang:   string;
-  free:   boolean;
+  type:     ContentType;
+  sort:     SortOption;
+  lang:     string;
+  free:     boolean;
+  genre:    string;
+  maxPrice: number;  // 0 = no limit
+  verified: boolean;
+}
+
+interface ArtistResult {
+  id:        string;
+  name:      string;
+  avatar:    string | null;
+  slug:      string | null;
+  followers: number;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -26,6 +38,16 @@ const TYPE_FILTERS: { label: string; value: ContentType; icon: string }[] = [
   { label: 'Book',       value: 'book',      icon: '📖' },
   { label: 'Audiobook',  value: 'audiobook', icon: '🎧' },
   { label: 'Video',      value: 'video',     icon: '🎬' },
+];
+
+const GENRES = [
+  'Gospel', 'Afrobeats', 'Highlife', 'Worship', 'Afro-Gospel',
+  'Pidgin', 'R&B', 'Hip-Hop', 'Jazz', 'Classical', 'Reggae',
+];
+
+const TRENDING_TERMS = [
+  'Gospel Music', 'Afrobeats 2025', 'Worship Songs', 'Pidgin Podcasts',
+  'Nigerian Audiobooks', 'Praise Mix', 'Hillsong', 'Frank Edwards',
 ];
 
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
@@ -58,52 +80,71 @@ export default function SearchPage() {
   const q               = searchParams.get('q') || '';
   const inputRef        = useRef<HTMLInputElement>(null);
 
-  const [results,  setResults]  = useState<any[]>([]);
-  const [loading,  setLoading]  = useState(false);
-  const [query,    setQuery]    = useState(q);
-  const [filters,  setFilters]  = useState<FilterState>({ type: 'all', sort: 'relevance', lang: '', free: false });
-  const [recent,   setRecent]   = useState<string[]>(() => getRecentSearches());
-  const [showSugg, setShowSugg] = useState(false);
+  const [results,   setResults]   = useState<any[]>([]);
+  const [artists,   setArtists]   = useState<ArtistResult[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [query,     setQuery]     = useState(q);
+  const [filters,   setFilters]   = useState<FilterState>({
+    type: 'all', sort: 'relevance', lang: '', free: false, genre: '', maxPrice: 0, verified: false,
+  });
+  const [recent,    setRecent]    = useState<string[]>(() => getRecentSearches());
+  const [showSugg,  setShowSugg]  = useState(false);
+  const [showAdv,   setShowAdv]   = useState(false);
 
   // Run search whenever q or filters change
   useEffect(() => {
-    if (!q.trim()) { setResults([]); return; }
+    if (!q.trim()) { setResults([]); setArtists([]); return; }
     saveSearch(q);
     setRecent(getRecentSearches());
     setLoading(true);
 
+    // ── Products search ─────────────────────────────────────────────────────
     let qb = supabase
       .from('ecom_products')
       .select('*')
-      .or(`title.ilike.%${q}%,body_html.ilike.%${q}%,vendor.ilike.%${q}%,product_type.ilike.%${q}%,artist.ilike.%${q}%,author.ilike.%${q}%`)
+      .or(`title.ilike.%${q}%,body_html.ilike.%${q}%,vendor.ilike.%${q}%,product_type.ilike.%${q}%,artist.ilike.%${q}%,author.ilike.%${q}%,genre.ilike.%${q}%`)
       .eq('status', 'active');
 
-    // Type filter
-    if (filters.type !== 'all') {
-      qb = qb.ilike('product_type', `${filters.type}%`);
-    }
+    if (filters.type !== 'all')  qb = qb.ilike('product_type', `${filters.type}%`);
+    if (filters.sort === 'free') qb = qb.or('price.is.null,price.eq.0');
+    if (filters.lang)            qb = qb.ilike('language', `%${filters.lang}%`);
+    if (filters.genre)           qb = qb.ilike('genre', `%${filters.genre}%`);
+    if (filters.maxPrice > 0)    qb = qb.lte('price', filters.maxPrice * 100);
+    if (filters.verified)        qb = qb.eq('is_verified', true);
 
-    // Free filter
-    if (filters.sort === 'free') {
-      qb = qb.or('price.is.null,price.eq.0');
-    }
+    if      (filters.sort === 'newest')     qb = qb.order('created_at', { ascending: false });
+    else if (filters.sort === 'price_asc')  qb = qb.order('price', { ascending: true });
+    else if (filters.sort === 'price_desc') qb = qb.order('price', { ascending: false });
+    else                                    qb = qb.order('stream_count', { ascending: false, nullsFirst: false });
 
-    // Language filter
-    if (filters.lang) {
-      qb = qb.ilike('language', `%${filters.lang}%`);
-    }
+    // ── Artist/Author search (parallel) ─────────────────────────────────────
+    const artistSearch = supabase
+      .from('ecom_products')
+      .select('vendor, creator_id, cover_image_url, handle')
+      .or(`vendor.ilike.%${q}%,artist.ilike.%${q}%,author.ilike.%${q}%`)
+      .eq('status', 'active')
+      .limit(5);
 
-    // Sort
-    if (filters.sort === 'newest') {
-      qb = qb.order('created_at', { ascending: false });
-    } else if (filters.sort === 'price_asc') {
-      qb = qb.order('price', { ascending: true });
-    } else if (filters.sort === 'price_desc') {
-      qb = qb.order('price', { ascending: false });
-    }
-
-    qb.limit(48).then(({ data }) => {
+    Promise.all([qb.limit(48), artistSearch]).then(([{ data }, { data: aData }]) => {
       setResults(data || []);
+
+      // Deduplicate by vendor name
+      const seen = new Set<string>();
+      const dedupedArtists: ArtistResult[] = [];
+      (aData || []).forEach(p => {
+        const name = p.vendor;
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          dedupedArtists.push({
+            id:        p.creator_id || p.handle,
+            name,
+            avatar:    p.cover_image_url,
+            slug:      p.handle,
+            followers: 0,
+          });
+        }
+      });
+      setArtists(dedupedArtists);
       setLoading(false);
     });
   }, [q, filters]);
@@ -181,7 +222,7 @@ export default function SearchPage() {
         </form>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           {/* Type pills */}
           <div className="flex gap-2 overflow-x-auto pb-1 flex-1" style={{ scrollbarWidth: 'none' }}>
             {TYPE_FILTERS.map(f => (
@@ -197,15 +238,95 @@ export default function SearchPage() {
             ))}
           </div>
 
-          {/* Sort dropdown */}
-          <select
-            value={filters.sort}
-            onChange={e => setSort(e.target.value as SortOption)}
-            className="bg-[#0D1635] border border-white/10 text-white text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/30 cursor-pointer shrink-0"
-          >
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          <div className="flex gap-2 shrink-0">
+            {/* Sort dropdown */}
+            <select
+              value={filters.sort}
+              onChange={e => setSort(e.target.value as SortOption)}
+              className="bg-[#0D1635] border border-white/10 text-white text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/30 cursor-pointer"
+            >
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {/* Advanced filters toggle */}
+            <button
+              onClick={() => setShowAdv(a => !a)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all ${
+                showAdv || filters.genre || filters.maxPrice > 0 || filters.verified
+                  ? 'border-[#00D9FF]/40 text-[#00D9FF] bg-[#00D9FF]/10'
+                  : 'border-white/10 text-white/40 hover:border-white/25'
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters
+              {(filters.genre || filters.maxPrice > 0 || filters.verified) && (
+                <span className="w-4 h-4 rounded-full bg-[#00D9FF] text-[#0A1128] text-[9px] font-black flex items-center justify-center">
+                  {[!!filters.genre, filters.maxPrice > 0, filters.verified].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Advanced filter panel */}
+        {showAdv && (
+          <div className="mb-6 p-4 rounded-2xl bg-white/3 border border-white/10 grid sm:grid-cols-3 gap-4">
+            {/* Genre */}
+            <div>
+              <label className="block text-xs text-white/40 mb-2">Genre</label>
+              <div className="flex flex-wrap gap-1.5">
+                {GENRES.map(g => (
+                  <button key={g} onClick={() => setFilters(f => ({ ...f, genre: f.genre === g ? '' : g }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                      filters.genre === g ? 'bg-[#9D4EDD] text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'
+                    }`}>
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Price range */}
+            <div>
+              <label className="block text-xs text-white/40 mb-2">
+                Max Price: {filters.maxPrice === 0 ? 'Any' : `$${filters.maxPrice}`}
+              </label>
+              <input
+                type="range" min={0} max={50} step={5}
+                value={filters.maxPrice}
+                onChange={e => setFilters(f => ({ ...f, maxPrice: Number(e.target.value) }))}
+                className="w-full accent-[#00D9FF]"
+              />
+              <div className="flex justify-between text-[10px] text-white/25 mt-1">
+                <span>Free</span><span>$50</span>
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="space-y-2">
+              <label className="block text-xs text-white/40 mb-2">Options</label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={filters.verified}
+                  onChange={e => setFilters(f => ({ ...f, verified: e.target.checked }))}
+                  className="w-3.5 h-3.5 accent-[#00D9FF] rounded" />
+                <span className="text-sm text-white/60">Verified artists only</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={filters.sort === 'free'}
+                  onChange={e => setFilters(f => ({ ...f, sort: e.target.checked ? 'free' : 'relevance' }))}
+                  className="w-3.5 h-3.5 accent-[#00D9FF] rounded" />
+                <span className="text-sm text-white/60">Free only</span>
+              </label>
+              {(filters.genre || filters.maxPrice > 0 || filters.verified) && (
+                <button
+                  onClick={() => setFilters(f => ({ ...f, genre: '', maxPrice: 0, verified: false }))}
+                  className="flex items-center gap-1 text-xs text-white/30 hover:text-red-400 transition-colors mt-1"
+                >
+                  <XIcon className="w-3 h-3" /> Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         {q && (
@@ -219,6 +340,32 @@ export default function SearchPage() {
                 {filters.type !== 'all' && ` · ${TYPE_FILTERS.find(t => t.value === filters.type)?.label}`}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Artist results strip */}
+        {!loading && artists.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <User className="w-3.5 h-3.5" /> Artists & Creators
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {artists.map(a => (
+                <Link key={a.id} to={`/artists/${a.slug || a.id}`}
+                  className="flex flex-col items-center gap-2 shrink-0 group">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] border-2 border-white/10 group-hover:border-[#00D9FF]/50 transition-all">
+                    {a.avatar
+                      ? <img src={a.avatar} alt={a.name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                          {a.name.charAt(0)}
+                        </div>}
+                  </div>
+                  <span className="text-xs text-white/70 group-hover:text-white transition-colors text-center max-w-[60px] truncate">
+                    {a.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
@@ -258,29 +405,34 @@ export default function SearchPage() {
             )}
           </div>
         ) : (
-          /* Empty state — show recent searches */
-          <div className="py-16 text-center">
-            <p className="text-white font-semibold mb-6">Discover something new</p>
+          /* Empty state — recent + trending */
+          <div className="py-8">
             {recent.length > 0 && (
               <div className="mb-8">
-                <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">Recent</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-3">Recent Searches</p>
+                <div className="flex flex-wrap gap-2">
                   {recent.map(s => (
                     <button key={s} onClick={() => doSearch(s)}
-                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
-                      {s}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
+                      <span className="text-white/30">⏱</span> {s}
                     </button>
                   ))}
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-2 justify-center">
-              {['Gospel Music', 'Afrobeats', 'Audiobooks', 'Pidgin Podcasts', 'Worship'].map(s => (
-                <button key={s} onClick={() => doSearch(s)}
-                  className="px-4 py-2 bg-[#00D9FF]/5 border border-[#00D9FF]/15 rounded-full text-sm text-[#00D9FF]/70 hover:text-[#00D9FF] hover:bg-[#00D9FF]/10 transition-colors">
-                  {s}
-                </button>
-              ))}
+            <div>
+              <p className="text-white/40 text-xs uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-[#00D9FF]" /> Trending Now
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {TRENDING_TERMS.map((s, i) => (
+                  <button key={s} onClick={() => doSearch(s)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/5 border border-[#00D9FF]/15 rounded-full text-sm text-[#00D9FF]/70 hover:text-[#00D9FF] hover:bg-[#00D9FF]/10 transition-colors">
+                    <span className="text-white/20 text-xs font-bold">#{i + 1}</span>
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

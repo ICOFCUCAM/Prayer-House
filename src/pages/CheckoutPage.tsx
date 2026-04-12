@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase';
-import { CreditCard, Lock, ShieldCheck } from 'lucide-react';
+import { CreditCard, Lock, ShieldCheck, Smartphone } from 'lucide-react';
+import MobileMoneyModal from '@/components/MobileMoneyModal';
+
+type PayMethod = 'card' | 'mobile_money' | 'paypal';
 
 // ── Stripe wiring ──────────────────────────────────────────────────────────────
 // Loads @stripe/react-stripe-js lazily only when the publishable key is set.
@@ -97,13 +100,16 @@ export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart();
   const navigate = useNavigate();
 
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
-  const [form,     setForm]     = useState({
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
+  const [form,       setForm]       = useState({
     name: '', email: '', address: '', city: '', country: 'US', zip: '',
   });
-  const [card, setCard] = useState({ number: '', expiry: '', cvc: '' });
-  const [step, setStep] = useState<'billing' | 'payment'>('billing');
+  const [card,       setCard]       = useState({ number: '', expiry: '', cvc: '' });
+  const [step,       setStep]       = useState<'billing' | 'payment'>('billing');
+  const [payMethod,  setPayMethod]  = useState<PayMethod>('card');
+  const [showMobile, setShowMobile] = useState(false);
+  const [orderId,    setOrderId]    = useState('');
 
   const tax   = cartTotal * 0.08;
   const total = cartTotal + tax;
@@ -186,6 +192,7 @@ export default function CheckoutPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-[#0A0A0F] py-8 px-4">
       <div className="max-w-4xl mx-auto">
 
@@ -265,16 +272,99 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <CardInputFallback card={card} setCard={setCard} />
-
-                {/* Card brand logos */}
-                <div className="flex items-center gap-2">
-                  {['Visa', 'MC', 'Amex', 'PayPal'].map(b => (
-                    <span key={b} className="px-2.5 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-400 font-medium">
-                      {b}
-                    </span>
+                {/* Payment method tabs */}
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'card',         label: 'Card',   Icon: CreditCard  },
+                    { id: 'mobile_money', label: 'Mobile Money', Icon: Smartphone },
+                    { id: 'paypal',       label: 'PayPal', Icon: null        },
+                  ] as { id: PayMethod; label: string; Icon: any }[]).map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setPayMethod(m.id)}
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                        payMethod === m.id
+                          ? 'border-indigo-500 bg-indigo-500/10 text-white'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      {m.Icon ? <m.Icon className="w-4 h-4" /> : <span className="font-black text-[#003087]">P</span>}
+                      {m.label}
+                    </button>
                   ))}
                 </div>
+
+                {payMethod === 'card' && (
+                  <>
+                    <CardInputFallback card={card} setCard={setCard} />
+                    <div className="flex items-center gap-2">
+                      {['Visa', 'MC', 'Amex'].map(b => (
+                        <span key={b} className="px-2.5 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-400 font-medium">
+                          {b}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {payMethod === 'mobile_money' && (
+                  <div className="rounded-xl bg-[#0A1128] border border-white/10 p-4 text-center space-y-3">
+                    <div className="flex justify-center gap-3 text-2xl">🟢 🟡 🔴</div>
+                    <p className="text-white/60 text-sm">
+                      Supports M-Pesa, MTN MoMo, and Airtel Money across Africa.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // Create order first, then open modal
+                        setLoading(true);
+                        const { data: order } = await supabase
+                          .from('ecom_orders')
+                          .insert([{
+                            email: form.email,
+                            total_price:        Math.round(total * 100),
+                            subtotal_price:     Math.round(cartTotal * 100),
+                            total_tax:          Math.round(tax * 100),
+                            financial_status:   'pending',
+                            fulfillment_status: 'unfulfilled',
+                            billing_address:    { name: form.name, address1: form.address, city: form.city, country: form.country, zip: form.zip },
+                          }])
+                          .select().single();
+                        if (order) {
+                          await supabase.from('ecom_order_items').insert(
+                            items.map(i => ({ order_id: order.id, product_id: i.id, title: i.title, price: Math.round(i.price * 100), quantity: i.quantity }))
+                          );
+                          setOrderId(order.id);
+                          setShowMobile(true);
+                        }
+                        setLoading(false);
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-[#00A651] to-[#FFC700] text-white font-bold rounded-xl text-sm hover:opacity-90 transition-opacity"
+                    >
+                      {loading ? 'Creating order…' : 'Pay with Mobile Money'}
+                    </button>
+                  </div>
+                )}
+
+                {payMethod === 'paypal' && (
+                  <div className="rounded-xl bg-[#0A1128] border border-white/10 p-4 text-center space-y-3">
+                    <div className="text-3xl">🅿</div>
+                    <p className="text-white/60 text-sm">
+                      You'll be redirected to PayPal to complete your payment securely.
+                    </p>
+                    <p className="text-white/30 text-xs">
+                      Set <code className="bg-white/5 px-1 rounded">VITE_PAYPAL_CLIENT_ID</code> to enable live PayPal.
+                    </p>
+                    <button
+                      type="button"
+                      className="w-full py-3 bg-[#003087] text-white font-bold rounded-xl text-sm hover:bg-[#002065] transition-colors"
+                      onClick={() => setError('PayPal is not configured. Set VITE_PAYPAL_CLIENT_ID.')}
+                    >
+                      Continue with PayPal
+                    </button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
@@ -282,32 +372,34 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep('billing')}
-                    className="px-4 py-3 border border-gray-700 text-gray-400 hover:text-white rounded-xl transition-colors text-sm"
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Processing…
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Pay ${total.toFixed(2)}
-                      </>
-                    )}
-                  </button>
-                </div>
+                {payMethod === 'card' && (
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setStep('billing')}
+                      className="px-4 py-3 border border-gray-700 text-gray-400 hover:text-white rounded-xl transition-colors text-sm"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Processing…
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          Pay ${total.toFixed(2)}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </form>
@@ -362,5 +454,20 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+
+
+    {showMobile && orderId && (
+      <MobileMoneyModal
+        amount={total}
+        orderId={orderId}
+        onClose={() => setShowMobile(false)}
+        onSuccess={async (ref) => {
+          await supabase.from('ecom_orders').update({ financial_status: 'paid', mpesa_ref: ref }).eq('id', orderId);
+          clearCart();
+          navigate(`/order-confirmation?orderId=${orderId}`);
+        }}
+      />
+    )}
+    </>
   );
 }

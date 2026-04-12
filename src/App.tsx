@@ -76,6 +76,8 @@ const AlbumPage                  = lazy(() => import('./pages/AlbumPage'));
 const CreatorStudioPage          = lazy(() => import('./pages/dashboard/CreatorStudioPage'));
 const FanMembershipsPage         = lazy(() => import('./pages/dashboard/FanMembershipsPage'));
 const PodcastPage                = lazy(() => import('./pages/PodcastPage'));
+const ReaderPage                 = lazy(() => import('./pages/ReaderPage'));
+const ModerationQueuePage        = lazy(() => import('./pages/admin/ModerationQueuePage'));
 
 // ── Coming-soon placeholder ────────────────────────────────────────────────────
 const ComingSoonPage  = lazy(() => import('./pages/ComingSoonPage'));
@@ -152,6 +154,7 @@ export default function App() {
           <Route path="/charts"                   element={<ChartsPage />} />
           <Route path="/album/:albumId"           element={<AlbumPage />} />
           <Route path="/podcast/:podcastId"       element={<PodcastPage />} />
+          <Route path="/reader/:productId"        element={<ReaderPage />} />
 
           {/* ── Auth (Phase 4) ─────────────────────────────────────────────── */}
           <Route path="/auth/login"               element={<LoginPage />} />
@@ -214,6 +217,9 @@ export default function App() {
           <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
 
           {/* ── Phase 4 — Admin (all sub-routes handled inside AdminDashboardPage) */}
+          <Route path="/admin/moderation"   element={
+            <ProtectedRoute requiredRole="admin"><ModerationQueuePage /></ProtectedRoute>
+          } />
           <Route path="/admin/*"            element={
             <ProtectedRoute requiredRole="admin"><AdminDashboardPage /></ProtectedRoute>
           } />
