@@ -466,72 +466,209 @@ function AdminAuthors() {
 type ReportReason = 'copyright_claim' | 'guideline_violation' | 'spam_upload' | 'bot_voting' | string;
 
 interface ReportRow {
-  id: string; reason: ReportReason; status: string; content_type?: string;
-  content_id?: string; notes?: string; created_at: string;
+  id:                string;
+  reason:            ReportReason;
+  status:            string;
+  content_type?:     string;
+  content_id?:       string;
+  reporter_id?:      string;
+  reported_user_id?: string;
+  notes?:            string;
+  dmca_notice?:      string;
+  created_at:        string;
+  resolved_at?:      string;
 }
 
+type ReportTab = 'all' | 'dmca' | 'violations' | 'resolved';
+
 function AdminReports() {
-  const [rows,    setRows]    = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [acting,  setActing]  = useState<string | null>(null);
+  const [rows,     setRows]     = useState<ReportRow[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [acting,   setActing]   = useState<string | null>(null);
+  const [tab,      setTab]      = useState<ReportTab>('all');
+  const [selected, setSelected] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('content_reports')
-      .select('id,reason,status,content_type,content_id,notes,created_at')
+      .select('id,reason,status,content_type,content_id,reporter_id,reported_user_id,notes,dmca_notice,created_at,resolved_at')
       .order('created_at', { ascending: false })
-      .limit(80);
+      .limit(150);
     setRows((data ?? []) as ReportRow[]);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
+  const filtered = rows.filter(r => {
+    if (tab === 'dmca')       return r.reason === 'copyright_claim';
+    if (tab === 'violations') return r.reason !== 'copyright_claim' && r.status === 'open';
+    if (tab === 'resolved')   return r.status !== 'open';
+    return true;
+  });
+
   const resolve = async (id: string, resolution: 'resolved' | 'dismissed' | 'escalated') => {
-    setActing(id);
+    setActing(id + resolution);
     await supabase.from('content_reports').update({ status: resolution, resolved_at: new Date().toISOString() }).eq('id', id);
     setRows(prev => prev.map(r => r.id === id ? { ...r, status: resolution } : r));
     setActing(null);
   };
 
+  const issueDmcaTakedown = async (r: ReportRow) => {
+    if (!r.content_id || !r.content_type) return;
+    setActing(r.id + 'dmca');
+    const table = r.content_type === 'track' ? 'tracks' : 'ecom_products';
+    await supabase.from(table).update({ status: 'suspended' }).eq('id', r.content_id);
+    await supabase.from('content_reports').update({ status: 'resolved', notes: (r.notes || '') + ' [DMCA Takedown]', resolved_at: new Date().toISOString() }).eq('id', r.id);
+    if (r.reported_user_id) {
+      await supabase.from('notifications').insert({ user_id: r.reported_user_id, title: 'Content Removed — DMCA', body: `Your ${r.content_type} was removed following a DMCA copyright claim.`, read: false, created_at: new Date().toISOString() }).catch(() => {});
+    }
+    setRows(prev => prev.map(x => x.id === r.id ? { ...x, status: 'resolved' } : x));
+    setSelected(null);
+    setActing(null);
+  };
+
+  const banUser = async (userId: string, reportId: string) => {
+    if (!userId) return;
+    setActing(reportId + 'ban');
+    await supabase.from('profiles').update({ suspended: true }).eq('id', userId);
+    await supabase.from('content_reports').update({ status: 'resolved', notes: 'User banned.', resolved_at: new Date().toISOString() }).eq('id', reportId);
+    await supabase.from('notifications').insert({ user_id: userId, title: 'Account Suspended', body: 'Your account has been suspended for violating community guidelines.', read: false, created_at: new Date().toISOString() }).catch(() => {});
+    setRows(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+    setSelected(null);
+    setActing(null);
+  };
+
   const REASON_META: Record<string, { label: string; colour: string; icon: string }> = {
-    copyright_claim:      { label: 'Copyright Claim',       colour: ORANGE, icon: '©' },
-    guideline_violation:  { label: 'Guideline Violation',   colour: RED,    icon: '⛔' },
-    spam_upload:          { label: 'Spam Upload',           colour: GOLD,   icon: '🚫' },
-    bot_voting:           { label: 'Bot Voting',            colour: PURPLE, icon: '🤖' },
+    copyright_claim:      { label: 'DMCA / Copyright',     colour: ORANGE, icon: '©'  },
+    guideline_violation:  { label: 'Guideline Violation',  colour: RED,    icon: '⛔' },
+    spam_upload:          { label: 'Spam Upload',          colour: GOLD,   icon: '🚫' },
+    bot_voting:           { label: 'Bot Voting',           colour: PURPLE, icon: '🤖' },
+    harassment:           { label: 'Harassment',           colour: RED,    icon: '🚨' },
+    misinformation:       { label: 'Misinformation',       colour: GOLD,   icon: '⚠️' },
   };
 
   const STATUS_COLOUR: Record<string, string> = { open: GOLD, resolved: GREEN, dismissed: 'rgba(255,255,255,0.3)', escalated: RED };
 
+  const openCount = rows.filter(r => r.status === 'open').length;
+
   return (
     <div>
-      <h2 className="text-white font-black text-xl mb-6">Reports &amp; Flags</h2>
-      {loading ? <p className="text-white/40">Loading…</p> : rows.length === 0 ? (
-        <div className="text-center py-16 text-white/30">No reports. Platform is clean.</div>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-white font-black text-xl">Reports &amp; Moderation</h2>
+        {openCount > 0 && (
+          <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{ background: `${RED}15`, color: RED }}>
+            {openCount} open
+          </span>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)' }}>
+        {([
+          { key: 'all',        label: 'All',        count: rows.length },
+          { key: 'dmca',       label: 'DMCA',       count: rows.filter(r => r.reason === 'copyright_claim').length },
+          { key: 'violations', label: 'Violations', count: rows.filter(r => r.reason !== 'copyright_claim' && r.status === 'open').length },
+          { key: 'resolved',   label: 'Resolved',   count: rows.filter(r => r.status !== 'open').length },
+        ] as { key: ReportTab; label: string; count: number }[]).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              tab === t.key ? 'text-white' : 'text-white/40 hover:text-white'
+            }`}
+            style={tab === t.key ? { background: 'rgba(255,255,255,0.10)' } : undefined}>
+            {t.label}
+            <span className="text-[10px] px-1 rounded font-bold" style={{ background: 'rgba(255,255,255,0.08)' }}>{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {loading ? <p className="text-white/40 text-sm">Loading…</p> : filtered.length === 0 ? (
+        <div className="text-center py-16 text-white/30">
+          <p className="text-3xl mb-3">✅</p>
+          {tab === 'all' ? 'No reports. Platform is clean.' : `No ${tab} reports.`}
+        </div>
       ) : (
         <div className="space-y-2">
-          {rows.map(r => {
-            const meta = REASON_META[r.reason] ?? { label: r.reason, colour: CYAN, icon: '⚠' };
+          {filtered.map(r => {
+            const meta   = REASON_META[r.reason] ?? { label: r.reason, colour: CYAN, icon: '⚠' };
+            const isOpen = r.status === 'open';
+            const isExp  = selected === r.id;
+
             return (
-              <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-                <span className="text-lg">{meta.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{meta.label}</p>
-                  <p className="text-white/30 text-xs">
-                    {r.content_type ? `${r.content_type} · ` : ''}{new Date(r.created_at).toLocaleDateString()}
-                  </p>
-                  {r.notes && <p className="text-white/40 text-xs mt-0.5 truncate">{r.notes}</p>}
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${STATUS_COLOUR[r.status] ?? CYAN}15`, color: STATUS_COLOUR[r.status] ?? CYAN }}>
-                  {r.status.toUpperCase()}
-                </span>
-                {r.status === 'open' && (
-                  <>
-                    <button onClick={() => resolve(r.id, 'resolved')}   disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${GREEN}15`, color: GREEN }}>Resolve</button>
-                    <button onClick={() => resolve(r.id, 'dismissed')}  disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>Dismiss</button>
-                    <button onClick={() => resolve(r.id, 'escalated')}  disabled={!!acting} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold disabled:opacity-40" style={{ background: `${RED}15`, color: RED }}>Escalate</button>
-                  </>
+              <div key={r.id}>
+                <button
+                  onClick={() => setSelected(isExp ? null : r.id)}
+                  className="w-full flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors"
+                  style={{
+                    border: `1px solid ${isExp ? meta.colour + '40' : 'rgba(255,255,255,0.08)'}`,
+                    background: isExp ? `${meta.colour}08` : 'rgba(255,255,255,0.03)',
+                  }}
+                >
+                  <span className="text-lg shrink-0">{meta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">{meta.label}</p>
+                    <p className="text-white/30 text-xs">
+                      {r.content_type ? `${r.content_type} · ` : ''}{new Date(r.created_at).toLocaleDateString()}
+                    </p>
+                    {r.notes && <p className="text-white/40 text-xs mt-0.5 truncate">{r.notes}</p>}
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0"
+                    style={{ background: `${STATUS_COLOUR[r.status] ?? CYAN}15`, color: STATUS_COLOUR[r.status] ?? CYAN }}>
+                    {r.status.toUpperCase()}
+                  </span>
+                </button>
+
+                {isExp && (
+                  <div className="mx-1 mb-2 px-4 py-3 rounded-b-xl border border-t-0"
+                    style={{ borderColor: `${meta.colour}25`, background: `${meta.colour}05` }}>
+                    <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                      {r.content_id && (
+                        <div>
+                          <p className="text-white/30 mb-0.5">Content ID</p>
+                          <p className="text-white/60 font-mono truncate">{r.content_id}</p>
+                        </div>
+                      )}
+                      {r.reported_user_id && (
+                        <div>
+                          <p className="text-white/30 mb-0.5">Reported User</p>
+                          <p className="text-white/60 font-mono truncate">{r.reported_user_id}</p>
+                        </div>
+                      )}
+                      {r.dmca_notice && (
+                        <div className="col-span-2">
+                          <p className="text-white/30 mb-0.5">DMCA Notice</p>
+                          <p className="text-white/70 text-xs leading-relaxed">{r.dmca_notice}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {isOpen ? (
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => resolve(r.id, 'resolved')} disabled={!!acting}
+                          className="text-[11px] px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40"
+                          style={{ background: `${GREEN}18`, color: GREEN }}>✓ Resolve</button>
+                        <button onClick={() => resolve(r.id, 'dismissed')} disabled={!!acting}
+                          className="text-[11px] px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40"
+                          style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>Dismiss</button>
+                        <button onClick={() => resolve(r.id, 'escalated')} disabled={!!acting}
+                          className="text-[11px] px-3 py-1.5 rounded-lg font-semibold disabled:opacity-40"
+                          style={{ background: `${ORANGE}18`, color: ORANGE }}>↑ Escalate</button>
+                        {r.reason === 'copyright_claim' && r.content_id && (
+                          <button onClick={() => issueDmcaTakedown(r)} disabled={!!acting}
+                            className="text-[11px] px-3 py-1.5 rounded-lg font-bold disabled:opacity-40"
+                            style={{ background: `${RED}18`, color: RED }}>⚠ DMCA Takedown</button>
+                        )}
+                        {r.reported_user_id && (
+                          <button onClick={() => banUser(r.reported_user_id!, r.id)} disabled={!!acting}
+                            className="text-[11px] px-3 py-1.5 rounded-lg font-bold disabled:opacity-40"
+                            style={{ background: `${RED}18`, color: RED }}>🚫 Ban User</button>
+                        )}
+                      </div>
+                    ) : (
+                      r.resolved_at && <p className="text-white/25 text-xs">Resolved {new Date(r.resolved_at).toLocaleDateString()}</p>
+                    )}
+                  </div>
                 )}
               </div>
             );
