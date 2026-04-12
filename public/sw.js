@@ -97,6 +97,55 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// ── Push Notifications ────────────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'WANKONG', body: event.data.text(), url: '/' };
+  }
+
+  const title   = payload.title   ?? 'WANKONG';
+  const options = {
+    body:    payload.body    ?? '',
+    icon:    payload.icon    ?? '/pwa-192x192.png',
+    badge:   payload.badge   ?? '/pwa-96x96.png',
+    image:   payload.image,
+    tag:     payload.tag     ?? 'wankong-notification',
+    data:    { url: payload.url ?? '/' },
+    actions: payload.actions ?? [],
+    vibrate: [100, 50, 100],
+    timestamp: payload.timestamp ?? Date.now(),
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ── Notification click → open / focus window ──────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      // Focus existing tab if already open on this origin
+      for (const client of clients) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Otherwise open a new tab
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(url);
+      }
+    })
+  );
+});
+
 // ── Background Sync (for queued uploads) ─────────────────────────────────────
 self.addEventListener('sync', (event) => {
   if (event.tag === 'upload-sync') {

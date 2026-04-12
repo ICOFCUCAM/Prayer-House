@@ -88,6 +88,7 @@ const ArtistDashboardPage   = lazy(() => import('./pages/dashboard/ArtistDashboa
 const AuthorDashboardNewPage = lazy(() => import('./pages/dashboard/AuthorDashboardPage'));
 const UploadMusicPage        = lazy(() => import('./pages/dashboard/UploadMusicPage'));
 const UploadAlbumPage        = lazy(() => import('./pages/dashboard/UploadAlbumPage'));
+const UploadAudiobookPage    = lazy(() => import('./pages/dashboard/UploadAudiobookPage'));
 
 // ── Phase 4 — Admin ────────────────────────────────────────────────────────────
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
@@ -207,7 +208,7 @@ export default function App() {
           <Route path="/dashboard/artist/upload-music"    element={<ProtectedRoute requiredRole="artist"><UploadMusicPage /></ProtectedRoute>} />
           <Route path="/dashboard/artist/upload-album"    element={<ProtectedRoute requiredRole="artist"><UploadAlbumPage /></ProtectedRoute>} />
           <Route path="/dashboard/author/upload-book"     element={<ProtectedRoute requiredRole="author"><BookUploadPage /></ProtectedRoute>} />
-          <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><ComingSoonPage feature="Upload Audiobook" /></ProtectedRoute>} />
+          <Route path="/dashboard/author/upload-audiobook" element={<ProtectedRoute requiredRole="author"><UploadAudiobookPage /></ProtectedRoute>} />
           <Route path="/dashboard/distribution"                element={<ProtectedRoute><ReleasesPage /></ProtectedRoute>} />
           <Route path="/dashboard/distribution/upload-release" element={<ProtectedRoute><DistributeUploadPage /></ProtectedRoute>} />
           <Route path="/dashboard/studio"                  element={<ProtectedRoute><CreatorStudioPage /></ProtectedRoute>} />

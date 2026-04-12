@@ -56,12 +56,12 @@ const ECOSYSTEM_LINKS = [
 ];
 
 const SOCIAL = [
-  { label: 'YouTube',   icon: '▶', href: '#' },
-  { label: 'TikTok',    icon: '♪', href: '#' },
-  { label: 'Instagram', icon: '◈', href: '#' },
-  { label: 'Facebook',  icon: 'f', href: '#' },
-  { label: 'LinkedIn',  icon: 'in', href: '#' },
-  { label: 'X',         icon: 'X', href: '#' },
+  { label: 'YouTube',   icon: '▶',  href: 'https://www.youtube.com/@wankong'              },
+  { label: 'TikTok',    icon: '♪',  href: 'https://www.tiktok.com/@wankong'               },
+  { label: 'Instagram', icon: '◈',  href: 'https://www.instagram.com/wankong.official'    },
+  { label: 'Facebook',  icon: 'f',  href: 'https://www.facebook.com/wankong.official'     },
+  { label: 'LinkedIn',  icon: 'in', href: 'https://www.linkedin.com/company/wankong'      },
+  { label: 'X',         icon: 'X',  href: 'https://x.com/wankong'                         },
 ];
 
 const LANGUAGES = [

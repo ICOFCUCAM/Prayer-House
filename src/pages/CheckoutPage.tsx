@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase';
@@ -100,21 +100,58 @@ export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart();
   const navigate = useNavigate();
 
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState('');
-  const [form,       setForm]       = useState({
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [form,         setForm]         = useState({
     name: '', email: '', address: '', city: '', country: 'US', zip: '',
   });
-  const [card,       setCard]       = useState({ number: '', expiry: '', cvc: '' });
-  const [step,       setStep]       = useState<'billing' | 'payment'>('billing');
-  const [payMethod,  setPayMethod]  = useState<PayMethod>('card');
-  const [showMobile, setShowMobile] = useState(false);
-  const [orderId,    setOrderId]    = useState('');
+  const [card,         setCard]         = useState({ number: '', expiry: '', cvc: '' });
+  const [step,         setStep]         = useState<'billing' | 'payment'>('billing');
+  const [payMethod,    setPayMethod]    = useState<PayMethod>('card');
+  const [showMobile,   setShowMobile]   = useState(false);
+  const [orderId,      setOrderId]      = useState('');
+  const [paypalPending, setPaypalPending] = useState(false);
 
   const tax   = cartTotal * 0.08;
   const total = cartTotal + tax;
 
   const billingComplete = form.name && form.email && form.address && form.city && form.zip;
+
+  // Handle PayPal return redirect — auto-capture if token present in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paypalStatus = params.get('paypal_status');
+    const paypalToken  = params.get('token'); // PayPal order ID
+    const returnOrderId = params.get('order_id');
+
+    if (paypalStatus === 'success' && paypalToken) {
+      setLoading(true);
+      fetch('/api/paypal-capture', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ paypalOrderId: paypalToken, orderId: returnOrderId ?? '' }),
+      })
+        .then(r => r.json())
+        .then((data: any) => {
+          if (data.success) {
+            clearCart();
+            navigate(`/order-confirmation?order_id=${returnOrderId ?? ''}`);
+          } else {
+            setError(data.error ?? 'PayPal capture failed.');
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          setError('PayPal capture failed. Please contact support.');
+          setLoading(false);
+        });
+    } else if (paypalStatus === 'cancelled') {
+      setError('PayPal payment was cancelled.');
+      // Clean up URL
+      window.history.replaceState({}, '', '/checkout');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,19 +386,80 @@ export default function CheckoutPage() {
 
                 {payMethod === 'paypal' && (
                   <div className="rounded-xl bg-[#0A1128] border border-white/10 p-4 text-center space-y-3">
-                    <div className="text-3xl">🅿</div>
+                    <div className="text-3xl font-bold text-[#003087]">
+                      <span className="text-[#009CDE]">Pay</span><span className="text-[#003087]">Pal</span>
+                    </div>
                     <p className="text-white/60 text-sm">
                       You'll be redirected to PayPal to complete your payment securely.
                     </p>
-                    <p className="text-white/30 text-xs">
-                      Set <code className="bg-white/5 px-1 rounded">VITE_PAYPAL_CLIENT_ID</code> to enable live PayPal.
-                    </p>
                     <button
                       type="button"
-                      className="w-full py-3 bg-[#003087] text-white font-bold rounded-xl text-sm hover:bg-[#002065] transition-colors"
-                      onClick={() => setError('PayPal is not configured. Set VITE_PAYPAL_CLIENT_ID.')}
+                      disabled={paypalPending}
+                      className="w-full py-3 bg-[#003087] hover:bg-[#002065] text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      onClick={async () => {
+                        if (items.length === 0) return;
+                        setPaypalPending(true);
+                        setError('');
+                        try {
+                          // Create order in Supabase first
+                          const { data: newOrder } = await supabase
+                            .from('ecom_orders')
+                            .insert([{
+                              customer_name:    form.name,
+                              customer_email:   form.email,
+                              shipping_address: { address: form.address, city: form.city, country: form.country, zip: form.zip },
+                              items:            items.map(i => ({ product_id: i.id, title: i.title, price: i.price, qty: i.qty })),
+                              subtotal_cents:   Math.round(cartTotal * 100),
+                              tax_cents:        Math.round(tax * 100),
+                              total_cents:      Math.round(total * 100),
+                              payment_method:   'paypal',
+                              payment_status:   'pending',
+                              created_at:       new Date().toISOString(),
+                            }])
+                            .select('id')
+                            .single();
+
+                          const oid = newOrder?.id ?? '';
+                          setOrderId(oid);
+
+                          // Create PayPal order
+                          const res = await fetch('/api/paypal-order', {
+                            method:  'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body:    JSON.stringify({
+                              amount:      Math.round(total * 100),
+                              currency:    'USD',
+                              orderId:     oid,
+                              description: `WANKONG Order ${oid}`,
+                            }),
+                          });
+
+                          if (!res.ok) {
+                            const e = await res.json() as { error?: string };
+                            throw new Error(e.error ?? 'PayPal error');
+                          }
+
+                          const { approvalUrl } = await res.json() as { approvalUrl?: string };
+                          if (approvalUrl) {
+                            window.location.href = approvalUrl;
+                          } else {
+                            throw new Error('No PayPal approval URL returned.');
+                          }
+                        } catch (err: any) {
+                          setError(err.message ?? 'PayPal checkout failed.');
+                          setPaypalPending(false);
+                        }
+                      }}
                     >
-                      Continue with PayPal
+                      {paypalPending ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Redirecting to PayPal…
+                        </>
+                      ) : 'Continue with PayPal'}
                     </button>
                   </div>
                 )}
