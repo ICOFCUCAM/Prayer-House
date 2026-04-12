@@ -45,6 +45,64 @@ const STATS = [
   { icon: TrendingUp, label: 'Monthly Streams', value: '45M+', color: '#FFB800' },
 ];
 
+// ── Language discovery data ───────────────────────────────────────────────────
+
+const ALL_LANGUAGES = [
+  { lang: 'English',    flag: '🇬🇧', desc: 'Global'       },
+  { lang: 'French',     flag: '🇫🇷', desc: 'Francophone'  },
+  { lang: 'Spanish',    flag: '🇪🇸', desc: 'Hispanic'     },
+  { lang: 'Arabic',     flag: '🇸🇦', desc: 'Middle East'  },
+  { lang: 'Pidgin',     flag: '🌍',  desc: 'West Africa'  },
+  { lang: 'Yoruba',     flag: '🌍',  desc: 'Nigeria'      },
+  { lang: 'Igbo',       flag: '🌍',  desc: 'Nigeria'      },
+  { lang: 'Hausa',      flag: '🌍',  desc: 'West Africa'  },
+  { lang: 'Swahili',    flag: '🇰🇪', desc: 'East Africa'  },
+  { lang: 'Zulu',       flag: '🇿🇦', desc: 'South Africa' },
+  { lang: 'Luganda',    flag: '🌍',  desc: 'Uganda'       },
+  { lang: 'Bamumbu',    flag: '🌍',  desc: 'Cameroon'     },
+  { lang: 'Bamileke',   flag: '🌍',  desc: 'Cameroon'     },
+  { lang: 'Twi',        flag: '🇬🇭', desc: 'Ghana'        },
+  { lang: 'German',     flag: '🇩🇪', desc: ''             },
+  { lang: 'Norwegian',  flag: '🇳🇴', desc: ''             },
+  { lang: 'Swedish',    flag: '🇸🇪', desc: ''             },
+  { lang: 'Portuguese', flag: '🇧🇷', desc: 'Brazil'       },
+  { lang: 'Russian',    flag: '🇷🇺', desc: ''             },
+  { lang: 'Chinese',    flag: '🇨🇳', desc: ''             },
+  { lang: 'Japanese',   flag: '🇯🇵', desc: ''             },
+];
+
+const LANG_PRIORITY: Record<string, string[]> = {
+  CM: ['Pidgin', 'French', 'Bamumbu', 'Bamileke', 'English'],
+  NG: ['Yoruba', 'Igbo', 'Hausa', 'Pidgin', 'English'],
+  GH: ['Twi', 'English', 'Ewe', 'Ga'],
+  KE: ['Swahili', 'English'],
+  ZA: ['Zulu', 'English', 'Xhosa', 'Afrikaans'],
+  UG: ['Luganda', 'English', 'Swahili'],
+  TZ: ['Swahili', 'English'],
+  NO: ['Norwegian', 'English'],
+  SE: ['Swedish', 'English'],
+  US: ['English', 'Spanish'],
+  GB: ['English'],
+  FR: ['French', 'English'],
+  DE: ['German', 'English'],
+  ES: ['Spanish', 'English'],
+  BR: ['Portuguese', 'Spanish'],
+  SA: ['Arabic', 'English'],
+  EG: ['Arabic', 'English'],
+  CN: ['Chinese', 'English'],
+  JP: ['Japanese', 'English'],
+  RU: ['Russian', 'English'],
+};
+
+function getPriorityLanguages(country: string) {
+  const priorities = LANG_PRIORITY[country] ?? ['English'];
+  const head = priorities
+    .map(p => ALL_LANGUAGES.find(l => l.lang === p))
+    .filter(Boolean) as typeof ALL_LANGUAGES;
+  const tail = ALL_LANGUAGES.filter(l => !priorities.includes(l.lang));
+  return [...head, ...tail].slice(0, 11);
+}
+
 // ── Mock fallback products for homepage sections ──────────────────────────────
 // Used when Supabase collections are empty — all three sections share one format.
 
@@ -87,10 +145,19 @@ export default function AppLayout() {
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [newReleases, setNewReleases] = useState<any[]>([]);
   const [trendingBooks, setTrendingBooks] = useState<any[]>([]);
+  const [audiobooks, setAudiobooks] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([]);
   const [topCreators, setTopCreators] = useState<any[]>([]);
+  const [langMode, setLangMode] = useState<'region' | 'global'>('region');
+
+  // Detect user country from browser locale for language priority
+  const userCountry = (() => {
+    try { return (navigator.language || 'en-US').split('-')[1]?.toUpperCase() ?? 'US'; }
+    catch { return 'US'; }
+  })();
+  const priorityLanguages = getPriorityLanguages(userCountry);
 
   // Video player state
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -253,6 +320,16 @@ export default function AppLayout() {
         }
       }
 
+      // Audiobooks — direct query by product_type
+      const { data: abProds } = await supabase
+        .from('ecom_products')
+        .select('*, variants:ecom_product_variants(*)')
+        .eq('status', 'active')
+        .ilike('product_type', 'Audiobook%')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (abProds && abProds.length > 0) setAudiobooks(abProds);
+
       // Featured Artists — verified, ordered by stream count; falls back to mock below
       const { data: liveArtists } = await supabase
         .from('artists')
@@ -320,12 +397,21 @@ export default function AppLayout() {
     }
   };
 
+  // ── Mock audiobooks (used when Supabase returns empty) ────────────────────────
+  const MOCK_AUDIOBOOKS = [
+    { id: 'a1', handle: 'prayer-that-moves-mountains', title: 'Prayer That Moves Mountains', vendor: 'E.M. Bounds',    product_type: 'Audiobooks', price: 0,    language: 'EN', duration: '4.2h' },
+    { id: 'a2', handle: 'purpose-driven-life',          title: 'Purpose Driven Life',          vendor: 'Rick Warren',   product_type: 'Audiobooks', price: 999,  language: 'FR', duration: '8.5h' },
+    { id: 'a3', handle: 'kingdom-principles',           title: 'Kingdom Principles',           vendor: 'Myles Munroe',  product_type: 'Audiobooks', price: 0,    language: 'SW', duration: '6.1h' },
+    { id: 'a4', handle: 'power-of-now',                 title: 'The Power of Now',             vendor: 'Eckhart Tolle', product_type: 'Audiobooks', price: 1299, language: 'AR', duration: '7.3h' },
+    { id: 'a5', handle: 'battlefield-of-the-mind',      title: 'Battlefield of the Mind',      vendor: 'Joyce Meyer',   product_type: 'Audiobooks', price: 0,    language: 'YO', duration: '5.8h' },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0A1128] pb-20">
       <Header />
 
-      {/* Hero Section */}
-      <section className="relative pt-28 pb-20 overflow-hidden">
+      {/* ── 1. HERO ──────────────────────────────────────────────────────────── */}
+      <section className="relative pt-28 pb-16 overflow-hidden">
         <div className="absolute inset-0">
           <img src={HERO_IMAGE} alt="WANKONG" className="w-full h-full object-cover opacity-40" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0A1128]/60 via-[#0A1128]/80 to-[#0A1128]" />
@@ -365,157 +451,85 @@ export default function AppLayout() {
             </div>
           </div>
         </div>
-
-        {/* Stats */}
-        <div className="relative max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {STATS.map((stat, i) => (
-              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-5 text-center hover:bg-white/10 transition-all">
-                <stat.icon className="w-6 h-6 mx-auto mb-2" style={{ color: stat.color }} />
-                <p className="text-2xl md:text-3xl font-black text-white">{stat.value}</p>
-                <p className="text-white/40 text-sm">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
-      {/* ── Music by Language — Expanded Compact Version ─────────────────────── */}
-      <section className="py-12 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(157,78,221,0.05),transparent_70%)]" />
+      {/* ── 2. MUSIC BY LANGUAGE — FLAGSHIP DISCOVERY ──────────────────────── */}
+      <section className="py-12 relative overflow-hidden border-t border-white/5">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(157,78,221,0.07),transparent_70%)]" />
         <div className="relative max-w-7xl mx-auto px-4">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 rounded-full text-[#9D4EDD] text-xs font-medium mb-3">
-              <Globe className="w-3 h-3" /> Music by Language
+
+          {/* Header + toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#9D4EDD]/10 border border-[#9D4EDD]/20 rounded-full text-[#9D4EDD] text-xs font-semibold mb-3">
+                <Globe className="w-3 h-3" /> Music by Language
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-white mb-1">
+                {langMode === 'region' ? 'Music Near You' : 'Global Music Discovery'}
+              </h2>
+              <p className="text-white/40 text-sm">
+                {langMode === 'region'
+                  ? 'Prioritised for your region — tap any language to explore'
+                  : 'Browse music from every culture worldwide 🌍'}
+              </p>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
-              Free Gospel Music in Your Language
-            </h2>
-            <p className="text-white/40 text-sm">Discover Music across cultures worldwide 🌍</p>
+            {/* Region / Global toggle pill */}
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 shrink-0 self-start sm:self-auto">
+              <button
+                onClick={() => setLangMode('region')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${langMode === 'region' ? 'bg-[#9D4EDD] text-white shadow-lg' : 'text-white/40 hover:text-white/70'}`}
+              >
+                My Region
+              </button>
+              <button
+                onClick={() => setLangMode('global')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${langMode === 'global' ? 'bg-[#9D4EDD] text-white shadow-lg' : 'text-white/40 hover:text-white/70'}`}
+              >
+                Global
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-5">
-            {[
-              { lang: 'English',    flag: '🇬🇧' },
-              { lang: 'French',     flag: '🇫🇷' },
-              { lang: 'Spanish',    flag: '🇪🇸' },
-              { lang: 'Arabic',     flag: '🇸🇦' },
-              { lang: 'Pidgin',     flag: '🌍'  },
-              { lang: 'Nigerian',   flag: '🇳🇬' },
-              { lang: 'Swahili',    flag: '🇰🇪' },
-              { lang: 'German',     flag: '🇩🇪' },
-              { lang: 'Norwegian',  flag: '🇳🇴' },
-              { lang: 'Swedish',    flag: '🇸🇪' },
-              { lang: 'Portuguese', flag: '🇧🇷' },
-              { lang: 'Russian',    flag: '🇷🇺' },
-              { lang: 'Chinese',    flag: '🇨🇳' },
-              { lang: 'Japanese',   flag: '🇯🇵' },
-              { lang: 'Yoruba',     flag: '🌍'  },
-              { lang: 'Zulu',       flag: '🌍'  },
-              { lang: 'Luganda',    flag: '🌍'  },
-              { lang: 'Bamumbu',    flag: '🌍'  },
-              { lang: 'Bameleke',   flag: '🌍'  },
-            ].map(({ lang, flag }) => (
+          {/* Language cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 mb-6">
+            {(langMode === 'region' ? priorityLanguages : ALL_LANGUAGES.slice(0, 11)).map(({ lang, flag, desc }) => (
               <Link
                 key={lang}
                 to={`/music/language/${lang.toLowerCase()}`}
-                className="group flex items-center justify-between gap-2 bg-white/5 border border-white/10 hover:border-[#9D4EDD]/40 hover:bg-[#9D4EDD]/5 rounded-lg px-3 py-2 transition-all"
+                className="group relative flex flex-col items-center gap-2 bg-[#0D1635] border border-white/8 hover:border-[#9D4EDD]/50 hover:bg-[#9D4EDD]/8 rounded-xl p-3.5 transition-all duration-200"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base">{flag}</span>
-                  <span className="text-white text-xs font-semibold truncate">{lang}</span>
+                <span className="text-3xl leading-none">{flag}</span>
+                <span className="text-white text-xs font-bold text-center leading-tight">{lang}</span>
+                {desc && <span className="text-white/30 text-[9px] text-center leading-tight">{desc}</span>}
+                {/* Hover CTA */}
+                <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[8px] font-bold text-[#9D4EDD] bg-[#9D4EDD]/20 px-1.5 py-0.5 rounded-full">▶ Play</span>
+                  <span className="text-[8px] font-bold text-[#00D9FF] bg-[#00D9FF]/10 px-1.5 py-0.5 rounded-full">Albums</span>
                 </div>
-                <span className="text-[9px] font-bold uppercase text-[#00F5A0] bg-[#00F5A0]/10 border border-[#00F5A0]/20 px-1.5 py-0.5 rounded shrink-0">
-                  Play / Download
-                </span>
               </Link>
             ))}
-
+            {/* All Languages card */}
             <Link
               to="/collections/music"
-              className="group flex items-center justify-between gap-2 bg-gradient-to-br from-[#9D4EDD]/20 to-[#00D9FF]/10 border border-[#9D4EDD]/30 hover:border-[#9D4EDD]/60 rounded-lg px-3 py-2 transition-all"
+              className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#9D4EDD]/15 to-[#00D9FF]/10 border border-[#9D4EDD]/25 hover:border-[#9D4EDD]/50 rounded-xl p-3.5 transition-all"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-base">🌐</span>
-                <span className="text-white text-xs font-semibold">All Languages</span>
-              </div>
-              <ChevronRight className="w-3 h-3 text-[#9D4EDD]" />
+              <span className="text-3xl leading-none">🌐</span>
+              <span className="text-white text-xs font-bold text-center leading-tight">All Languages</span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#9D4EDD]" />
             </Link>
           </div>
 
+          {/* Browse CTA */}
           <div className="text-center">
             <Link
               to="/collections/music"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white text-sm font-bold rounded-lg hover:opacity-90 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#9D4EDD] to-[#00D9FF] text-white text-sm font-bold rounded-xl hover:opacity-90 transition-all"
             >
               Browse Free Music <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
-
-      {/* Content Categories */}
-      {contentCollections.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-white">Browse Content</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {contentCollections.map(col => (
-                <Link
-                  key={col.id}
-                  to={`/collections/${col.handle}`}
-                  className={`group relative overflow-hidden rounded-2xl p-6 md:p-8 bg-gradient-to-br ${getCollectionGradient(col.handle)} hover:scale-[1.02] transition-all duration-300`}
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                  <div className="relative">
-                    <div className="text-white/80 mb-3">{getCollectionIcon(col.handle)}</div>
-                    <h3 className="text-white font-bold text-xl mb-1">{col.title}</h3>
-                    <p className="text-white/60 text-sm line-clamp-2">{col.description}</p>
-                    <div className="mt-4 flex items-center gap-1 text-white/80 text-sm font-medium">
-                      Explore <ChevronRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Fallback Browse Content when no collections */}
-      {contentCollections.length === 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <h2 className="text-3xl font-bold text-white mb-8">Browse Content</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { handle: 'music', title: 'Music', description: 'Tracks, EPs & Albums' },
-                { handle: 'videos', title: 'Videos', description: 'Films & Vlogs' },
-                { handle: 'books', title: 'Books', description: 'eBooks & Literature' },
-                { handle: 'podcasts', title: 'Podcasts', description: 'Shows & Interviews' },
-              ].map(col => (
-                <Link
-                  key={col.handle}
-                  to={`/collections/${col.handle}`}
-                  className={`group relative overflow-hidden rounded-2xl p-6 md:p-8 bg-gradient-to-br ${getCollectionGradient(col.handle)} hover:scale-[1.02] transition-all duration-300`}
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500" />
-                  <div className="relative">
-                    <div className="text-white/80 mb-3">{getCollectionIcon(col.handle)}</div>
-                    <h3 className="text-white font-bold text-xl mb-1">{col.title}</h3>
-                    <p className="text-white/60 text-sm">{col.description}</p>
-                    <div className="mt-4 flex items-center gap-1 text-white/80 text-sm font-medium">
-                      Explore <ChevronRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── Trending Now — Compact Creator Dashboard ─────────────────────── */}
       <section className="py-12">
@@ -708,68 +722,49 @@ export default function AppLayout() {
         </div>
       )}
 
-      {/* ── Trending Books ─────────────────────────────────────────── */}
-      <section className="py-16">
+      {/* ── 4. NEW RELEASES — HORIZONTAL CAROUSEL ─────────────────────── */}
+      <section className="py-12">
         <div className="max-w-7xl mx-auto px-4">
-
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#FFB800]/20 rounded-xl flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-[#FFB800]" />
+              <div className="w-10 h-10 bg-emerald-500/15 rounded-xl flex items-center justify-center">
+                <Radio className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-white">Trending Books</h2>
-                <p className="text-white/40 text-sm">Top reads in the community this week</p>
+                <h2 className="text-2xl font-bold text-white">New Releases</h2>
+                <p className="text-white/40 text-sm">Fresh content just dropped</p>
               </div>
             </div>
-            <Link
-              to="/books/trending"
-              className="text-[#FFB800] hover:text-[#FFB800]/70 text-sm font-medium flex items-center gap-1 transition-colors"
-            >
-              See All <ArrowRight className="w-4 h-4" />
+            <Link to="/collections/music" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+              View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-
-          {/* Responsive grid — 2 / 3 / 5 columns */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-12">
-            {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOK_PRODUCTS).slice(0, 10).map((product: any) => (
-              <ProductCard key={product.id} product={product} variant="portrait" />
+          <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
+            {(newReleases.length > 0 ? newReleases : MOCK_NEW_RELEASES).map((product: any) => (
+              <div key={product.id} className="shrink-0 w-[200px]">
+                <ProductCard product={product} variant="square" />
+              </div>
             ))}
           </div>
-
-          {/* Genre filter pills */}
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            {['All', 'Devotional', 'Christian Living', 'Worship', 'Business', 'Prophecy', 'Parenting', 'Healing'].map(genre => (
-              <Link
-                key={genre}
-                to={genre === 'All' ? '/books/trending' : `/collections/books?genre=${genre.toLowerCase().replace(/ /g, '-')}`}
-                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all border-white/10 bg-white/5 text-white/50 hover:border-[#FFB800]/40 hover:bg-[#FFB800]/10 hover:text-[#FFB800]"
-              >
-                {genre}
-              </Link>
-            ))}
-          </div>
-
         </div>
       </section>
 
-      {/* ── Featured Artists ─────────────────────────────────────── */}
+      {/* ── 5. FEATURED CREATORS ──────────────────────────────────────── */}
       <section className="py-12 bg-[#0D1535]">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#9D4EDD]/10 rounded-xl flex items-center justify-center">
-                <span className="text-[#9D4EDD] text-lg">★</span>
+              <div className="w-9 h-9 bg-violet-500/10 rounded-xl flex items-center justify-center">
+                <span className="text-violet-400 text-lg">★</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Featured Artists</h2>
-                <p className="text-white/40 text-xs">Verified creators on WANKONG</p>
+                <h2 className="text-xl font-bold text-white">Featured Creators</h2>
+                <p className="text-white/40 text-xs">Verified artists on WANKONG</p>
               </div>
             </div>
             <Link to="/collections/music" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-5 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {(featuredArtists.length > 0 ? featuredArtists : [
               { name: 'Celestine Ukwu', genre: 'Highlife', streams_count: 2400000, country_code: 'NG', slug: 'celestine-ukwu' },
               { name: 'Sinach', genre: 'Gospel', streams_count: 18000000, country_code: 'NG', slug: 'sinach' },
@@ -778,28 +773,24 @@ export default function AppLayout() {
               { name: 'Soweto Gospel', genre: 'Gospel', streams_count: 3700000, country_code: 'ZA', slug: 'soweto-gospel' },
               { name: 'Nathaniel Bassey', genre: 'Worship', streams_count: 12000000, country_code: 'NG', slug: 'nathaniel-bassey' },
             ]).map((artist: any, i: number) => {
-              const GRADIENTS = ['from-[#9D4EDD] to-[#00D9FF]','from-[#FF6B00] to-[#FFB800]','from-[#00F5A0] to-[#00D9FF]','from-[#FFB800] to-[#FF6B00]','from-[#00D9FF] to-[#9D4EDD]','from-[#9D4EDD] to-[#FF6B00]'];
+              const GRADIENTS = ['from-violet-600 to-cyan-500','from-violet-700 to-indigo-500','from-emerald-500 to-cyan-500','from-cyan-600 to-violet-600','from-indigo-500 to-violet-600','from-violet-500 to-cyan-600'];
               let flag = '🌍';
               try {
                 if (artist.country_code && /^[A-Z]{2}$/i.test(artist.country_code)) {
                   flag = String.fromCodePoint(...[...artist.country_code.toUpperCase()].map((c: string) => 127397 + c.charCodeAt(0)));
                 }
-              } catch { /* keep default flag */ }
+              } catch { /* keep default */ }
               const streams = artist.streams_count >= 1000000
                 ? `${(artist.streams_count / 1000000).toFixed(1)}M`
                 : artist.streams_count >= 1000 ? `${Math.round(artist.streams_count / 1000)}K` : String(artist.streams_count ?? 0);
               return (
-                <Link
-                  key={artist.slug ?? artist.name}
-                  to={`/artists/${artist.slug ?? artist.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="shrink-0 w-40 group"
-                >
-                  <div className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center mb-3 group-hover:scale-[1.02] transition-transform shadow-lg shadow-black/40 border border-white/10`}>
-                    <span className="text-4xl">{flag}</span>
+                <Link key={artist.slug ?? artist.name} to={`/artists/${artist.slug ?? artist.name.toLowerCase().replace(/\s+/g, '-')}`} className="shrink-0 w-36 group text-center">
+                  <div className={`w-24 h-24 mx-auto rounded-full bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center mb-3 group-hover:scale-[1.04] transition-transform shadow-lg shadow-black/40 border border-white/10`}>
+                    <span className="text-3xl">{flag}</span>
                   </div>
-                  <p className="text-white text-sm font-semibold text-center truncate">{artist.name}</p>
-                  <p className="text-[#00D9FF] text-xs text-center">{artist.genre}</p>
-                  <p className="text-white/30 text-xs text-center">{streams} streams</p>
+                  <p className="text-white text-sm font-semibold truncate">{artist.name}</p>
+                  <p className="text-cyan-400 text-xs">{artist.genre}</p>
+                  <p className="text-white/30 text-xs">{streams} streams</p>
                 </Link>
               );
             })}
@@ -807,13 +798,77 @@ export default function AppLayout() {
         </div>
       </section>
 
-      {/* ── Top Creators This Week ───────────────────────────────── */}
+      {/* ── 6. FEATURED PERFORMANCES ──────────────────────────────────── */}
+      <SectionErrorBoundary><FeaturedPerformancesGrid /></SectionErrorBoundary>
+
+      {/* ── 7. TRENDING BOOKS ─────────────────────────────────────────── */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-500/15 rounded-xl flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">Trending Books</h2>
+                <p className="text-white/40 text-sm">Top reads in the community this week</p>
+              </div>
+            </div>
+            <Link to="/collections/books" className="text-amber-400 hover:text-amber-300 text-sm font-medium flex items-center gap-1 transition-colors">
+              See All <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-8">
+            {(trendingBooks.length > 0 ? trendingBooks : MOCK_BOOK_PRODUCTS).slice(0, 10).map((product: any) => (
+              <ProductCard key={product.id} product={product} variant="portrait" />
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {['All', 'Devotional', 'Christian Living', 'Worship', 'Business', 'Prophecy', 'Parenting', 'Healing'].map(genre => (
+              <Link
+                key={genre}
+                to={genre === 'All' ? '/collections/books' : `/collections/books?genre=${genre.toLowerCase().replace(/ /g, '-')}`}
+                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all border-white/10 bg-white/5 text-white/50 hover:border-amber-400/40 hover:bg-amber-400/10 hover:text-amber-400"
+              >
+                {genre}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8. AUDIOBOOKS ─────────────────────────────────────────────── */}
+      <section className="py-12 bg-[#0D1535]">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-orange-500/10 rounded-xl flex items-center justify-center">
+                <Headphones className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Audiobooks</h2>
+                <p className="text-white/40 text-xs">Listen while you move</p>
+              </div>
+            </div>
+            <Link to="/collections/audiobooks" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
+            {(audiobooks.length > 0 ? audiobooks : MOCK_AUDIOBOOKS).map((product: any) => (
+              <div key={product.id} className="shrink-0 w-[200px]">
+                <ProductCard product={product} variant="square" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 9. COMPETITION LEADERBOARD ────────────────────────────────── */}
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-[#FFB800]/10 rounded-xl flex items-center justify-center">
-                <span className="text-[#FFB800] text-lg">🏆</span>
+                <Trophy className="w-5 h-5 text-[#FFB800]" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Top Creators This Week</h2>
@@ -824,22 +879,22 @@ export default function AppLayout() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {(topCreators.length > 0 ? topCreators : [
-              { rank: 1, name: 'Sinach', level: 'Diamond', xp: 18500, badge: '👑', color: '#FFB800' },
-              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', xp: 9200, badge: '💎', color: '#00D9FF' },
-              { rank: 3, name: 'Joe Mettle', level: 'Gold', xp: 4800, badge: '⭐', color: '#FFB800' },
+              { rank: 1, name: 'Sinach', level: 'Diamond', xp: 18500 },
+              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', xp: 9200 },
+              { rank: 3, name: 'Joe Mettle', level: 'Gold', xp: 4800 },
             ]).map((creator: any, i: number) => {
               const LEVEL_COLORS: Record<string, string> = { Bronze: '#CD7F32', Silver: '#C0C0C0', Gold: '#FFB800', Platinum: '#E5E4E2', Diamond: '#00D9FF', 'Global Ambassador': '#9D4EDD' };
               const BADGES = ['👑', '💎', '⭐'];
               const color = LEVEL_COLORS[creator.level] ?? '#FFB800';
               return (
-                <div key={creator.user_id ?? creator.name ?? i} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/10 hover:scale-[1.02] transition-all border border-white/10 shadow-lg shadow-black/40">
+                <div key={creator.user_id ?? creator.name ?? i} className="flex items-center gap-4 bg-white/5 rounded-xl p-4 hover:bg-white/8 transition-all border border-white/8 shadow-md shadow-black/30">
                   <span className="text-2xl font-black" style={{ color }}>#{i + 1}</span>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center text-lg shrink-0">{BADGES[i] ?? '🌟'}</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center text-lg shrink-0">{BADGES[i] ?? '🌟'}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold text-sm truncate">{creator.name ?? 'Creator'}</p>
                     <p className="text-white/40 text-xs">{creator.level}</p>
                   </div>
-                  <span className="text-[#00F5A0] font-bold text-sm shrink-0">{(creator.xp ?? 0).toLocaleString()} XP</span>
+                  <span className="text-emerald-400 font-bold text-sm shrink-0">{(creator.xp ?? 0).toLocaleString()} XP</span>
                 </div>
               );
             })}
@@ -847,135 +902,23 @@ export default function AppLayout() {
         </div>
       </section>
 
-      {/* ── Audiobooks Discovery ──────────────────────────────────── */}
-      <section className="py-12 bg-[#0D1535]">
+      {/* ── 10. PLATFORM STATS — SLIM STRIP ───────────────────────────── */}
+      <div className="border-t border-b border-white/5 bg-[#080e22] py-5">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#FF6B00]/10 rounded-xl flex items-center justify-center">
-                <span className="text-[#FF6B00] text-lg">🎧</span>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Audiobooks</h2>
-                <p className="text-white/40 text-xs">Listen while you move</p>
-              </div>
-            </div>
-            <Link to="/collections/audiobooks" className="text-[#00D9FF] text-sm hover:underline">See All Audiobooks</Link>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {[
-              { title: 'Prayer That Moves Mountains', author: 'E.M. Bounds', lang: 'EN', hours: '4.2h', gradient: 'from-[#FF6B00] to-[#FFB800]' },
-              { title: 'Purpose Driven Life', author: 'Rick Warren', lang: 'FR', hours: '8.5h', gradient: 'from-[#9D4EDD] to-[#00D9FF]' },
-              { title: 'Kingdom Principles', author: 'Myles Munroe', lang: 'SW', hours: '6.1h', gradient: 'from-[#00F5A0] to-[#00D9FF]' },
-              { title: 'The Power of Now', author: 'Eckhart Tolle', lang: 'AR', hours: '7.3h', gradient: 'from-[#00D9FF] to-[#9D4EDD]' },
-              { title: 'Battlefield of the Mind', author: 'Joyce Meyer', lang: 'YO', hours: '5.8h', gradient: 'from-[#FFB800] to-[#FF6B00]' },
-            ].map((ab) => (
-              <AudiobookCard key={ab.title} {...ab} />
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+            {STATS.map((stat, i) => (
+              <span key={i} className="flex items-center gap-2 text-sm">
+                <stat.icon className="w-4 h-4 shrink-0" style={{ color: stat.color }} />
+                <span className="text-white font-bold">{stat.value}</span>
+                <span className="text-white/35">{stat.label}</span>
+                {i < STATS.length - 1 && <span className="hidden lg:inline text-white/10 pl-4">•</span>}
+              </span>
             ))}
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ── Trending Performances ────────────────────────────────── */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#00F5A0]/10 rounded-xl flex items-center justify-center">
-                <span className="text-[#00F5A0] text-lg">🎭</span>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Trending Performances</h2>
-                <p className="text-white/40 text-xs">Live from the Talent Arena</p>
-              </div>
-            </div>
-            <Link to="/collections/talent-arena" className="text-[#00D9FF] text-sm hover:underline">View Arena</Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              { title: 'Amazing Grace Cover', performer: 'Adaeze Obi', votes: '1.2K', lang: 'EN', gradient: 'from-[#9D4EDD]/40 to-[#00D9FF]/20' },
-              { title: 'Spontaneous Worship', performer: 'Kofi Mensah', votes: '987', lang: 'YO', gradient: 'from-[#FF6B00]/40 to-[#FFB800]/20' },
-              { title: 'Gospel Medley', performer: 'Amara Diallo', votes: '2.1K', lang: 'FR', gradient: 'from-[#00F5A0]/30 to-[#00D9FF]/20' },
-              { title: 'Live Praise Session', performer: 'Zara Ibrahim', votes: '654', lang: 'AR', gradient: 'from-[#FFB800]/30 to-[#FF6B00]/20' },
-            ].map((perf) => (
-              <Link key={perf.title} to="/collections/talent-arena" className="group block">
-                {/* 16:9 thumbnail */}
-                <div className="w-full aspect-video rounded-xl overflow-hidden mb-2 border border-white/10 shadow-lg shadow-black/40 group-hover:scale-[1.02] transition-transform duration-300 relative">
-                  <DefaultVideoThumbnail title={perf.title} gradient={perf.gradient} />
-                  {/* Platform badge */}
-                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-[#9D4EDD]/80 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-                    🎭 Talent Arena
-                  </div>
-                  {/* Votes */}
-                  <div className="absolute bottom-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-[#00F5A0] text-[10px] font-bold px-2 py-0.5 rounded-full">❤ {perf.votes}</div>
-                </div>
-                <p className="text-white text-xs font-semibold truncate group-hover:text-[#00F5A0] transition-colors">{perf.title}</p>
-                <p className="text-white/40 text-[10px] truncate">{perf.performer}</p>
-                <span className="text-[10px] bg-[#9D4EDD]/20 text-[#9D4EDD] px-1.5 py-0.5 rounded mt-1 inline-block">{perf.lang}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Global Stage — Featured Performances ─────────────── */}
-      <SectionErrorBoundary><FeaturedPerformancesGrid /></SectionErrorBoundary>
-
-      {/* Featured Content */}
-      {featuredProducts.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#9D4EDD]/20 rounded-xl flex items-center justify-center">
-                  <Star className="w-5 h-5 text-[#9D4EDD]" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Featured</h2>
-                  <p className="text-white/40 text-sm">Hand-picked by the WANKONG team</p>
-                </div>
-              </div>
-              <Link to="/collections/featured" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredProducts.slice(0, 3).map(product => (
-                <ProductCard key={product.id} product={product} variant="featured" />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* New Releases */}
-      {newReleases.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#00F5A0]/20 rounded-xl flex items-center justify-center">
-                  <Radio className="w-5 h-5 text-[#00F5A0]" />
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-white">New Releases</h2>
-                  <p className="text-white/40 text-sm">Fresh content just dropped</p>
-                </div>
-              </div>
-              <Link to="/collections/new-releases" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {newReleases.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Distribution Section */}
+      {/* ── 11. DISTRIBUTION CTA ──────────────────────────────────────── */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -990,24 +933,26 @@ export default function AppLayout() {
               Upload once, distribute everywhere. Your music on Spotify, Apple Music, TikTok, and 27+ more platforms. Track royalties in real-time.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
             {DISTRIBUTION_PLATFORMS.map((platform, i) => (
-              <div
-                key={i}
-                className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/50 text-sm hover:bg-white/10 hover:text-white hover:border-[#00D9FF]/30 transition-all cursor-default"
-              >
+              <div key={i} className="px-4 py-2 bg-white/5 border border-white/8 rounded-full text-white/40 text-sm hover:bg-white/10 hover:text-white hover:border-[#00D9FF]/30 transition-all cursor-default">
                 {platform}
               </div>
             ))}
           </div>
+          <div className="text-center">
+            <Link to="/upload/distribute" className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all hover:scale-105">
+              Start Distributing <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Creator CTA */}
+      {/* ── 12. CREATOR UPLOAD CTA ────────────────────────────────────── */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#00D9FF]/10 to-[#9D4EDD]/10 border border-white/10 p-8 md:p-16 text-center">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgMHYyaC0ydi0yaDJ6bTIgMGgydjJoLTJ2LTJ6bS0yLTRoMnYyaC0ydi0yem0yIDBoMnYyaC0ydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#00D9FF]/8 to-[#9D4EDD]/8 border border-white/8 p-8 md:p-16 text-center">
+            <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(0,217,255,0.07) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(157,78,221,0.07) 0%, transparent 50%)' }} />
             <div className="relative">
               <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
                 Ready to <span className="bg-gradient-to-r from-[#00D9FF] to-[#FFB800] bg-clip-text text-transparent">Monetize</span> Your Creativity?
@@ -1016,110 +961,23 @@ export default function AppLayout() {
                 Join 12,500+ creators earning from their content. Upload books, music, videos, and podcasts. Get paid through Stripe or Mobile Money.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <button
-                  onClick={() => navigate('/collections/featured')}
-                  className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
-                >
-                  Explore Content
+                <button onClick={() => navigate('/upload/distribute')} className="px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] text-white font-bold rounded-xl hover:opacity-90 transition-all hover:scale-105">
+                  Start Distributing
                 </button>
-                <button
-                  onClick={() => navigate('/collections/music')}
-                  className="px-8 py-4 bg-white/10 border border-white/20 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
-                >
-                  Browse Music
+                <button onClick={() => navigate('/book-upload')} className="px-8 py-4 bg-white/8 border border-white/15 text-white font-bold rounded-xl hover:bg-white/15 transition-all">
+                  Upload a Book
+                </button>
+                <button onClick={() => navigate('/talent-arena')} className="px-8 py-4 bg-white/8 border border-white/15 text-white font-bold rounded-xl hover:bg-white/15 transition-all flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-[#FFB800]" /> Join Talent Arena
                 </button>
               </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/30 text-sm">
-                <span>70% Creator Revenue</span>
-                <span>|</span>
-                <span>Instant Digital Delivery</span>
-                <span>|</span>
-                <span>Global Payouts</span>
-                <span>|</span>
+              <div className="mt-8 flex flex-wrap justify-center gap-6 text-white/25 text-sm">
+                <span>70% Creator Revenue</span><span>•</span>
+                <span>Instant Digital Delivery</span><span>•</span>
+                <span>Global Payouts</span><span>•</span>
                 <span>Mobile Money Support</span>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Language Ecosystem Discovery ─────────────────────────── */}
-      <section className="py-16 bg-[#080e22]">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/10 border border-[#00D9FF]/20 rounded-full text-[#00D9FF] text-xs font-semibold mb-4">
-              <Globe className="w-3.5 h-3.5" /> Language Ecosystem
-            </div>
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
-              Browse by <span className="bg-gradient-to-r from-[#00D9FF] to-[#9D4EDD] bg-clip-text text-transparent">Language</span>
-            </h2>
-            <p className="text-white/40 text-sm max-w-xl mx-auto">
-              Music, books, audiobooks and videos across 18 languages from creators worldwide.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                type: 'Music', icon: '🎵', color: '#9D4EDD', href: '/collections/music',
-                langs: [
-                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
-                  { code: 'es', flag: '🇪🇸', name: 'Spanish' }, { code: 'yo', flag: '🌍', name: 'Yoruba' },
-                  { code: 'sw', flag: '🇰🇪', name: 'Swahili' }, { code: 'ar', flag: '🇸🇦', name: 'Arabic' },
-                ],
-              },
-              {
-                type: 'Books', icon: '📚', color: '#FFB800', href: '/collections/books',
-                langs: [
-                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
-                  { code: 'de', flag: '🇩🇪', name: 'German' }, { code: 'pt', flag: '🇧🇷', name: 'Portuguese' },
-                  { code: 'ar', flag: '🇸🇦', name: 'Arabic' }, { code: 'zh', flag: '🇨🇳', name: 'Chinese' },
-                ],
-              },
-              {
-                type: 'Audiobooks', icon: '🎧', color: '#FF6B00', href: '/collections/audiobooks',
-                langs: [
-                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
-                  { code: 'sw', flag: '🇰🇪', name: 'Swahili' }, { code: 'yo', flag: '🌍', name: 'Yoruba' },
-                  { code: 'zu', flag: '🇿🇦', name: 'Zulu' }, { code: 'ru', flag: '🇷🇺', name: 'Russian' },
-                ],
-              },
-              {
-                type: 'Videos', icon: '🎬', color: '#00F5A0', href: '/collections/videos',
-                langs: [
-                  { code: 'en', flag: '🇬🇧', name: 'English' }, { code: 'fr', flag: '🇫🇷', name: 'French' },
-                  { code: 'no', flag: '🇳🇴', name: 'Norwegian' }, { code: 'ja', flag: '🇯🇵', name: 'Japanese' },
-                  { code: 'pcm', flag: '🇳🇬', name: 'Pidgin' }, { code: 'lug', flag: '🇺🇬', name: 'Luganda' },
-                ],
-              },
-            ].map(col => (
-              <div key={col.type} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-all">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl">{col.icon}</span>
-                  <h3 className="text-white font-bold">{col.type} by Language</h3>
-                </div>
-                <div className="space-y-2 mb-4">
-                  {col.langs.map(l => (
-                    <Link
-                      key={l.code}
-                      to={col.type === 'Music' ? `/music/language/${l.name.toLowerCase()}` : `${col.href}?lang=${l.code}`}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
-                    >
-                      <span className="text-base">{l.flag}</span>
-                      <span className="text-white/70 text-sm group-hover:text-white transition-colors flex-1">{l.name}</span>
-                      <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white/50 transition-colors" />
-                    </Link>
-                  ))}
-                </div>
-                <Link
-                  to={col.href}
-                  className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-xs font-bold transition-all"
-                  style={{ background: `${col.color}22`, color: col.color, border: `1px solid ${col.color}44` }}
-                >
-                  Browse All {col.type} <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-            ))}
           </div>
         </div>
       </section>

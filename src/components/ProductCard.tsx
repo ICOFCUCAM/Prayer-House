@@ -24,7 +24,7 @@ interface Product {
 
 interface ProductCardProps {
   product: Product;
-  variant?: 'default' | 'featured' | 'portrait';
+  variant?: 'default' | 'featured' | 'portrait' | 'square';
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -244,6 +244,97 @@ export default function ProductCard({ product, variant = 'default' }: ProductCar
               </svg>
             </button>
           </div>
+        </div>
+      </Link>
+    );
+  }
+
+  // ── Square variant (1:1 — New Releases carousel, 200 × 200) ────────────────
+
+  if (variant === 'square') {
+    return (
+      <Link
+        to={`/products/${product.handle}`}
+        className="group block hover:-translate-y-1 transition-all duration-300"
+      >
+        {/* Cover — 1:1 */}
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-white/8 shadow-lg group-hover:shadow-[0_8px_28px_rgba(0,0,0,0.6)] transition-all duration-300 bg-[#0f172a]">
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center gap-2 p-3 text-center opacity-80`}>
+              <span className="text-5xl font-black text-white/20 leading-none">{product.title?.[0] ?? '?'}</span>
+              <span className="text-white/60 text-[11px] font-semibold line-clamp-2 leading-tight">{product.title}</span>
+            </div>
+          )}
+
+          {/* Gradient scrim bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+          {/* Price badge — top-right */}
+          <div className="absolute top-2 right-2">
+            {isFree ? (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500 text-white">FREE</span>
+            ) : (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-violet-600 text-white">${price.toFixed(2)}</span>
+            )}
+          </div>
+
+          {/* Type badge — top-left */}
+          <div className="absolute top-2 left-2">
+            <span className={`px-1.5 py-0.5 text-[9px] font-bold text-white rounded-md bg-gradient-to-r ${gradient} opacity-90`}>
+              {type}
+            </span>
+          </div>
+
+          {/* Play overlay */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={handlePreview}
+              className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-xl hover:bg-white/30 transition-colors"
+            >
+              <svg className="w-5 h-5 fill-white ml-0.5" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Save button — bottom-left */}
+          <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleSave}
+              title={saved ? 'Saved' : 'Save'}
+              className={`p-1.5 rounded-lg transition-colors ${saved ? 'bg-violet-600 text-white' : 'bg-black/60 hover:bg-black/80 text-white/70 hover:text-white'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill={saved ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Cart button — bottom-right */}
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleAddToCart}
+              title={isFree ? 'Get Free' : 'Add to Cart'}
+              className="p-1.5 rounded-lg bg-black/60 hover:bg-violet-600 text-white/70 hover:text-white transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Info below */}
+        <div className="pt-2.5 px-0.5">
+          <p className="text-white text-xs font-semibold line-clamp-1 leading-tight">{product.title}</p>
+          {creator && <p className="text-white/40 text-[11px] truncate mt-0.5">{creator}</p>}
         </div>
       </Link>
     );
