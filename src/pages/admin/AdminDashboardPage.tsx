@@ -5,11 +5,14 @@ import {
   DollarSign, AlertTriangle, Settings, BarChart2,
   ChevronRight, Shield, LogOut, Mail, Copy, RefreshCw,
   Trash2, UserPlus, CheckCircle, Clock, XCircle,
+  Package, Archive,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminCompetitionPanel from '@/components/competition/AdminCompetitionPanel';
 import AdminDistributionPanel from '@/components/distribution/AdminDistributionPanel';
+import AdminReleaseQueuePage from '@/pages/admin/AdminReleaseQueuePage';
+import DistributorExportsPage from '@/pages/admin/DistributorExportsPage';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -30,16 +33,18 @@ const ORANGE = '#FF6B00';
 const RED    = '#EF4444';
 
 const NAV: SidebarItem[] = [
-  { path: '/admin',               label: 'Overview',      icon: <BarChart2 className="w-4 h-4" /> },
-  { path: '/admin/users',         label: 'Users',         icon: <Users className="w-4 h-4" /> },
-  { path: '/admin/artists',       label: 'Artists',       icon: <Music className="w-4 h-4" /> },
-  { path: '/admin/authors',       label: 'Authors',       icon: <BookOpen className="w-4 h-4" /> },
-  { path: '/admin/competitions',  label: 'Competitions',  icon: <Trophy className="w-4 h-4" /> },
-  { path: '/admin/distribution',  label: 'Distribution',  icon: <Radio className="w-4 h-4" /> },
-  { path: '/admin/books',         label: 'Books',         icon: <BookOpen className="w-4 h-4" /> },
-  { path: '/admin/earnings',      label: 'Earnings',      icon: <DollarSign className="w-4 h-4" /> },
-  { path: '/admin/reports',       label: 'Reports',       icon: <AlertTriangle className="w-4 h-4" /> },
-  { path: '/admin/settings',      label: 'Settings',      icon: <Settings className="w-4 h-4" /> },
+  { path: '/admin',                  label: 'Overview',       icon: <BarChart2 className="w-4 h-4" /> },
+  { path: '/admin/users',            label: 'Users',          icon: <Users className="w-4 h-4" /> },
+  { path: '/admin/artists',          label: 'Artists',        icon: <Music className="w-4 h-4" /> },
+  { path: '/admin/authors',          label: 'Authors',        icon: <BookOpen className="w-4 h-4" /> },
+  { path: '/admin/competitions',     label: 'Competitions',   icon: <Trophy className="w-4 h-4" /> },
+  { path: '/admin/distribution',     label: 'Distribution',   icon: <Radio className="w-4 h-4" /> },
+  { path: '/admin/release-queue',    label: 'Release Queue',  icon: <Package className="w-4 h-4" /> },
+  { path: '/admin/exports',          label: 'Export History', icon: <Archive className="w-4 h-4" /> },
+  { path: '/admin/books',            label: 'Books',          icon: <BookOpen className="w-4 h-4" /> },
+  { path: '/admin/earnings',         label: 'Earnings',       icon: <DollarSign className="w-4 h-4" /> },
+  { path: '/admin/reports',          label: 'Reports',        icon: <AlertTriangle className="w-4 h-4" /> },
+  { path: '/admin/settings',         label: 'Settings',       icon: <Settings className="w-4 h-4" /> },
 ];
 
 // ── Stat card ──────────────────────────────────────────────────────────────────
@@ -1367,8 +1372,10 @@ export default function AdminDashboardPage() {
             <Route path="/artists"      element={<AdminArtists />} />
             <Route path="/authors"      element={<AdminAuthors />} />
             <Route path="/competitions" element={<AdminCompetitionPanel />} />
-            <Route path="/distribution" element={<AdminDistributionPanel />} />
-            <Route path="/books"        element={<AdminBooks />} />
+            <Route path="/distribution"  element={<AdminDistributionPanel />} />
+            <Route path="/release-queue" element={<AdminReleaseQueuePage />} />
+            <Route path="/exports"       element={<DistributorExportsPage />} />
+            <Route path="/books"         element={<AdminBooks />} />
             <Route path="/earnings"     element={<AdminEarnings />} />
             <Route path="/reports"      element={<AdminReports />} />
             <Route path="/settings"     element={<AdminSettings />} />

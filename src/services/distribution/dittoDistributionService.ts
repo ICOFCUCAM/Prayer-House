@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { distributorService } from './DistributorService';
 
 export interface DittoReleasePayload {
   releaseId:    string;   // distribution_releases.id
@@ -81,98 +82,30 @@ export async function submitRelease(payload: DittoReleasePayload): Promise<Ditto
 }
 
 // ── generateDittoExport ───────────────────────────────────────
-// Builds the Ditto-ready export package, saves to distributor_exports,
-// and transitions the release to 'sent_to_ditto'.
+// Delegates to DistributorService.exportReleaseToDistributor() which
+// validates, builds the bundle, saves to distributor_exports, and
+// transitions the release to 'sent_to_ditto'.
 export interface DittoExportResult {
   exportId:     string;
   metadata:     Record<string, unknown>;
   tracklistCsv: string;
 }
 
-export async function generateDittoExport(releaseId: string): Promise<DittoExportResult> {
-  // 1. Fetch release
-  const { data: release, error: relErr } = await supabase
-    .from('distribution_releases')
-    .select('*')
-    .eq('id', releaseId)
-    .single();
-  if (relErr || !release) throw new Error(`Release not found: ${relErr?.message ?? 'unknown'}`);
+export async function generateDittoExport(
+  releaseId: string,
+  adminId?: string,
+): Promise<DittoExportResult> {
+  const result = await distributorService.exportReleaseToDistributor(releaseId, 'ditto', adminId);
 
-  // 2. Fetch tracks for this release (album) or the linked single track
-  let trackRows: Record<string, unknown>[] = [];
-  if (release.release_type !== 'single') {
-    const { data: albumTracks } = await supabase
-      .from('tracks')
-      .select('id, title, audio_url, isrc, explicit, track_number, duration_s')
-      .eq('release_id', releaseId)
-      .order('track_number', { ascending: true });
-    trackRows = (albumTracks ?? []) as Record<string, unknown>[];
-  }
-  if (trackRows.length === 0 && release.track_id) {
-    const { data: singleTrack } = await supabase
-      .from('tracks')
-      .select('id, title, audio_url, isrc, explicit, track_number, duration_s')
-      .eq('id', release.track_id)
-      .single();
-    if (singleTrack) trackRows = [singleTrack as Record<string, unknown>];
+  if (!result.success || !result.bundle) {
+    throw new Error((result.errors ?? ['Export failed.']).join('; '));
   }
 
-  // 3. Build metadata payload
-  const metadata: Record<string, unknown> = {
-    release_id:   release.id,
-    title:        release.title,
-    artist:       release.artist_name,
-    genre:        release.genre,
-    language:     release.language_code,
-    release_type: release.release_type,
-    release_date: release.release_date,
-    cover_url:    release.cover_url,
-    copyright:    release.copyright_owner ?? `© ${new Date().getFullYear()} ${release.artist_name}`,
-    composer:     release.composer ?? release.artist_name,
-    producer:     release.producer ?? '',
-    label:        release.label_name ?? release.artist_name,
-    explicit:     release.explicit,
-    isrc:         release.isrc,
-    territories:  release.territories ?? [],
-    platforms:    ['spotify', 'apple_music', 'tiktok', 'youtube_music', 'boomplay', 'audiomack'],
-    track_count:  trackRows.length,
-    exported_at:  new Date().toISOString(),
+  return {
+    exportId:     result.exportId ?? '',
+    metadata:     result.bundle.metadataJson,
+    tracklistCsv: result.bundle.tracklistCsv,
   };
-
-  // 4. Build tracklist CSV
-  const csvHeader = 'track_number,title,audio_url,isrc,explicit,duration_s';
-  const csvRows = trackRows.map(t =>
-    `${t.track_number ?? 1},"${String(t.title ?? '').replace(/"/g, '""')}","${t.audio_url ?? ''}","${t.isrc ?? ''}",${t.explicit ? 'true' : 'false'},${t.duration_s ?? ''}`
-  );
-  const tracklistCsv = [csvHeader, ...csvRows].join('\n');
-
-  // 5. Save export record
-  const { data: exportRow, error: exportErr } = await supabase
-    .from('distributor_exports')
-    .insert([{
-      release_id:     releaseId,
-      distributor:    'ditto',
-      export_status:  'submitted',
-      export_payload: metadata,
-      created_at:     new Date().toISOString(),
-      updated_at:     new Date().toISOString(),
-    }])
-    .select('id')
-    .single();
-  if (exportErr) throw new Error(`Export record failed: ${exportErr.message}`);
-
-  // 6. Update release status + set mock Ditto ID
-  const mockDittoId = `DITTO-${Date.now()}-${releaseId.slice(0, 8).toUpperCase()}`;
-  await supabase
-    .from('distribution_releases')
-    .update({
-      status:           'sent_to_ditto',
-      ditto_release_id: mockDittoId,
-      updated_at:       new Date().toISOString(),
-    })
-    .eq('id', releaseId);
-
-  return { exportId: exportRow.id, metadata, tracklistCsv };
 }
 
 // ── updateReleaseStatus ────────────────────────────────────────
