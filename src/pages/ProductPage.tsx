@@ -7,6 +7,8 @@ import { usePlaylist } from '@/hooks/usePlaylist';
 import { usePlaylistContext } from '@/contexts/PlaylistContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import CommentsSection from '@/components/CommentsSection';
+import RelatedProducts from '@/components/RelatedProducts';
 
 const TYPE_COLORS: Record<string, string> = {
   music:    'from-indigo-500 to-purple-600',
@@ -383,6 +385,14 @@ export default function ProductPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Related products */}
+        <RelatedProducts product={product} className="mt-12 pt-8 border-t border-white/5" />
+
+        {/* Comments */}
+        <div className="mt-12 pt-8 border-t border-white/5">
+          <CommentsSection productId={product.id} />
         </div>
       </div>
       <Footer />

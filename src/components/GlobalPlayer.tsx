@@ -37,6 +37,7 @@ interface PlayerCtx {
   isMuted: boolean;
   shuffle: boolean;
   repeat: 'off' | 'one' | 'all';
+  playbackRate: number;
   showQueue: boolean;
   showNowPlaying: boolean;
   analyserNode: AnalyserNode | null;
@@ -53,6 +54,7 @@ interface PlayerCtx {
   toggleMute: () => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
+  setPlaybackRate: (r: number) => void;
   toggleLike: (id: string) => void;
   setShowQueue: (v: boolean | ((prev: boolean) => boolean)) => void;
   setShowNowPlaying: (v: boolean) => void;
@@ -120,6 +122,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [showQueue,      setShowQueue]      = useState(false);
   const [showNowPlaying, setShowNowPlaying] = useState(false);
   const [analyserNode,   setAnalyserNode]   = useState<AnalyserNode | null>(null);
+  const [playbackRate,   setPlaybackRateState] = useState(1);
   const [liked, setLiked] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('wk_liked') || '[]')); } catch { return new Set(); }
   });
@@ -221,6 +224,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     a.currentTime = (pct / 100) * a.duration;
   }, []);
 
+  const setPlaybackRate = useCallback((r: number) => {
+    audioRef.current.playbackRate = r;
+    setPlaybackRateState(r);
+  }, []);
+
   const setVolume = useCallback((v: number) => {
     audioRef.current.volume = v / 100;
     setVolumeState(v);
@@ -260,10 +268,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value: PlayerCtx = {
     currentTrack, queue, recentlyPlayed, isPlaying, progress, currentTime, duration,
-    volume, isMuted, shuffle, repeat, showQueue, showNowPlaying, analyserNode, liked,
+    volume, isMuted, shuffle, repeat, playbackRate, showQueue, showNowPlaying, analyserNode, liked,
     play, playTrack: play, togglePlay,
     next, prev, nextTrack: next, prevTrack: prev,
-    seek, setVolume, toggleMute, toggleLike,
+    seek, setVolume, toggleMute, toggleLike, setPlaybackRate,
     toggleShuffle: () => setShuffle(s => !s),
     cycleRepeat:   () => setRepeat(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'),
     setShowQueue, setShowNowPlaying,
@@ -412,6 +420,7 @@ function NowPlayingModal() {
   const {
     currentTrack, isPlaying, togglePlay, next, prev, seek, progress, currentTime, duration,
     volume, setVolume, isMuted, toggleMute, shuffle, toggleShuffle, repeat, cycleRepeat,
+    playbackRate, setPlaybackRate,
     showNowPlaying, setShowNowPlaying, liked, toggleLike, analyserNode,
   } = usePlayer();
 
@@ -520,6 +529,21 @@ function NowPlayingModal() {
           </button>
         </div>
 
+        {/* Speed control */}
+        <div className="flex items-center gap-1.5 w-full mb-3">
+          <span className="text-white/30 text-[10px] uppercase tracking-wider mr-1">Speed</span>
+          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(r => (
+            <button key={r} onClick={() => setPlaybackRate(r)}
+              className={`px-2 py-1 rounded-full text-[11px] font-bold transition-all ${
+                playbackRate === r
+                  ? 'bg-[#00D9FF] text-[#0A1128]'
+                  : 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white'
+              }`}>
+              {r}×
+            </button>
+          ))}
+        </div>
+
         {/* Volume */}
         <div className="flex items-center gap-3 w-full">
           <button onClick={toggleMute} className="text-white/40 hover:text-white transition-colors">
@@ -540,6 +564,7 @@ export default function GlobalPlayer() {
     currentTrack, isPlaying, togglePlay, next, prev, seek,
     progress, currentTime, duration, volume, setVolume,
     isMuted, toggleMute, shuffle, toggleShuffle, repeat, cycleRepeat,
+    playbackRate, setPlaybackRate,
     showQueue, setShowQueue, setShowNowPlaying, liked, toggleLike,
     analyserNode, queue,
   } = usePlayer();
@@ -612,6 +637,20 @@ export default function GlobalPlayer() {
             <div className="flex items-center gap-2.5 w-52 shrink-0 justify-end">
               <canvas ref={canvasRef} width={56} height={26}
                 className={`rounded transition-opacity hidden md:block ${isPlaying ? 'opacity-80' : 'opacity-0'}`} />
+              {/* Speed chip — click cycles through presets */}
+              <button
+                onClick={() => {
+                  const presets = [1, 1.25, 1.5, 2, 0.5, 0.75];
+                  const idx = presets.indexOf(playbackRate);
+                  setPlaybackRate(presets[(idx + 1) % presets.length]);
+                }}
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-all hidden md:block ${
+                  playbackRate !== 1 ? 'bg-[#00D9FF]/20 text-[#00D9FF]' : 'bg-white/5 text-white/25 hover:text-white/60'
+                }`}
+                title="Playback speed"
+              >
+                {playbackRate}×
+              </button>
               <button onClick={toggleMute} className="text-white/40 hover:text-white transition-colors">
                 {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>

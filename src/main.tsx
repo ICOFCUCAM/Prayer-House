@@ -81,6 +81,14 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, EBSta
   }
 }
 
+// ── PWA Service Worker ───────────────────────────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* SW unavailable in dev */ });
+  });
+}
+
 // ── Mount ────────────────────────────────────────────────────────────────────
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
