@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase';
 
 export interface DittoReleasePayload {
-  trackId:      string;
+  releaseId:    string;   // distribution_releases.id
+  trackId:      string;   // tracks.id (first track for albums)
   title:        string;
   artistName:   string;
   genre:        string;
@@ -15,6 +16,7 @@ export interface DittoReleasePayload {
   producer:     string;
   labelName:    string;
   explicit:     boolean;
+  isrc?:        string;
   platforms:    string[];
 }
 
@@ -26,20 +28,52 @@ export interface DittoResult {
 // ── submitRelease ──────────────────────────────────────────────
 // In production this calls the Ditto Music API:
 //   POST https://api.dittomusic.com/v1/releases
-// For now it simulates the call and stores the result.
+//   Headers: Authorization: Bearer <DITTO_API_KEY>
+//   Body: { title, artist, upc, isrc, genre, release_date, audio_url, artwork_url, ... }
+//
+// For now the API call is simulated — the DB record and status update
+// are real so the admin panel flow works end-to-end.
 export async function submitRelease(payload: DittoReleasePayload): Promise<DittoResult> {
-  // Simulate Ditto API response
-  const mockDittoId = `DITTO-${Date.now()}-${payload.trackId.slice(0, 8).toUpperCase()}`;
+  // ── TODO: Replace mock block with real Ditto API call ───────────���─────────
+  // const response = await fetch('https://api.dittomusic.com/v1/releases', {
+  //   method: 'POST',
+  //   headers: {
+  //     'Content-Type': 'application/json',
+  //     'Authorization': `Bearer ${import.meta.env.VITE_DITTO_API_KEY}`,
+  //   },
+  //   body: JSON.stringify({
+  //     title:          payload.title,
+  //     primary_artist: payload.artistName,
+  //     genre:          payload.genre,
+  //     language:       payload.language,
+  //     release_date:   payload.releaseDate,
+  //     release_type:   payload.releaseType,
+  //     copyright:      payload.copyrightOwner,
+  //     composer:       payload.composer,
+  //     producer:       payload.producer,
+  //     label:          payload.labelName,
+  //     explicit:       payload.explicit,
+  //     isrc:           payload.isrc,
+  //     platforms:      payload.platforms,
+  //     audio_url:      payload.audioUrl,
+  //     artwork_url:    payload.artworkUrl,
+  //   }),
+  // });
+  // if (!response.ok) throw new Error(`Ditto API error: ${response.status}`);
+  // const dittoData = await response.json();
+  // const dittoId = dittoData.release_id;
+  // ── End TODO ───────────────────────────────────────────────────────────────
+
+  const mockDittoId = `DITTO-${Date.now()}-${payload.releaseId.slice(0, 8).toUpperCase()}`;
 
   const { error } = await supabase
     .from('distribution_releases')
     .update({
       ditto_release_id: mockDittoId,
       status:           'submitted_to_ditto',
-      approved_at:      new Date().toISOString(),
       updated_at:       new Date().toISOString(),
     })
-    .eq('track_id', payload.trackId);
+    .eq('id', payload.releaseId);
 
   if (error) throw new Error(`Ditto submit failed: ${error.message}`);
 

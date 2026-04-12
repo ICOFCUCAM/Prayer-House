@@ -42,6 +42,12 @@ function fmtBytes(bytes: number): string {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+const LANG_CODES: Record<string, string> = {
+  English: 'en', French: 'fr', Spanish: 'es', Arabic: 'ar',
+  Swahili: 'sw', Yoruba: 'yo', Igbo: 'ig', Hausa: 'ha',
+  Zulu: 'zu', Portuguese: 'pt',
+};
+
 interface FormState {
   title: string;
   artist: string;
@@ -52,6 +58,11 @@ interface FormState {
   lyrics: string;
   description: string;
   bpm: string;
+  isrc: string;
+  copyright_owner: string;
+  composer: string;
+  producer: string;
+  label_name: string;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -84,6 +95,11 @@ export default function UploadMusicPage() {
     lyrics: '',
     description: '',
     bpm: '',
+    isrc: '',
+    copyright_owner: '',
+    composer: '',
+    producer: '',
+    label_name: '',
   });
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -150,7 +166,7 @@ export default function UploadMusicPage() {
       setProgress(75);
 
       // Insert into `tracks`
-      const { error: trackErr } = await supabase.from('tracks').insert([{
+      const { data: trackRow, error: trackErr } = await supabase.from('tracks').insert([{
         title:        form.title,
         artist:       form.artist,
         artist_name:  form.artist,
@@ -166,11 +182,11 @@ export default function UploadMusicPage() {
         user_id:      user.id,
         status:       'pending',
         created_at:   new Date().toISOString(),
-      }]);
+      }]).select('id').single();
       if (trackErr) throw trackErr;
 
-      // Insert into `ecom_products`
-      const { error: prodErr } = await supabase.from('ecom_products').insert([{
+      // Insert into `ecom_products` (status=pending — goes live only after admin approval)
+      const { data: prodRow, error: prodErr } = await supabase.from('ecom_products').insert([{
         title:             form.title,
         vendor:            form.artist,
         product_type:      'Music',
@@ -178,10 +194,35 @@ export default function UploadMusicPage() {
         cover_image_url:   coverUrl,
         genre:             form.genre,
         language:          form.language,
-        status:            'active',
+        status:            'pending',
         creator_id:        user.id,
-      }]);
+      }]).select('id').single();
       if (prodErr) throw prodErr;
+
+      // Create distribution_releases record → admin sees it in review queue
+      const { error: distErr } = await supabase.from('distribution_releases').insert([{
+        track_id:        trackRow.id,
+        ecom_product_id: prodRow.id,
+        user_id:         user.id,
+        title:           form.title,
+        artist_name:     form.artist,
+        genre:           form.genre,
+        language_code:   LANG_CODES[form.language] ?? 'en',
+        release_type:    'single',
+        cover_url:       coverUrl,
+        audio_url:       audioUrl,
+        explicit:        form.explicit,
+        release_date:    form.release_date || null,
+        isrc:            form.isrc || null,
+        copyright_owner: form.copyright_owner || null,
+        composer:        form.composer || null,
+        producer:        form.producer || null,
+        label_name:      form.label_name || null,
+        track_count:     1,
+        status:          'pending_admin_review',
+        submitted_at:    new Date().toISOString(),
+      }]);
+      if (distErr) throw distErr;
 
       setProgress(100);
       setDone(true);
@@ -203,6 +244,7 @@ export default function UploadMusicPage() {
     setForm({
       title: '', artist: '', genre: '', language: 'English',
       explicit: false, release_date: '', lyrics: '', description: '', bpm: '',
+      isrc: '', copyright_owner: '', composer: '', producer: '', label_name: '',
     });
   };
 
@@ -515,6 +557,62 @@ export default function UploadMusicPage() {
                 placeholder="Paste song lyrics here…"
                 className={inputCls + ' resize-none font-mono text-xs leading-relaxed'}
               />
+            </div>
+          </div>
+
+          {/* ── Distribution metadata (for Ditto submission) ──────────── */}
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 space-y-4">
+            <div>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Distribution Info</h2>
+              <p className="text-xs text-gray-500 mt-1">Required for Ditto Music distribution. Leave blank to fill in later.</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">ISRC Code</label>
+                <input
+                  value={form.isrc}
+                  onChange={e => setField('isrc', e.target.value)}
+                  placeholder="e.g. USAT20900"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Label Name</label>
+                <input
+                  value={form.label_name}
+                  onChange={e => setField('label_name', e.target.value)}
+                  placeholder="Your label or artist name"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Copyright Owner</label>
+                <input
+                  value={form.copyright_owner}
+                  onChange={e => setField('copyright_owner', e.target.value)}
+                  placeholder="© Year Artist / Label"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Composer</label>
+                <input
+                  value={form.composer}
+                  onChange={e => setField('composer', e.target.value)}
+                  placeholder="Songwriter / composer name"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Producer</label>
+                <input
+                  value={form.producer}
+                  onChange={e => setField('producer', e.target.value)}
+                  placeholder="Producer name"
+                  className={inputCls}
+                />
+              </div>
             </div>
           </div>
 

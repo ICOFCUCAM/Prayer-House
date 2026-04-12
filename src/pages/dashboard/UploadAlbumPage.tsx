@@ -38,6 +38,12 @@ interface TrackRow {
   trackNum: number;
 }
 
+const LANG_CODES: Record<string, string> = {
+  English: 'en', French: 'fr', Spanish: 'es', Arabic: 'ar',
+  Swahili: 'sw', Yoruba: 'yo', Igbo: 'ig', Hausa: 'ha',
+  Zulu: 'zu', Portuguese: 'pt',
+};
+
 interface AlbumForm {
   title: string;
   artist: string;
@@ -46,6 +52,11 @@ interface AlbumForm {
   release_date: string;
   description: string;
   type: 'ep' | 'album';
+  isrc: string;
+  copyright_owner: string;
+  composer: string;
+  producer: string;
+  label_name: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,13 +92,18 @@ export default function UploadAlbumPage() {
 
   // Album metadata
   const [album, setAlbum] = useState<AlbumForm>({
-    title:        '',
-    artist:       '',
-    genre:        '',
-    language:     'English',
-    release_date: '',
-    description:  '',
-    type:         'album',
+    title:           '',
+    artist:          '',
+    genre:           '',
+    language:        'English',
+    release_date:    '',
+    description:     '',
+    type:            'album',
+    isrc:            '',
+    copyright_owner: '',
+    composer:        '',
+    producer:        '',
+    label_name:      '',
   });
 
   const setAlbumField = <K extends keyof AlbumForm>(key: K, value: AlbumForm[K]) =>
@@ -193,22 +209,42 @@ export default function UploadAlbumPage() {
         .from('images')
         .getPublicUrl(coverPath);
 
-      // Insert into `distribution_releases`
+      // Insert parent `ecom_products` (pending until admin approves)
       setUploadStatus('Creating release record…');
+      const { data: prodRow, error: prodErr } = await supabase.from('ecom_products').insert([{
+        title:           album.title,
+        vendor:          album.artist,
+        product_type:    'Music',
+        cover_image_url: coverUrl,
+        genre:           album.genre,
+        language:        album.language,
+        status:          'pending',
+        creator_id:      user.id,
+      }]).select('id').single();
+      if (prodErr) throw prodErr;
+
+      // Insert distribution_releases → admin review queue
       const { data: releaseRow, error: releaseErr } = await supabase
         .from('distribution_releases')
         .insert([{
-          title:        album.title,
-          artist:       album.artist,
-          type:         album.type,
-          genre:        album.genre,
-          language:     album.language,
-          release_date: album.release_date || null,
-          description:  album.description,
-          cover_url:    coverUrl,
-          user_id:      user.id,
-          status:       'pending',
-          track_count:  tracks.length,
+          ecom_product_id: prodRow.id,
+          user_id:         user.id,
+          title:           album.title,
+          artist_name:     album.artist,
+          genre:           album.genre,
+          language_code:   LANG_CODES[album.language] ?? 'en',
+          release_type:    album.type,
+          cover_url:       coverUrl,
+          explicit:        false,
+          release_date:    album.release_date || null,
+          isrc:            album.isrc || null,
+          copyright_owner: album.copyright_owner || null,
+          composer:        album.composer || null,
+          producer:        album.producer || null,
+          label_name:      album.label_name || null,
+          track_count:     tracks.length,
+          status:          'pending_admin_review',
+          submitted_at:    new Date().toISOString(),
         }])
         .select('id')
         .single();
@@ -216,6 +252,7 @@ export default function UploadAlbumPage() {
       const releaseId: string = releaseRow.id;
 
       // Upload and insert each track
+      let firstAudioUrl = '';
       for (let i = 0; i < tracks.length; i++) {
         const track = tracks[i];
         if (!track.audioFile) continue;
@@ -230,8 +267,9 @@ export default function UploadAlbumPage() {
         const { data: { publicUrl: audioUrl } } = supabase.storage
           .from('audio')
           .getPublicUrl(audioPath);
+        if (i === 0) firstAudioUrl = audioUrl;
 
-        const { error: trackErr } = await supabase.from('tracks').insert([{
+        const { data: trackRow, error: trackErr } = await supabase.from('tracks').insert([{
           title:        track.title,
           artist:       album.artist,
           artist_name:  album.artist,
@@ -245,23 +283,19 @@ export default function UploadAlbumPage() {
           track_number: track.trackNum,
           status:       'pending',
           created_at:   new Date().toISOString(),
-        }]);
+        }]).select('id').single();
         if (trackErr) throw trackErr;
+
+        // Link first track's id and audio_url back onto the release for admin preview
+        if (i === 0) {
+          await supabase.from('distribution_releases').update({
+            track_id:  trackRow.id,
+            audio_url: firstAudioUrl,
+          }).eq('id', releaseId);
+        }
       }
 
-      // Insert parent `ecom_products` record for the album
       setUploadStatus('Finalising…');
-      const { error: prodErr } = await supabase.from('ecom_products').insert([{
-        title:           album.title,
-        vendor:          album.artist,
-        product_type:    'Music',
-        cover_image_url: coverUrl,
-        genre:           album.genre,
-        language:        album.language,
-        status:          'active',
-        creator_id:      user.id,
-      }]);
-      if (prodErr) throw prodErr;
 
       setDone(true);
     } catch (err: unknown) {
@@ -282,6 +316,7 @@ export default function UploadAlbumPage() {
     setAlbum({
       title: '', artist: '', genre: '', language: 'English',
       release_date: '', description: '', type: 'album',
+      isrc: '', copyright_owner: '', composer: '', producer: '', label_name: '',
     });
     setTracks([{ id: uid(), title: '', audioFile: null, explicit: false, trackNum: 1 }]);
   };
@@ -503,6 +538,36 @@ export default function UploadAlbumPage() {
                     placeholder="About this release…"
                     className={inputCls + ' resize-none'}
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Distribution metadata */}
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-5 space-y-4">
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Distribution Info</h2>
+                <p className="text-xs text-gray-500 mt-1">For Ditto Music submission. Optional now, admin can update before forwarding.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">ISRC</label>
+                  <input value={album.isrc} onChange={e => setAlbumField('isrc', e.target.value)} placeholder="USAT20900…" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Label Name</label>
+                  <input value={album.label_name} onChange={e => setAlbumField('label_name', e.target.value)} placeholder="Your label" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Copyright Owner</label>
+                  <input value={album.copyright_owner} onChange={e => setAlbumField('copyright_owner', e.target.value)} placeholder="© Year Artist" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Composer</label>
+                  <input value={album.composer} onChange={e => setAlbumField('composer', e.target.value)} placeholder="Composer name" className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Producer</label>
+                  <input value={album.producer} onChange={e => setAlbumField('producer', e.target.value)} placeholder="Producer name" className={inputCls} />
                 </div>
               </div>
             </div>

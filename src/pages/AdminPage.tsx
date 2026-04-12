@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Users, DollarSign, TrendingUp, Shield, CheckCircle, XCircle, AlertTriangle, BarChart2, FileText } from 'lucide-react';
+import AdminDistributionPanel from '@/components/distribution/AdminDistributionPanel';
+import { Users, DollarSign, TrendingUp, Shield, CheckCircle, XCircle, AlertTriangle, BarChart2, FileText, Radio } from 'lucide-react';
 
-type Tab = 'overview' | 'withdrawals' | 'creators' | 'moderation' | 'analytics' | 'logs';
+type Tab = 'overview' | 'withdrawals' | 'creators' | 'moderation' | 'distribution' | 'analytics' | 'logs';
 
 interface Withdrawal { id: string; creator: string; amount: number; method: string; status: string; date: string; country: string; }
 interface Creator { id: string; name: string; email: string; type: string; status: string; joined: string; country: string; content: number; }
@@ -113,12 +114,13 @@ export default function AdminPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
-    { id: 'overview', label: 'Overview', icon: BarChart2 },
-    { id: 'withdrawals', label: 'Withdrawals', icon: DollarSign },
-    { id: 'creators', label: 'Creator Applications', icon: Users },
-    { id: 'moderation', label: 'Content Moderation', icon: AlertTriangle },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'logs', label: 'Audit Logs', icon: FileText },
+    { id: 'overview',      label: 'Overview',             icon: BarChart2     },
+    { id: 'distribution',  label: 'Distribution Queue',   icon: Radio         },
+    { id: 'withdrawals',   label: 'Withdrawals',          icon: DollarSign    },
+    { id: 'creators',      label: 'Creator Applications', icon: Users         },
+    { id: 'moderation',    label: 'Content Moderation',   icon: AlertTriangle },
+    { id: 'analytics',     label: 'Analytics',            icon: TrendingUp    },
+    { id: 'logs',          label: 'Audit Logs',           icon: FileText      },
   ];
 
   return (
@@ -195,6 +197,13 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Distribution Queue */}
+        {tab === 'distribution' && (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+            <AdminDistributionPanel />
           </div>
         )}
 
