@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Release {
   id:          string;
   title:       string;
+  artist_id:   string;
   artist_name: string;
   cover_url?:  string;
   publish_at?: string;
@@ -50,7 +51,7 @@ export default function PreSavePage() {
     (async () => {
       const { data } = await supabase
         .from('tracks')
-        .select('id, title, genre, artwork_url, publish_at, profiles:artist_id(full_name, label_name)')
+        .select('id, title, genre, artwork_url, publish_at, artist_id, profiles:artist_id(full_name, label_name)')
         .eq('id', releaseId)
         .maybeSingle();
 
@@ -58,6 +59,7 @@ export default function PreSavePage() {
         setRelease({
           id:          data.id,
           title:       data.title,
+          artist_id:   data.artist_id || '',
           artist_name: (data as any).profiles?.full_name || 'Unknown Artist',
           cover_url:   data.artwork_url,
           publish_at:  data.publish_at,
@@ -101,14 +103,14 @@ export default function PreSavePage() {
       release_id: releaseId,
       created_at: new Date().toISOString(),
     }], { onConflict: 'user_id,release_id' });
-    // Send notification to creator
-    if (release) {
-      await supabase.from('user_notifications').insert([{
-        user_id:  releaseId, // creator's id would be fetched separately in production
-        type:     'presave',
-        title:    'New Pre-save!',
-        body:     `Someone pre-saved "${release.title}"`,
-        read:     false,
+    // Notify the creator (fire-and-forget)
+    if (release?.artist_id) {
+      supabase.from('user_notifications').insert([{
+        user_id:    release.artist_id,
+        type:       'presave',
+        title:      'New Pre-save!',
+        body:       `Someone pre-saved "${release.title}"`,
+        read:       false,
         created_at: new Date().toISOString(),
       }]).then(() => {});
     }
