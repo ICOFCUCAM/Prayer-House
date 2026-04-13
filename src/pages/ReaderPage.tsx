@@ -95,6 +95,7 @@ export default function ReaderPage() {
 
   const [book,           setBook]           = useState<Book | null>(null);
   const [loading,        setLoading]        = useState(true);
+  const [accessDenied,   setAccessDenied]   = useState(false);
   const [theme,          setTheme]          = useState<Theme>('dark');
   const [fontSize,       setFontSize]       = useState(18);
   const [progress,       setProgress]       = useState(0);
@@ -114,16 +115,42 @@ export default function ReaderPage() {
       setLoading(true);
       const { data } = await supabase
         .from('ecom_products')
-        .select('id, title, body_html, description, vendor, cover_image_url, audio_url, product_type')
+        .select('id, title, body_html, description, vendor, cover_image_url, audio_url, product_type, price')
         .eq('id', productId)
         .single();
 
-      if (data) setBook(data as Book);
+      if (!data) { setLoading(false); return; }
+
+      const isFree = !data.price || data.price === 0;
+
+      // Verify access: free products are open; paid products require user_library entry
+      if (!isFree) {
+        if (!user) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+        const { data: lib } = await supabase
+          .from('user_library')
+          .select('id, expires_at')
+          .eq('user_id', user.id)
+          .eq('product_id', productId)
+          .maybeSingle();
+
+        const hasAccess = !!lib && (!lib.expires_at || new Date(lib.expires_at) > new Date());
+        if (!hasAccess) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      setBook(data as Book);
       setLoading(false);
     }
 
     fetchBook();
-  }, [productId]);
+  }, [productId, user]);
 
   // ── Restore progress & bookmarks once book is loaded ──────────────────────────
 
@@ -215,6 +242,40 @@ export default function ReaderPage() {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#00D9FF] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-[#9D4EDD]/20 flex items-center justify-center mx-auto mb-5">
+            <BookOpen className="w-8 h-8 text-[#9D4EDD]" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Access Required</h2>
+          <p className="text-gray-400 text-sm mb-6">
+            {user
+              ? 'You need to purchase this book to read it.'
+              : 'Please sign in or purchase this book to access the reader.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              to={`/products/${productId}`}
+              className="px-6 py-3 bg-[#9D4EDD] hover:bg-[#8B3FCC] text-white font-semibold rounded-xl transition-colors"
+            >
+              View Product
+            </Link>
+            {!user && (
+              <Link
+                to="/auth/login"
+                className="px-6 py-3 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
