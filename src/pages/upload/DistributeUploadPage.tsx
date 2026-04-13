@@ -184,6 +184,7 @@ export default function DistributeUploadPage() {
       const now = new Date().toISOString();
       await supabase.from('distribution_releases').insert([{
         track_id:                    trackRow.id,
+        user_id:                     user.id,
         status:                      'pending_admin_review',
         submitted_at:                now,
         content_license_accepted_at: now,

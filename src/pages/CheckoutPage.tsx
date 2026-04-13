@@ -210,11 +210,13 @@ export default function CheckoutPage() {
         .from('ecom_orders')
         .insert([{
           user_id:            user?.id ?? null,
-          email:              form.email,
-          total_price:        Math.round(total * 100),
-          subtotal_price:     Math.round(cartTotal * 100),
-          total_tax:          0,
-          financial_status:   'pending',
+          customer_name:      form.name,
+          customer_email:     form.email,
+          total_cents:        Math.round(total * 100),
+          subtotal_cents:     Math.round(cartTotal * 100),
+          tax_cents:          0,
+          payment_method:     'card',
+          payment_status:     'pending',
           fulfillment_status: 'unfulfilled',
           billing_address:    { name: form.name, address1: form.address, city: form.city, country: form.country, zip: form.zip },
           created_at:         new Date().toISOString(),
@@ -244,7 +246,7 @@ export default function CheckoutPage() {
               body: JSON.stringify({ orderId: order.id, amount: Math.round(total * 100) }),
             });
             if (res.ok) {
-              await supabase.from('ecom_orders').update({ financial_status: 'paid' }).eq('id', order.id);
+              await supabase.from('ecom_orders').update({ payment_status: 'paid', paid_at: new Date().toISOString() }).eq('id', order.id);
               await fulfillOrder(order.id, items);
             } else {
               throw new Error('Payment gateway error');
@@ -257,7 +259,7 @@ export default function CheckoutPage() {
           }
         } else {
           // No payment gateway configured — record order as pending for manual processing
-          await supabase.from('ecom_orders').update({ financial_status: 'pending' }).eq('id', order.id);
+          // Order already in pending state — no update needed
         }
       }
 
@@ -406,11 +408,13 @@ export default function CheckoutPage() {
                           .from('ecom_orders')
                           .insert([{
                             user_id:            user?.id ?? null,
-                            email:              form.email,
-                            total_price:        Math.round(total * 100),
-                            subtotal_price:     Math.round(cartTotal * 100),
-                            total_tax:          0,
-                            financial_status:   'pending',
+                            customer_name:      form.name,
+                            customer_email:     form.email,
+                            total_cents:        Math.round(total * 100),
+                            subtotal_cents:     Math.round(cartTotal * 100),
+                            tax_cents:          0,
+                            payment_method:     'mpesa',
+                            payment_status:     'pending',
                             fulfillment_status: 'unfulfilled',
                             billing_address:    { name: form.name, address1: form.address, city: form.city, country: form.country, zip: form.zip },
                           }])
@@ -600,7 +604,7 @@ export default function CheckoutPage() {
         orderId={orderId}
         onClose={() => setShowMobile(false)}
         onSuccess={async (ref) => {
-          await supabase.from('ecom_orders').update({ financial_status: 'paid', mpesa_ref: ref }).eq('id', orderId);
+          await supabase.from('ecom_orders').update({ payment_status: 'paid', mpesa_ref: ref, paid_at: new Date().toISOString() }).eq('id', orderId);
           clearCart();
           navigate(`/order-confirmation?orderId=${orderId}`);
         }}

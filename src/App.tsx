@@ -121,7 +121,7 @@ export default function App() {
           {/* ── Public ─────────────────────────────────────────────────────── */}
           <Route path="/"                         element={<Index />} />
           <Route path="/cart"                     element={<CartPage />} />
-          <Route path="/checkout"                 element={<CheckoutPage />} />
+          <Route path="/checkout"                 element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/order-confirmation"       element={<OrderConfirmation />} />
           <Route path="/search"                   element={<SearchPage />} />
           <Route path="/collections/:handle"      element={<CollectionPage />} />

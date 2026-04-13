@@ -121,16 +121,18 @@ export default function WalletView() {
     const amountCents = Math.round(parseFloat(withdrawAmount) * 100);
     if (isNaN(amountCents) || amountCents <= 0) { setWithdrawing(false); return; }
 
-    // Record withdrawal request in DB
-    await supabase.from('creator_earnings').insert([{
+    // Record withdrawal request in the dedicated withdrawals table
+    const methodLabel =
+      withdrawMethod === 'stripe'  ? 'Stripe' :
+      withdrawMethod === 'mpesa'   ? 'Mobile Money' :
+      withdrawMethod === 'mtn'     ? 'Mobile Money' : 'Bank Transfer';
+    await supabase.from('creator_withdrawals').insert([{
       user_id:     user.id,
-      type:        'payout',
+      amount:      amountCents / 100,
       description: `Withdrawal via ${withdrawMethod.toUpperCase()}`,
-      amount_cents: -amountCents,
       status:      'pending',
-      method:      withdrawMethod,
+      method:      methodLabel,
       phone:       phoneNumber || null,
-      created_at:  new Date().toISOString(),
     }]);
 
     setWithdrawing(false);
