@@ -44,23 +44,10 @@ export default function PricingPage() {
         }
       }
 
-      // Demo mode: write subscription directly to Supabase
-      const plan = PLANS.find(p => p.id === planId);
-      if (!plan) return;
-      const end = new Date();
-      end.setMonth(end.getMonth() + (billing === 'yearly' ? 12 : 1));
-
-      await supabase.from('user_subscriptions').upsert([{
-        user_id:             user.id,
-        plan:                planId,
-        status:              'active',
-        current_period_end:  end.toISOString(),
-        created_at:          new Date().toISOString(),
-      }], { onConflict: 'user_id' });
-
-      navigate('/dashboard?subscribed=1');
+      // Payment gateway not configured — show guidance instead of granting free access
+      navigate('/dashboard');
     } catch {
-      // Silently fail in demo mode
+      // Stripe endpoint error
     } finally {
       setLoading(null);
     }
