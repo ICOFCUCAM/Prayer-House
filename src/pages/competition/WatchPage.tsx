@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { transcribeEntry } from '@/pipelines/competition/SubtitleGeneratorWorker';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Captions } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ export default function WatchPage() {
   const { entryId } = useParams<{ entryId: string }>();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { userRole, isAdmin } = useAuth();
 
   const [entry, setEntry] = useState<CompetitionEntry | null>(null);
   const [clips, setClips] = useState<CompetitionClip[]>([]);
@@ -94,6 +97,9 @@ export default function WatchPage() {
 
   const [activeVttUrl, setActiveVttUrl] = useState<string | null>(null);
   const [activeClipIdx, setActiveClipIdx] = useState<number>(-1); // -1 = main video
+
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcriptMsg, setTranscriptMsg] = useState<string | null>(null);
 
   // Fetch entry + clips + subtitles + related
   useEffect(() => {
@@ -178,6 +184,26 @@ export default function WatchPage() {
       Array.from(video.textTracks).forEach(t => { t.mode = 'hidden'; });
     }
   }, [activeVttUrl]);
+
+  const handleGenerateSubtitles = async () => {
+    if (!entryId || !entry?.video_url || transcribing) return;
+    setTranscribing(true);
+    setTranscriptMsg('Generating subtitles…');
+    try {
+      await transcribeEntry(entryId, entry.video_url);
+      // Refresh subtitle rows
+      const { data } = await supabase
+        .from('competition_subtitles')
+        .select('*')
+        .eq('entry_id', entryId);
+      setSubtitles((data ?? []) as SubtitleRow[]);
+      setTranscriptMsg('Subtitles generated successfully.');
+    } catch {
+      setTranscriptMsg('Subtitle generation failed. Try again.');
+    } finally {
+      setTranscribing(false);
+    }
+  };
 
   const handleVote = async () => {
     if (voted || voting || !entryId) return;
@@ -307,35 +333,58 @@ export default function WatchPage() {
             )}
 
             {/* Subtitle selector — language pills */}
-            {subtitles.length > 0 && (
+            {(subtitles.length > 0 || (isAdmin || userRole === 'artist')) && (
               <div className="mb-4 bg-white/3 border border-white/5 rounded-xl px-4 py-3">
-                <p className="text-gray-500 text-xs mb-2 uppercase tracking-wider">Subtitles</p>
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={() => setActiveVttUrl(null)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                      !activeVttUrl
-                        ? 'bg-[#9D4EDD] text-white'
-                        : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-                    }`}
-                  >
-                    Off
-                  </button>
-                  {subtitles.map(sub => (
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-500 text-xs uppercase tracking-wider">Subtitles</p>
+                  {/* Generate button — only for admin / artist */}
+                  {(isAdmin || userRole === 'artist') && (
                     <button
-                      key={sub.id}
-                      onClick={() => setActiveVttUrl(sub.vtt_url ?? null)}
-                      disabled={!sub.vtt_url || sub.status !== 'done'}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all disabled:opacity-40 ${
-                        activeVttUrl === sub.vtt_url
+                      onClick={handleGenerateSubtitles}
+                      disabled={transcribing || !entry?.video_url}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#9D4EDD]/15 text-[#9D4EDD] border border-[#9D4EDD]/30 hover:bg-[#9D4EDD]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {transcribing
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Captions className="w-3 h-3" />}
+                      {transcribing ? 'Generating…' : 'Generate Subtitles'}
+                    </button>
+                  )}
+                </div>
+                {transcriptMsg && (
+                  <p className="text-xs text-[#9D4EDD]/70 mb-2">{transcriptMsg}</p>
+                )}
+                {subtitles.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setActiveVttUrl(null)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        !activeVttUrl
                           ? 'bg-[#9D4EDD] text-white'
                           : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
                       }`}
                     >
-                      {sub.language}
+                      Off
                     </button>
-                  ))}
-                </div>
+                    {subtitles.map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setActiveVttUrl(sub.vtt_url ?? null)}
+                        disabled={!sub.vtt_url || sub.status !== 'done'}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all disabled:opacity-40 ${
+                          activeVttUrl === sub.vtt_url
+                            ? 'bg-[#9D4EDD] text-white'
+                            : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        {sub.language}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {subtitles.length === 0 && !transcribing && (
+                  <p className="text-gray-600 text-xs">No subtitles yet. Click "Generate Subtitles" to create them.</p>
+                )}
               </div>
             )}
 

@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { generateSpotifyCanvas } from '@/pipelines/canvas/CanvasGenerator';
+import { generateAppleMotionArtwork } from '@/pipelines/canvas/MotionArtworkGenerator';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Loader2, Radio, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Loader2, Radio, ChevronDown, ChevronUp, ExternalLink, Clapperboard } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +22,8 @@ interface Release {
   status: string;
   audio_url?: string | null;
   cover_url?: string | null;
+  video_url?: string | null;
+  canvas_ready?: boolean;
   ditto_release_id?: string | null;
   created_at: string;
   title?: string | null;
@@ -129,24 +133,63 @@ const PLAT_STATUS_CFG: Record<string, { label: string; color: string }> = {
 // ── Release Card ──────────────────────────────────────────────────────────────
 
 function ReleaseCard({ release }: { release: Release }) {
-  const [expanded,  setExpanded]  = useState(false);
-  const [platforms, setPlatforms] = useState<PlatformStatus[]>(release.platforms ?? []);
-  const [loadingPl, setLoadingPl] = useState(false);
+  const [expanded,    setExpanded]    = useState(false);
+  const [platforms,   setPlatforms]   = useState<PlatformStatus[]>(release.platforms ?? []);
+  const [loadingPl,   setLoadingPl]   = useState(false);
+  const [canvasReady, setCanvasReady] = useState(release.canvas_ready ?? false);
+  const [generatingCanvas, setGeneratingCanvas] = useState(false);
+  const [canvasMsg,   setCanvasMsg]   = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const cfg   = getStatusCfg(release.status);
   const title = release.title ?? `Release #${release.id.slice(0, 8)}`;
 
+  const refreshPlatforms = useCallback(async () => {
+    const statuses = await fetchPlatformStatuses(release.id, release.status);
+    setPlatforms(statuses);
+  }, [release.id, release.status]);
+
   const loadPlatforms = useCallback(async () => {
     if (platforms.length) return;
     setLoadingPl(true);
-    const statuses = await fetchPlatformStatuses(release.id, release.status);
-    setPlatforms(statuses);
+    await refreshPlatforms();
     setLoadingPl(false);
-  }, [release.id, release.status, platforms.length]);
+  }, [platforms.length, refreshPlatforms]);
 
-  const toggle = () => {
-    setExpanded(e => !e);
-    if (!expanded) loadPlatforms();
+  // Poll every 30s while expanded
+  useEffect(() => {
+    if (expanded) {
+      loadPlatforms();
+      pollRef.current = setInterval(refreshPlatforms, 30_000);
+    } else {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [expanded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = () => setExpanded(e => !e);
+
+  const handleGenerateCanvas = async () => {
+    if (generatingCanvas) return;
+    setGeneratingCanvas(true);
+    setCanvasMsg('Generating canvas assets…');
+    try {
+      await Promise.all([
+        release.video_url
+          ? generateSpotifyCanvas(release.id, release.video_url)
+          : Promise.resolve(),
+        release.cover_url
+          ? generateAppleMotionArtwork(release.id, release.cover_url)
+          : Promise.resolve(),
+      ]);
+      await supabase.from('distribution_releases').update({ canvas_ready: true }).eq('id', release.id);
+      setCanvasReady(true);
+      setCanvasMsg('Canvas assets generated.');
+    } catch {
+      setCanvasMsg('Generation failed. Try again.');
+    } finally {
+      setGeneratingCanvas(false);
+    }
   };
 
   const liveCount = platforms.filter(p => p.status === 'live').length;
@@ -225,6 +268,29 @@ function ReleaseCard({ release }: { release: Release }) {
               })}
             </div>
           )}
+
+          {/* Canvas / motion artwork section */}
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest">Canvas Assets</p>
+              {canvasReady
+                ? <p className="text-[#00F5A0] text-xs mt-0.5 font-medium">Spotify Canvas + Apple Motion ready</p>
+                : <p className="text-gray-600 text-xs mt-0.5">Animated artwork for streaming platforms</p>}
+              {canvasMsg && <p className="text-[#9D4EDD]/70 text-[10px] mt-0.5">{canvasMsg}</p>}
+            </div>
+            {!canvasReady && (
+              <button
+                onClick={handleGenerateCanvas}
+                disabled={generatingCanvas || (!release.video_url && !release.cover_url)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium bg-[#9D4EDD]/15 text-[#9D4EDD] border border-[#9D4EDD]/30 hover:bg-[#9D4EDD]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+              >
+                {generatingCanvas
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Clapperboard className="w-3.5 h-3.5" />}
+                {generatingCanvas ? 'Generating…' : 'Generate Canvas'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -253,7 +319,7 @@ export default function ReleasesPage() {
 
       const res1 = await supabase
         .from('distribution_releases')
-        .select('id, title, status, audio_url, cover_url, ditto_release_id, created_at')
+        .select('id, title, status, audio_url, cover_url, video_url, canvas_ready, ditto_release_id, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -262,7 +328,7 @@ export default function ReleasesPage() {
       } else {
         const res2 = await supabase
           .from('distribution_releases')
-          .select('id, title, status, audio_url, cover_url, ditto_release_id, created_at')
+          .select('id, title, status, audio_url, cover_url, video_url, canvas_ready, ditto_release_id, created_at')
           .eq('artist_id', user.id)
           .order('created_at', { ascending: false });
         data = (res2.data ?? []) as Release[];
