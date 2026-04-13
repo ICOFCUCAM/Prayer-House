@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Music, BookOpen, Video, Mic, Trophy, Plus, Play, Pause,
-  Heart, Shuffle, MoreVertical, Trash2, Edit2, Disc3,
+  Heart, Shuffle, MoreVertical, Trash2, Edit2, Disc3, ShoppingBag,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { usePlaylist, Playlist, SavedTrack, PlaylistTrack } from '@/hooks/usePlaylist';
 import { usePlayer } from '@/components/GlobalPlayer';
 import { useApp } from '@/store/AppContext';
@@ -11,16 +13,25 @@ import PlaylistCreateModal from '@/components/playlist/PlaylistCreateModal';
 
 // ── Section tabs ──────────────────────────────────────────────────────────────
 
-type Tab = 'all' | 'playlists' | 'tracks' | 'albums' | 'audiobooks' | 'podcasts' | 'performances';
+type Tab = 'all' | 'playlists' | 'tracks' | 'albums' | 'audiobooks' | 'podcasts' | 'performances' | 'purchases';
+
+interface PurchasedItem {
+  id: string;
+  product_id: string;
+  access_type: string;
+  expires_at: string | null;
+  product: { title: string; cover_url: string | null; product_type: string | null; price: number } | null;
+}
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'all',          label: 'All',           icon: <Music    className="w-3.5 h-3.5" /> },
-  { id: 'playlists',    label: 'Playlists',     icon: <Play     className="w-3.5 h-3.5" /> },
-  { id: 'tracks',       label: 'Liked Songs',   icon: <Heart    className="w-3.5 h-3.5" /> },
-  { id: 'albums',       label: 'Albums',        icon: <Disc3    className="w-3.5 h-3.5" /> },
-  { id: 'audiobooks',   label: 'Audiobooks',    icon: <BookOpen className="w-3.5 h-3.5" /> },
-  { id: 'podcasts',     label: 'Podcasts',      icon: <Mic      className="w-3.5 h-3.5" /> },
-  { id: 'performances', label: 'Performances',  icon: <Trophy   className="w-3.5 h-3.5" /> },
+  { id: 'all',          label: 'All',           icon: <Music       className="w-3.5 h-3.5" /> },
+  { id: 'playlists',    label: 'Playlists',     icon: <Play        className="w-3.5 h-3.5" /> },
+  { id: 'tracks',       label: 'Liked Songs',   icon: <Heart       className="w-3.5 h-3.5" /> },
+  { id: 'albums',       label: 'Albums',        icon: <Disc3       className="w-3.5 h-3.5" /> },
+  { id: 'audiobooks',   label: 'Audiobooks',    icon: <BookOpen    className="w-3.5 h-3.5" /> },
+  { id: 'podcasts',     label: 'Podcasts',      icon: <Mic         className="w-3.5 h-3.5" /> },
+  { id: 'performances', label: 'Performances',  icon: <Trophy      className="w-3.5 h-3.5" /> },
+  { id: 'purchases',    label: 'Purchases',     icon: <ShoppingBag className="w-3.5 h-3.5" /> },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -127,6 +138,7 @@ function SavedTrackRow({ track, onPlay, onUnsave }: { track: SavedTrack; onPlay:
 
 export default function LibraryPage() {
   const { user } = useApp();
+  const navigate = useNavigate();
   const pl = usePlaylist();
   const { play, isPlaying, currentTrack, togglePlay, toggleShuffle, shuffle } = usePlayer();
 
@@ -135,6 +147,7 @@ export default function LibraryPage() {
   const [showCreate,      setShowCreate]       = useState(false);
   const [renameTarget,    setRenameTarget]     = useState<Playlist | null>(null);
   const [openMenu,        setOpenMenu]         = useState<string | null>(null);
+  const [purchases,       setPurchases]        = useState<PurchasedItem[]>([]);
 
   // Admin state
   const isAdmin = user?.role === 'admin';
@@ -144,6 +157,27 @@ export default function LibraryPage() {
   const [editorialDesc,   setEditorialDesc]    = useState('');
 
   useEffect(() => { pl.loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch purchased items from user_library
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('user_library')
+      .select('id, product_id, access_type, expires_at, ecom_products:product_id(title, cover_url, product_type, price)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        const valid = data.filter((r: any) => !r.expires_at || new Date(r.expires_at) > new Date());
+        setPurchases(valid.map((r: any) => ({
+          id:          r.id,
+          product_id:  r.product_id,
+          access_type: r.access_type,
+          expires_at:  r.expires_at,
+          product:     Array.isArray(r.ecom_products) ? r.ecom_products[0] ?? null : r.ecom_products,
+        })));
+      });
+  }, [user?.id]);
 
   const savedMusic         = pl.savedTracks.filter(t => t.content_type === 'music');
   const savedAlbums        = pl.savedTracks.filter(t => t.content_type === 'album');
@@ -467,6 +501,51 @@ export default function LibraryPage() {
                 <SavedTrackRow key={track.id} track={track} onPlay={() => playTrack(track)} onUnsave={() => pl.unsaveTrack(track.track_id)} />
               ))}
             </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Purchases ── */}
+      {showSection('purchases') && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-[#00D9FF]" /> My Purchases
+            {purchases.length > 0 && <span className="text-sm font-normal text-gray-400">({purchases.length})</span>}
+          </h2>
+          {purchases.length === 0 ? (
+            <div className="py-10 text-center bg-gray-900/30 rounded-2xl border border-gray-800">
+              <ShoppingBag className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-400">No purchases yet.</p>
+              <p className="text-gray-500 text-sm mt-1">Books, audiobooks and courses you buy will appear here.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {purchases.slice(0, activeTab === 'all' ? 8 : 9999).map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => navigate(`/products/${item.product_id}`)}
+                  className="bg-gray-900/40 border border-gray-800 hover:border-indigo-500/30 rounded-2xl overflow-hidden cursor-pointer group transition-all"
+                >
+                  <div className="aspect-square bg-gradient-to-br from-[#9D4EDD]/20 to-[#00D9FF]/10 overflow-hidden">
+                    {item.product?.cover_url
+                      ? <img src={item.product.cover_url} alt={item.product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      : <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-white truncate">{item.product?.title ?? 'Unknown'}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-gray-500 capitalize">{item.product?.product_type ?? item.access_type}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#00F5A0]/10 text-[#00F5A0] font-medium">Owned</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab === 'all' && purchases.length > 8 && (
+            <button onClick={() => setActiveTab('purchases')} className="w-full pt-1 text-sm text-indigo-400 hover:text-indigo-300 text-center transition-colors">
+              See all {purchases.length} purchases →
+            </button>
           )}
         </section>
       )}
