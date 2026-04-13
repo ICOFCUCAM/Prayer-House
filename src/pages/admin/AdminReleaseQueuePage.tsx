@@ -205,6 +205,7 @@ export default function AdminReleaseQueuePage() {
   const approve = async (r: QueueRelease) => {
     setActingId(r.id); setAction('approving'); setError('');
     try {
+      // 1. Mark approved in DB
       await supabase.from('distribution_releases').update({
         status:      'approved',
         reviewed_by: user?.id ?? null,
@@ -222,9 +223,29 @@ export default function AdminReleaseQueuePage() {
       }
 
       await logReview(r.id, 'approved');
-      await notifyArtist(r.user_id, 'Release Approved!',
-        `"${r.title}" has been approved and will be forwarded to Ditto Music soon.`);
 
+      // 2. Auto-forward to Ditto immediately after approval
+      setAction('forwarding');
+      const v = await distributorService.validateRelease(r.id);
+      if (v.valid) {
+        const result = await distributorService.exportReleaseToDistributor(r.id, 'ditto', user?.id);
+        if (result.success) {
+          await logReview(r.id, 'forwarded_to_ditto');
+          await notifyArtist(r.user_id, 'Release Approved & Sent to Ditto!',
+            `"${r.title}" has been approved and forwarded to Ditto Music for global distribution.`);
+          setReleases(prev => prev.filter(x => x.id !== r.id));
+          setPreview(null);
+          return;
+        }
+        // Export failed — leave in 'approved' for manual forward
+        setValidation({ errors: result.errors ?? [], warnings: [] });
+      } else {
+        setValidation({ errors: v.errors, warnings: v.warnings });
+      }
+
+      // Notify artist that approval succeeded even if auto-forward failed
+      await notifyArtist(r.user_id, 'Release Approved',
+        `"${r.title}" has been approved. Distribution is being prepared.`);
       setReleases(prev => prev.map(x => x.id === r.id ? { ...x, status: 'approved' } : x));
       setPreview(p => p ? { ...p, status: 'approved' } : null);
     } catch (err) {

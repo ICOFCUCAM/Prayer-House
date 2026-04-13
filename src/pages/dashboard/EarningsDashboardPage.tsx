@@ -173,6 +173,7 @@ export default function EarningsDashboardPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [creatorLevel, setCreatorLevel] = useState<CreatorLevel | null>(null);
+  const [withdrawals, setWithdrawals] = useState<{ id: string; amount: number; method: string; status: string; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   // Period state: 'month' | 'quarter' | 'all'
   const [period, setPeriod] = useState<Period>('month');
@@ -202,9 +203,17 @@ export default function EarningsDashboardPage() {
           .select('level, xp')
           .eq('user_id', user.id)
           .maybeSingle(),
-      ]).then(([earningsRes, levelRes]) => {
+        // Withdrawal history
+        supabase
+          .from('creator_withdrawals')
+          .select('id, amount, method, status, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]).then(([earningsRes, levelRes, withdrawalsRes]) => {
         setEarnings((earningsRes.data ?? []) as Earning[]);
         setCreatorLevel(levelRes.data as CreatorLevel | null);
+        setWithdrawals((withdrawalsRes.data ?? []) as any[]);
         setLoading(false);
       });
     });
@@ -268,7 +277,19 @@ export default function EarningsDashboardPage() {
           userId={userId}
           maxAmount={allTimeTotal}
           onClose={() => setShowWithdrawal(false)}
-          onSuccess={() => { setShowWithdrawal(false); setWithdrawalSuccess(true); }}
+          onSuccess={() => {
+            setShowWithdrawal(false);
+            setWithdrawalSuccess(true);
+            // Refresh withdrawal list
+            if (userId) {
+              supabase.from('creator_withdrawals')
+                .select('id, amount, method, status, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(20)
+                .then(({ data }) => setWithdrawals((data ?? []) as any[]));
+            }
+          }}
         />
       )}
 
@@ -481,6 +502,49 @@ export default function EarningsDashboardPage() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal history */}
+        {withdrawals.length > 0 && (
+          <div>
+            <h2 className="text-lg font-bold text-white mb-5">Withdrawal Requests</h2>
+            <div className="bg-white/3 border border-white/5 rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-3 px-5 text-left text-gray-500 font-medium">Date</th>
+                    <th className="py-3 px-5 text-left text-gray-500 font-medium">Method</th>
+                    <th className="py-3 px-5 text-left text-gray-500 font-medium">Status</th>
+                    <th className="py-3 px-5 text-right text-gray-500 font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {withdrawals.map(w => {
+                    const statusColor = w.status === 'paid' ? 'text-[#00F5A0] border-[#00F5A0]/30 bg-[#00F5A0]/10'
+                      : w.status === 'approved' || w.status === 'processing' ? 'text-[#00D9FF] border-[#00D9FF]/30 bg-[#00D9FF]/10'
+                      : w.status === 'rejected' ? 'text-red-400 border-red-400/30 bg-red-400/10'
+                      : 'text-[#FFB800] border-[#FFB800]/30 bg-[#FFB800]/10';
+                    return (
+                      <tr key={w.id} className="hover:bg-white/3 transition-colors">
+                        <td className="py-3.5 px-5 text-gray-400">
+                          {new Date(w.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3.5 px-5 text-gray-300">{w.method}</td>
+                        <td className="py-3.5 px-5">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${statusColor}`}>
+                            {w.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right font-bold text-[#FFB800]">
+                          ${Number(w.amount).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
