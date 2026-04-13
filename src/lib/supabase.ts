@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Prefer environment variables; fall back to project defaults so the app
-// works without a .env file during development.
-const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL ||
-  'https://kwvjxinrjjzfzxbkvfsc.databasepad.com';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const supabaseKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjI5NTBlNjU1LTY4MDQtNDA2Yi04MzQxLWRjNDgyOTA0YTAzOCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dmp4aW5yamp6Znp4Ymt2ZnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMDAwMDAsImV4cCI6MjA2MTAwMDAwMH0.placeholder_key';
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'Missing Supabase configuration. ' +
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.'
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

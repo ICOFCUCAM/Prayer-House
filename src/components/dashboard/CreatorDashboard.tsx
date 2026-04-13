@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
-import { formatCurrency, formatNumber, PLATFORM_STATS } from '@/lib/constants';
+import { formatCurrency, formatNumber } from '@/lib/constants';
 import { getCreatorSocialStatus } from '@/services/socialPublisher';
 import { supabase } from '@/lib/supabase';
 
