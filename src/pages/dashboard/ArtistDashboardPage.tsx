@@ -206,78 +206,67 @@ export default function ArtistDashboardPage() {
       });
     setTopTracks(top);
 
-    // Geo breakdown from stream_geo table if available, else derive stable estimate
-    const { data: geoRows } = await supabase
-      .from('stream_geo')
-      .select('country, streams')
-      .eq('user_id', uid)
-      .order('streams', { ascending: false })
-      .limit(10);
+    // Geo breakdown — query stream_events by the artist's tracks
+    if (trackIds.length > 0) {
+      const { data: geoEvents } = await supabase
+        .from('stream_events')
+        .select('country')
+        .in('track_id', trackIds)
+        .not('country', 'is', null);
 
-    if (geoRows && geoRows.length > 0) {
-      const total = geoRows.reduce((s: number, r: any) => s + (r.streams ?? 0), 0) || 1;
-      setGeoData(geoRows.map((r: any) => ({
-        country: r.country,
-        streams: r.streams ?? 0,
-        pct:     Math.round((r.streams ?? 0) / total * 100),
-      })));
+      if (geoEvents && geoEvents.length > 0) {
+        const countryMap: Record<string, number> = {};
+        geoEvents.forEach((r: any) => {
+          if (r.country && r.country !== 'unknown') {
+            countryMap[r.country] = (countryMap[r.country] ?? 0) + 1;
+          }
+        });
+        const total = Object.values(countryMap).reduce((s, n) => s + n, 0) || 1;
+        setGeoData(
+          Object.entries(countryMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([country, streams]) => ({
+              country,
+              streams,
+              pct: Math.round((streams / total) * 100),
+            }))
+        );
+      } else {
+        setGeoData([]);
+      }
     } else {
-      const GEO_COUNTRIES = [
-        { country: 'Nigeria', pct: 34 }, { country: 'Ghana', pct: 18 },
-        { country: 'United States', pct: 14 }, { country: 'United Kingdom', pct: 9 },
-        { country: 'Kenya', pct: 7 }, { country: 'South Africa', pct: 5 },
-        { country: 'Other', pct: 13 },
-      ];
-      const totalSt = Number(totalStreams);
-      setGeoData(GEO_COUNTRIES.map(g => ({
-        country: g.country,
-        streams: Math.round(totalSt * g.pct / 100),
-        pct:     g.pct,
-      })));
+      setGeoData([]);
     }
 
-    // ── 30-day stream chart: try real stream_events first, fall back to derived ──
+    // ── 30-day stream chart from real stream_events on the artist's tracks ──
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: eventRows } = await supabase
-      .from('stream_events')
-      .select('played_at, count')
-      .eq('user_id', uid)
-      .gte('played_at', thirtyDaysAgo.toISOString())
-      .order('played_at', { ascending: true });
-
-    if (eventRows && eventRows.length > 0) {
-      // Group by date
-      const byDate: Record<string, number> = {};
-      eventRows.forEach((r: any) => {
-        const key = new Date(r.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        byDate[key] = (byDate[key] || 0) + (r.count ?? 1);
-      });
-      const chartData: StreamPoint[] = [];
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        chartData.push({ date: key, streams: byDate[key] ?? 0 });
-      }
-      setStreamChart(chartData);
-    } else {
-      // Stable derived chart (sine wave pattern, seeded by user ID)
-      const allTracks = streamsRes.data ?? [];
-      const dailyAvg  = allTracks.reduce((s: number, r: { stream_count: number }) => s + (r.stream_count ?? 0), 0) / 30;
-      const chartData: StreamPoint[] = [];
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dayFactor = 0.5 + Math.abs(Math.sin((i + uid.charCodeAt(0)) * 0.4)) * 0.8;
-        chartData.push({
-          date:    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          streams: Math.max(0, Math.round(dailyAvg * dayFactor)),
-        });
-      }
-      setStreamChart(chartData);
+    // Build empty day map first
+    const byDate: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      byDate[d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })] = 0;
     }
+
+    if (trackIds.length > 0) {
+      const { data: eventRows } = await supabase
+        .from('stream_events')
+        .select('played_at')
+        .in('track_id', trackIds)
+        .gte('played_at', thirtyDaysAgo.toISOString());
+
+      (eventRows ?? []).forEach((r: any) => {
+        const key = new Date(r.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (key in byDate) byDate[key]++;
+      });
+    }
+
+    setStreamChart(
+      Object.entries(byDate).map(([date, streams]) => ({ date, streams }))
+    );
 
     setLoading(false);
   }, [user]);

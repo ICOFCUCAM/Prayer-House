@@ -45,10 +45,7 @@ const GENRES = [
   'Pidgin', 'R&B', 'Hip-Hop', 'Jazz', 'Classical', 'Reggae',
 ];
 
-const TRENDING_TERMS = [
-  'Gospel Music', 'Afrobeats 2025', 'Worship Songs', 'Pidgin Podcasts',
-  'Nigerian Audiobooks', 'Praise Mix', 'Hillsong', 'Frank Edwards',
-];
+// Trending terms are loaded from the top-streamed content titles at runtime
 
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
   { label: 'Best Match',     value: 'relevance'  },
@@ -87,9 +84,25 @@ export default function SearchPage() {
   const [filters,   setFilters]   = useState<FilterState>({
     type: 'all', sort: 'relevance', lang: '', free: false, genre: '', maxPrice: 0, verified: false,
   });
-  const [recent,    setRecent]    = useState<string[]>(() => getRecentSearches());
-  const [showSugg,  setShowSugg]  = useState(false);
-  const [showAdv,   setShowAdv]   = useState(false);
+  const [recent,       setRecent]       = useState<string[]>(() => getRecentSearches());
+  const [showSugg,     setShowSugg]     = useState(false);
+  const [showAdv,      setShowAdv]      = useState(false);
+  const [trendingTerms, setTrendingTerms] = useState<string[]>([]);
+
+  // Load trending terms from top-streamed titles on mount
+  useEffect(() => {
+    supabase
+      .from('ecom_products')
+      .select('title')
+      .eq('status', 'active')
+      .order('stream_count', { ascending: false, nullsFirst: false })
+      .limit(8)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setTrendingTerms(data.map((p: any) => p.title));
+        }
+      });
+  }, []);
 
   // Run search whenever q or filters change
   useEffect(() => {
@@ -125,7 +138,7 @@ export default function SearchPage() {
       .eq('status', 'active')
       .limit(5);
 
-    Promise.all([qb.limit(48), artistSearch]).then(([{ data }, { data: aData }]) => {
+    Promise.all([qb.limit(48), artistSearch]).then(async ([{ data }, { data: aData }]) => {
       setResults(data || []);
 
       // Deduplicate by vendor name
@@ -144,6 +157,27 @@ export default function SearchPage() {
           });
         }
       });
+
+      // Fetch real follower counts for each artist
+      const creatorIds = dedupedArtists
+        .map(a => a.id)
+        .filter(Boolean);
+
+      if (creatorIds.length > 0) {
+        const { data: followerRows } = await supabase
+          .from('artist_followers')
+          .select('artist_id')
+          .in('artist_id', creatorIds);
+
+        const followerMap: Record<string, number> = {};
+        (followerRows ?? []).forEach((r: any) => {
+          followerMap[r.artist_id] = (followerMap[r.artist_id] ?? 0) + 1;
+        });
+        dedupedArtists.forEach(a => {
+          a.followers = followerMap[a.id] ?? 0;
+        });
+      }
+
       setArtists(dedupedArtists);
       setLoading(false);
     });
@@ -420,12 +454,13 @@ export default function SearchPage() {
                 </div>
               </div>
             )}
+            {trendingTerms.length > 0 && (
             <div>
               <p className="text-white/40 text-xs uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-[#00D9FF]" /> Trending Now
               </p>
               <div className="flex flex-wrap gap-2">
-                {TRENDING_TERMS.map((s, i) => (
+                {trendingTerms.map((s, i) => (
                   <button key={s} onClick={() => doSearch(s)}
                     className="flex items-center gap-2 px-4 py-2 bg-[#00D9FF]/5 border border-[#00D9FF]/15 rounded-full text-sm text-[#00D9FF]/70 hover:text-[#00D9FF] hover:bg-[#00D9FF]/10 transition-colors">
                     <span className="text-white/20 text-xs font-bold">#{i + 1}</span>
@@ -434,6 +469,7 @@ export default function SearchPage() {
                 ))}
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
