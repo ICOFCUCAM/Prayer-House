@@ -277,14 +277,12 @@ export default function UploadAlbumPage() {
 
         const { data: trackRow, error: trackErr } = await supabase.from('tracks').insert([{
           title:        track.title,
-          artist:       album.artist,
-          artist_name:  album.artist,
+          artist_id:    user.id,
           genre:        album.genre,
           language:     album.language,
           explicit:     track.explicit,
           audio_url:    audioUrl,
-          cover_url:    coverUrl,
-          user_id:      user.id,
+          artwork_url:  coverUrl,
           release_id:   releaseId,
           track_number: track.trackNum,
           status:       'pending',

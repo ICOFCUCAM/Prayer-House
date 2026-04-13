@@ -223,10 +223,10 @@ function AlbumUploadModal({ visible, onClose }: { visible: boolean; onClose: () 
         );
       }
       const { error } = await supabase.from('distribution_releases').insert({
-        artist_id: user.id,
+        user_id: user.id,
         title: albumTitle.trim(),
         release_type: 'album',
-        artwork_url: artworkUrl ?? null,
+        cover_url: artworkUrl ?? null,
         status: 'pending',
       });
       if (error) throw error;
@@ -412,14 +412,15 @@ function BookUploadModal({ visible, onClose }: { visible: boolean; onClose: () =
         imageUrl = await uploadFileToStorage('book_covers', `${user.id}/${Date.now()}_cover.jpg`, coverUri, 'image/jpeg');
       }
       const { error } = await supabase.from('ecom_products').insert({
-        author_id: user.id,
+        vendor_id: user.id,
+        creator_id: user.id,
         title: title.trim(),
-        price: parseFloat(price) || 0,
+        price: Math.round((parseFloat(price) || 0) * 100),
         genre: genre || null,
         language: language || null,
-        file_url: pdfUrl,
-        image_url: imageUrl ?? null,
+        cover_image_url: imageUrl ?? null,
         product_type: 'Book',
+        status: 'pending',
       });
       if (error) throw error;
       Alert.alert('Success', 'Book uploaded!');
