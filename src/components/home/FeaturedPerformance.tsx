@@ -1,7 +1,36 @@
+import { useEffect, useState } from 'react';
 import { Play, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+
+interface Winner {
+  id: string;
+  title: string;
+  video_url?: string;
+  cover_art?: string;
+}
+
+function extractYouTubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 
 export default function FeaturedPerformance() {
+  const [winner, setWinner] = useState<Winner | null | undefined>(undefined);
+
+  useEffect(() => {
+    supabase
+      .from('competition_entries_v2')
+      .select('id, title, video_url, cover_art')
+      .eq('status', 'winner')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setWinner(data ?? null));
+  }, []);
+
+  const ytId = winner?.video_url ? extractYouTubeId(winner.video_url) : null;
+
   return (
     <section className="py-20 relative overflow-hidden">
 
@@ -29,18 +58,29 @@ export default function FeaturedPerformance() {
           </p>
         </div>
 
-        {/* Video Container — 16:9 responsive iframe */}
-        <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40">
-          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-            <iframe
-              className="absolute inset-0 w-full h-full"
-              src="https://www.youtube.com/embed/YOUR_VIDEO_ID"
-              title="Talent Arena Winner"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+        {/* Video — shown only when a winner with a video exists */}
+        {winner && (ytId || winner.video_url) && (
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40 mb-8">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              {ytId ? (
+                <iframe
+                  className="absolute inset-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/${ytId}`}
+                  title={winner.title || 'Talent Arena Winner'}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  className="absolute inset-0 w-full h-full object-cover"
+                  src={winner.video_url}
+                  controls
+                  poster={winner.cover_art}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* CTA Buttons */}
         <div className="flex flex-wrap justify-center gap-4 mt-8">

@@ -142,14 +142,7 @@ export default function ArtistPublicPage() {
         const { url } = await res.json();
         if (url) { window.location.href = url; return; }
       }
-      // Fallback: record subscription directly (demo mode)
-      await supabase.from('fan_subscriptions').upsert([{
-        fan_id:    currentUserId,
-        tier_id:   tierId,
-        status:    'active',
-        created_at: new Date().toISOString(),
-      }], { onConflict: 'fan_id,tier_id' });
-      alert(`Successfully subscribed to ${tierName}!`);
+      alert('Unable to start subscription. Please try again or contact support.');
     } catch {
       alert('Subscription failed. Please try again.');
     } finally {

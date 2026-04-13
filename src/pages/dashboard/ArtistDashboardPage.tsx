@@ -165,7 +165,7 @@ export default function ArtistDashboardPage() {
         ? supabase.from('track_likes').select('track_id').in('track_id', trackIds)
         : Promise.resolve({ data: [] as any[] }),
       trackIds.length > 0
-        ? supabase.from('playlist_items').select('track_id').in('track_id', trackIds)
+        ? supabase.from('playlist_tracks').select('track_id').in('track_id', trackIds)
         : Promise.resolve({ data: [] as any[] }),
       trackIds.length > 0
         ? supabase.from('stream_events').select('track_id,skipped').in('track_id', trackIds)
