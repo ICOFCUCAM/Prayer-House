@@ -91,12 +91,12 @@ export default function AuthorDashboardPage() {
 
     const [booksRes, audiobooksRes, transRes, earningsRes, booksListRes] = await Promise.all([
       supabase.from('ecom_products').select('*', { count: 'exact', head: true })
-        .eq('user_id', uid).eq('product_type', 'Book'),
-      supabase.from('audiobooks').select('*', { count: 'exact', head: true }).eq('user_id', uid),
-      supabase.from('book_translations').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+        .eq('creator_id', uid).eq('product_type', 'Book'),
+      supabase.from('audiobooks').select('*', { count: 'exact', head: true }).eq('author_id', uid),
+      supabase.from('book_translations').select('*', { count: 'exact', head: true }),
       supabase.from('creator_earnings').select('amount, category').eq('user_id', uid)
         .in('category', ['book_sale', 'audiobook_play', 'translation_sale']),
-      supabase.from('ecom_products').select('id').eq('user_id', uid),
+      supabase.from('ecom_products').select('id').eq('creator_id', uid),
     ]);
 
     const totalEarned = (earningsRes.data ?? []).reduce((s: number, r: { amount: number }) => s + (r.amount ?? 0), 0);
@@ -123,7 +123,7 @@ export default function AuthorDashboardPage() {
     const { data: recent } = await supabase
       .from('ecom_products')
       .select('id,title,price,created_at,language,product_type')
-      .eq('user_id', uid)
+      .eq('creator_id', uid)
       .order('created_at', { ascending: false })
       .limit(5);
 

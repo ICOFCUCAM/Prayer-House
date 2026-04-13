@@ -210,7 +210,7 @@ export function AlbumUploader({ artistId, onSuccess }: AlbumUploaderProps) {
     const { data: release, error: releaseErr } = await supabase
       .from('distribution_releases')
       .insert({
-        artist_id: artistId,
+        user_id: artistId,
         title: albumTitle.trim(),
         cover_url: coverUrl,
         release_type: 'album',

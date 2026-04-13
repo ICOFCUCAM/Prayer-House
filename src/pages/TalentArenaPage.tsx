@@ -184,6 +184,7 @@ export default function TalentArenaPage() {
             description: r.description,
             prize_info:  r.prize_pool,
             deadline:    r.end_date,
+            banner_url:  r.cover_url,
             status:      'live',
             gradient,
           });

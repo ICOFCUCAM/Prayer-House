@@ -22,7 +22,7 @@ interface AuthorProfile {
 interface Book {
   id: string;
   title: string;
-  cover_url: string | null;
+  cover_image_url: string | null;
   price: number;
   product_type: string;
   status: string;
@@ -32,7 +32,7 @@ interface Book {
 interface AudiobookEntry {
   id: string;
   title: string;
-  cover_url: string | null;
+  cover_image_url: string | null;
   price: number;
   product_type: string;
   status: string;
@@ -225,8 +225,8 @@ export default function AuthorDashboardPage() {
     if (tab === 'books') {
       supabase
         .from('ecom_products')
-        .select('id, title, cover_url, price, product_type, status, created_at')
-        .eq('author_id', userId)
+        .select('id, title, cover_image_url, price, product_type, status, created_at')
+        .eq('creator_id', userId)
         .in('product_type', ['Book', 'book'])
         .order('created_at', { ascending: false })
         .then(({ data }) => { setBooks((data ?? []) as Book[]); setContentLoading(false); });
@@ -234,8 +234,8 @@ export default function AuthorDashboardPage() {
     } else if (tab === 'audiobooks') {
       supabase
         .from('ecom_products')
-        .select('id, title, cover_url, price, product_type, status, created_at')
-        .eq('author_id', userId)
+        .select('id, title, cover_image_url, price, product_type, status, created_at')
+        .eq('creator_id', userId)
         .in('product_type', ['Audiobook', 'audiobook'])
         .order('created_at', { ascending: false })
         .then(({ data }) => { setAudiobooks((data ?? []) as AudiobookEntry[]); setContentLoading(false); });
@@ -380,8 +380,8 @@ export default function AuthorDashboardPage() {
                     {books.map(book => (
                       <div key={book.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
                         <div className="aspect-[3/4] overflow-hidden bg-white/5">
-                          {book.cover_url ? (
-                            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          {book.cover_image_url ? (
+                            <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-[#9D4EDD]/30 to-[#00D9FF]/10 flex items-center justify-center text-4xl">📖</div>
                           )}
@@ -436,8 +436,8 @@ export default function AuthorDashboardPage() {
                     {audiobooks.map(ab => (
                       <div key={ab.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl hover:border-white/20 transition-all">
                         <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0">
-                          {ab.cover_url ? (
-                            <img src={ab.cover_url} alt={ab.title} className="w-full h-full object-cover" />
+                          {ab.cover_image_url ? (
+                            <img src={ab.cover_image_url} alt={ab.title} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-[#FFB800]/30 to-[#FF6B00]/10 flex items-center justify-center text-2xl">🎧</div>
                           )}

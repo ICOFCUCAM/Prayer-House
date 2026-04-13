@@ -128,13 +128,11 @@ export function TrackUploader({ artistId, onSuccess }: TrackUploaderProps) {
     const { data: track, error: insertErr } = await supabase
       .from('tracks')
       .insert({
-        user_id: artistId,
+        artist_id: artistId,
         title: title.trim(),
         genre: genre || null,
         bpm: bpm ? Number(bpm) : null,
-        key: key || null,
         audio_url: audioUrl,
-        stream_count: 0,
         created_at: new Date().toISOString(),
       })
       .select('id')

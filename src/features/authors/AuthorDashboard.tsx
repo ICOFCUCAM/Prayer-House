@@ -22,8 +22,7 @@ interface Book {
   id: string;
   title: string;
   price: number;
-  downloads?: number;
-  cover_url?: string;
+  cover_image_url?: string;
   language?: string;
   genre?: string;
 }
@@ -105,8 +104,8 @@ export function AuthorDashboard() {
         // Fetch books
         const { data: booksData } = await supabase
           .from('ecom_products')
-          .select('id, title, price, downloads, cover_url, language, genre')
-          .eq('author_id', authorData.id)
+          .select('id, title, price, cover_image_url, language, genre')
+          .eq('creator_id', user.id)
           .eq('product_type', 'Book')
           .order('created_at', { ascending: false });
 
@@ -304,9 +303,9 @@ export function AuthorDashboard() {
                   className="bg-white/4 border border-white/10 rounded-xl px-5 py-4 flex items-center gap-4 hover:border-white/20 transition-colors"
                 >
                   <div className="w-10 h-14 rounded-md bg-gradient-to-br from-[#9D4EDD] to-[#00D9FF] flex items-center justify-center shrink-0 overflow-hidden">
-                    {book.cover_url ? (
+                    {book.cover_image_url ? (
                       <img
-                        src={book.cover_url}
+                        src={book.cover_image_url}
                         alt={book.title}
                         className="w-full h-full object-cover"
                       />
@@ -327,12 +326,6 @@ export function AuthorDashboard() {
                     <p className="text-sm font-bold text-[#FFB800]">
                       {book.price ? formatCurrency(book.price) : 'Free'}
                     </p>
-                    {book.downloads !== undefined && (
-                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 justify-end">
-                        <Download size={10} />
-                        {formatNumber(book.downloads)}
-                      </p>
-                    )}
                   </div>
                 </div>
               ))
