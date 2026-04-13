@@ -6,8 +6,12 @@ import { submitRelease } from '@/services/distribution/dittoDistributionService'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const generateISRC = () =>
-  `WKNG-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+const generateISRC = () => {
+  const buf = new Uint8Array(4);
+  crypto.getRandomValues(buf);
+  const hex = Array.from(buf, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  return `WKNG-${Date.now()}-${hex}`;
+};
 
 const validateArtwork = (file: File): Promise<string | null> =>
   new Promise(resolve => {

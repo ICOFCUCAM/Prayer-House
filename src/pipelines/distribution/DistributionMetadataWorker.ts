@@ -33,12 +33,19 @@ export interface ReleaseMetadata {
 function generateISRC(countryCode = 'NG'): string {
   const year = new Date().getFullYear().toString().slice(-2);
   const registrant = 'WNK'; // WANKONG registrant code
-  const sequence = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const sequence = (buf[0] % 100000).toString().padStart(5, '0');
   return `${countryCode}-${registrant}-${year}-${sequence}`;
 }
 
 function generateUPC(): string {
-  return Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
+  // Generate 11 random digits then compute the EAN-13/UPC-A check digit
+  const buf = new Uint8Array(11);
+  crypto.getRandomValues(buf);
+  const digits = Array.from(buf, b => b % 10);
+  const check = (10 - (digits.reduce((s, d, i) => s + d * (i % 2 === 0 ? 3 : 1), 0) % 10)) % 10;
+  return [...digits, check].join('');
 }
 
 export async function processReleaseMetadata(releaseId: string): Promise<ReleaseMetadata | null> {

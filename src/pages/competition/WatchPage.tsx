@@ -215,10 +215,10 @@ export default function WatchPage() {
       await supabase.from('competition_votes').insert({
         entry_id: entryId,
         session_id:
-          sessionStorage.getItem('wk_sid') ||
+          sessionStorage.getItem('wk_session_id') ||
           (() => {
-            const id = Math.random().toString(36).slice(2);
-            sessionStorage.setItem('wk_sid', id);
+            const id = crypto.randomUUID();
+            sessionStorage.setItem('wk_session_id', id);
             return id;
           })(),
         created_at: new Date().toISOString(),

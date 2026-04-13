@@ -19,9 +19,11 @@ export function useCompetitionVotes(entryId: string) {
       });
 
     // Check if already voted
-    const sessionId = sessionStorage.getItem('wk_session_id') ??
-      Math.random().toString(36).slice(2);
-    sessionStorage.setItem('wk_session_id', sessionId);
+    const sessionId = sessionStorage.getItem('wk_session_id') ?? (() => {
+      const id = crypto.randomUUID();
+      sessionStorage.setItem('wk_session_id', id);
+      return id;
+    })();
 
     supabase
       .from('competition_votes')

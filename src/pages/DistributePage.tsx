@@ -20,7 +20,9 @@ function generateISRC() {
   const country = 'US';
   const registrant = 'WNK';
   const year = new Date().getFullYear().toString().slice(-2);
-  const designation = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const designation = (buf[0] % 100000).toString().padStart(5, '0');
   return `${country}-${registrant}-${year}-${designation}`;
 }
 

@@ -36,7 +36,11 @@ export default function VoteButton({ entryId, votes, onVote }: Props) {
       await supabase.from('competition_votes').insert({
         entry_id:   entryId,
         user_id:    user.id,
-        session_id: sessionStorage.getItem('vid') || Math.random().toString(36).slice(2),
+        session_id: sessionStorage.getItem('wk_session_id') || (() => {
+          const id = crypto.randomUUID();
+          sessionStorage.setItem('wk_session_id', id);
+          return id;
+        })(),
       });
     } catch { /* server-side duplicate guard handles conflicts */ }
   };
