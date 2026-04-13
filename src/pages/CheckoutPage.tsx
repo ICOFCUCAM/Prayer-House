@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { CreditCard, Lock, ShieldCheck, Smartphone } from 'lucide-react';
 import MobileMoneyModal from '@/components/MobileMoneyModal';
@@ -99,6 +100,7 @@ function CardInputFallback({
 
 export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [loading,      setLoading]      = useState(false);
@@ -207,6 +209,7 @@ export default function CheckoutPage() {
       const { data: order, error: orderError } = await supabase
         .from('ecom_orders')
         .insert([{
+          user_id:            user?.id ?? null,
           email:              form.email,
           total_price:        Math.round(total * 100),
           subtotal_price:     Math.round(cartTotal * 100),
@@ -402,7 +405,8 @@ export default function CheckoutPage() {
                         const { data: order } = await supabase
                           .from('ecom_orders')
                           .insert([{
-                            email: form.email,
+                            user_id:            user?.id ?? null,
+                            email:              form.email,
                             total_price:        Math.round(total * 100),
                             subtotal_price:     Math.round(cartTotal * 100),
                             total_tax:          0,
@@ -448,6 +452,7 @@ export default function CheckoutPage() {
                           const { data: newOrder } = await supabase
                             .from('ecom_orders')
                             .insert([{
+                              user_id:          user?.id ?? null,
                               customer_name:    form.name,
                               customer_email:   form.email,
                               shipping_address: { address: form.address, city: form.city, country: form.country, zip: form.zip },
