@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Music, BookOpen, Video, Mic, Trophy, Plus, Play, Pause,
   Heart, Shuffle, MoreVertical, Trash2, Edit2, Disc3, ShoppingBag,
@@ -139,10 +139,12 @@ function SavedTrackRow({ track, onPlay, onUnsave }: { track: SavedTrack; onPlay:
 export default function LibraryPage() {
   const { user } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const pl = usePlaylist();
   const { play, isPlaying, currentTrack, togglePlay, toggleShuffle, shuffle } = usePlayer();
 
-  const [activeTab,       setActiveTab]       = useState<Tab>('all');
+  const initialTab = (searchParams.get('tab') as Tab | null) ?? 'all';
+  const [activeTab,       setActiveTab]       = useState<Tab>(initialTab);
   const [openPlaylist,    setOpenPlaylist]     = useState<Playlist | null>(null);
   const [showCreate,      setShowCreate]       = useState(false);
   const [renameTarget,    setRenameTarget]     = useState<Playlist | null>(null);
