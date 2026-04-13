@@ -184,8 +184,19 @@ export default function FanMembershipsPage() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-white/50 mb-4">Sign in to manage your fan memberships.</p>
+          <a href="/auth/login" className="px-6 py-3 rounded-xl font-bold text-sm text-white"
+            style={{ background: 'linear-gradient(135deg,#00D9FF,#9D4EDD)' }}>Sign In</a>
+        </div>
+      </div>
+    );
+  }
+
   const load = useCallback(async () => {
-    if (!user) return;
     const { data } = await supabase
       .from('membership_tiers')
       .select('*')
