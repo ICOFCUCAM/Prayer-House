@@ -15,12 +15,12 @@ export interface MembershipTier {
 }
 
 export interface ActiveSubscription {
-  id:          string;
-  tier_id:     string;
-  tier:        MembershipTier | null;
-  status:      string;
-  created_at:  string;
-  expires_at:  string | null;
+  id:                  string;
+  tier_id:             string;
+  tier:                MembershipTier | null;
+  status:              string;
+  created_at:          string;
+  current_period_end:  string | null;
 }
 
 export interface UseMembershipResult {
@@ -53,7 +53,7 @@ export function useMembership(): UseMembershipResult {
     const { data } = await supabase
       .from('fan_subscriptions')
       .select(`
-        id, tier_id, status, created_at, expires_at,
+        id, tier_id, status, created_at, current_period_end,
         membership_tiers:tier_id (
           id, creator_id, name, price_usd, color, perks, is_active
         )
@@ -62,16 +62,16 @@ export function useMembership(): UseMembershipResult {
       .eq('status', 'active');
 
     const active = (data ?? []).filter((s: any) => {
-      // Treat null expires_at as lifetime; otherwise check expiry
-      if (s.expires_at && new Date(s.expires_at) < new Date()) return false;
+      // Treat null current_period_end as lifetime; otherwise check expiry
+      if (s.current_period_end && new Date(s.current_period_end) < new Date()) return false;
       return true;
     }).map((s: any) => ({
-      id:         s.id,
-      tier_id:    s.tier_id,
-      tier:       s.membership_tiers ?? null,
-      status:     s.status,
-      created_at: s.created_at,
-      expires_at: s.expires_at,
+      id:                  s.id,
+      tier_id:             s.tier_id,
+      tier:                s.membership_tiers ?? null,
+      status:              s.status,
+      created_at:          s.created_at,
+      current_period_end:  s.current_period_end,
     }));
 
     setSubscriptions(active);

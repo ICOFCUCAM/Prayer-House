@@ -55,24 +55,15 @@ async function fetchYouTubePlaylistVideos(
   });
 }
 
-// ── Instagram placeholder ──────────────────────────────────────────────────────
+// ── Instagram / TikTok ────────────────────────────────────────────────────────
+// These return empty until the respective API credentials are configured.
 
 async function fetchInstagramReels(): Promise<VideoCard[]> {
-  // TODO: connect Instagram Basic Display API when credentials available
-  return [
-    { id: 'ig-1', videoId: 'ig-placeholder-1', title: 'WANKONG on Instagram', thumbnail: 'gradient:from-[#833ab4] to-[#fd1d1d]', platform: 'instagram' },
-    { id: 'ig-2', videoId: 'ig-placeholder-2', title: 'Creator Spotlight — IG', thumbnail: 'gradient:from-[#fd1d1d] to-[#fcb045]', platform: 'instagram' },
-  ];
+  return [];
 }
 
-// ── TikTok placeholder ─────────────────────────────────────────────────────────
-
 async function fetchTikTokVideos(): Promise<VideoCard[]> {
-  // TODO: connect TikTok Display API when credentials available
-  return [
-    { id: 'tt-1', videoId: 'tt-placeholder-1', title: 'WANKONG on TikTok', thumbnail: 'gradient:from-[#010101] to-[#69C9D0]', platform: 'tiktok' },
-    { id: 'tt-2', videoId: 'tt-placeholder-2', title: 'Trending — TikTok',   thumbnail: 'gradient:from-[#69C9D0] to-[#010101]', platform: 'tiktok' },
-  ];
+  return [];
 }
 
 // ── Talent Arena winners fetcher ───────────────────────────────────────────────
