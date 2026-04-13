@@ -77,18 +77,18 @@ export default function AdminPanel() {
         const [creatorsRes, contentRes, revenueRes, competitionsRes, payoutsRes, usersRes] = await Promise.allSettled([
           supabase.from('profiles').select('id', { count: 'exact', head: true }),
           supabase.from('ecom_products').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-          supabase.from('ecom_orders').select('total_price').eq('status', 'completed'),
+          supabase.from('ecom_orders').select('total_cents').eq('payment_status', 'paid'),
           supabase.from('competition_entries_v2').select('id', { count: 'exact', head: true }).in('status', ['live', 'winner']),
-          supabase.from('creator_earnings').select('amount_cents').eq('type', 'payout').eq('status', 'completed'),
+          supabase.from('creator_withdrawals').select('amount').eq('status', 'paid'),
           supabase.from('profiles').select('country').not('country', 'is', null),
         ]);
 
         const revenueData = (revenueRes.status === 'fulfilled' && revenueRes.value.data)
-          ? revenueRes.value.data.reduce((s: number, r: any) => s + (r.total_price ?? 0), 0) / 100
+          ? revenueRes.value.data.reduce((s: number, r: any) => s + (r.total_cents ?? 0), 0) / 100
           : 0;
 
         const payoutsData = (payoutsRes.status === 'fulfilled' && payoutsRes.value.data)
-          ? payoutsRes.value.data.reduce((s: number, r: any) => s + (r.amount_cents ?? 0), 0) / 100
+          ? payoutsRes.value.data.reduce((s: number, r: any) => s + (r.amount ?? 0), 0)
           : 0;
 
         const countriesData = (usersRes.status === 'fulfilled' && usersRes.value.data)

@@ -20,12 +20,12 @@ export default function OrderConfirmation() {
     if (!orderId) return;
     supabase
       .from('ecom_orders')
-      .select('total_price, ecom_order_items(title, price, quantity)')
+      .select('total_cents, ecom_order_items(title, price, quantity)')
       .eq('id', orderId)
       .single()
       .then(({ data }) => {
         if (data) {
-          setTotal((data.total_price ?? 0) / 100);
+          setTotal((data.total_cents ?? 0) / 100);
           setItems(
             ((data as any).ecom_order_items ?? []).map((i: any) => ({
               title:    i.title,

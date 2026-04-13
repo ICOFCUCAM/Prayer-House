@@ -176,28 +176,24 @@ export default function UploadMusicPage() {
 
       // Insert into `tracks`
       const { data: trackRow, error: trackErr } = await supabase.from('tracks').insert([{
-        title:        form.title,
-        artist:       form.artist,
-        artist_name:  form.artist,
-        genre:        form.genre,
-        language:     form.language,
-        explicit:     form.explicit,
-        release_date: form.release_date || null,
-        lyrics:       form.lyrics,
-        description:  form.description,
-        bpm:          form.bpm ? Number(form.bpm) : null,
-        audio_url:    audioUrl,
-        cover_url:    coverUrl,
-        user_id:      user.id,
-        status:       'pending',
-        created_at:   new Date().toISOString(),
+        title:       form.title,
+        artist_id:   user.id,
+        genre:       form.genre,
+        language:    form.language,
+        explicit:    form.explicit,
+        lyrics:      form.lyrics,
+        bpm:         form.bpm ? Number(form.bpm) : null,
+        audio_url:   audioUrl,
+        artwork_url: coverUrl,
+        status:      'pending',
+        created_at:  new Date().toISOString(),
       }]).select('id').single();
       if (trackErr) throw trackErr;
 
       // Insert into `ecom_products` (status=pending — goes live only after admin approval)
       const { data: prodRow, error: prodErr } = await supabase.from('ecom_products').insert([{
         title:             form.title,
-        vendor:            form.artist,
+        vendor_id:         user.id,
         product_type:      'Music',
         audio_url:         audioUrl,
         cover_image_url:   coverUrl,

@@ -219,7 +219,7 @@ export default function UploadAlbumPage() {
       setUploadStatus('Creating release record…');
       const { data: prodRow, error: prodErr } = await supabase.from('ecom_products').insert([{
         title:           album.title,
-        vendor:          album.artist,
+        vendor_id:       user.id,
         product_type:    'Music',
         cover_image_url: coverUrl,
         genre:           album.genre,
