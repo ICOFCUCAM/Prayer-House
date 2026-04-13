@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { usePlayer } from '@/components/GlobalPlayer';
 import { usePlaylist } from '@/hooks/usePlaylist';
@@ -34,9 +35,13 @@ function toContentType(raw: string): 'music' | 'video' | 'audiobook' | 'podcast'
   return 'music';
 }
 
+// UUID v4 pattern
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function ProductPage() {
   const { handle }                    = useParams<{ handle: string }>();
   const navigate                      = useNavigate();
+  const { user }                      = useAuth();
   const { addToCart }                 = useCart();
   const { play, currentTrack, isPlaying, togglePlay } = usePlayer();
   const { saveTrack, unsaveTrack, isSaved }            = usePlaylist();
@@ -48,15 +53,18 @@ export default function ProductPage() {
   const [quantity,        setQuantity]        = useState(1);
   const [loading,         setLoading]         = useState(true);
   const [showClipModal,   setShowClipModal]   = useState(false);
+  const [isOwned,         setIsOwned]         = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
+      if (!handle) return;
       setLoading(true);
-      const { data } = await supabase
-        .from('ecom_products')
-        .select('*')
-        .eq('handle', handle)
-        .single();
+
+      // Support both slug handles and UUID product IDs (e.g. from library links)
+      const isUUID = UUID_RE.test(handle);
+      const query = supabase.from('ecom_products').select('*');
+      const { data } = await (isUUID ? query.eq('id', handle) : query.eq('handle', handle)).single();
+
       if (data) {
         setProduct(data);
         const { data: varData } = await supabase
@@ -67,11 +75,22 @@ export default function ProductPage() {
           setVariants(varData);
           setSelectedVariant(varData[0]);
         }
+
+        // Check if logged-in user already owns this product
+        if (user?.id) {
+          const { data: lib } = await supabase
+            .from('user_library')
+            .select('id, expires_at')
+            .eq('user_id', user.id)
+            .eq('product_id', data.id)
+            .maybeSingle();
+          setIsOwned(!!lib && (!lib.expires_at || new Date(lib.expires_at) > new Date()));
+        }
       }
       setLoading(false);
     }
     fetchProduct();
-  }, [handle]);
+  }, [handle, user?.id]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
@@ -256,7 +275,14 @@ export default function ProductPage() {
 
             {/* Price */}
             <div className="flex items-center gap-4 mb-6">
-              {isFree ? (
+              {isOwned ? (
+                <span className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 text-xl font-bold rounded-xl border border-emerald-500/30 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  You own this
+                </span>
+              ) : isFree ? (
                 <span className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 text-xl font-bold rounded-xl border border-emerald-500/30">
                   FREE
                 </span>
@@ -285,7 +311,7 @@ export default function ProductPage() {
             {/* ── Primary action buttons ── */}
             <div className="flex flex-wrap gap-3">
 
-              {/* Play Preview — shown whenever a preview/audio URL exists */}
+              {/* Play Preview — always shown when audio exists */}
               {previewUrl && (
                 <button
                   onClick={handlePlay}
@@ -305,7 +331,24 @@ export default function ProductPage() {
                 </button>
               )}
 
-              {isFree ? (
+              {/* Already owned → access button replaces purchase */}
+              {isOwned ? (
+                <button
+                  onClick={() => {
+                    const t = rawType;
+                    if (t === 'book' || t === 'books' || t === 'ebook') navigate(`/reader/${product.id}`);
+                    else if (t === 'audiobook') { if (previewUrl) handlePlay(); }
+                    else if (previewUrl) handlePlay();
+                    else navigate(`/library`);
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {rawType === 'book' || rawType === 'books' ? 'Read Now' : rawType === 'audiobook' ? 'Listen Now' : 'Access Content'}
+                </button>
+              ) : isFree ? (
                 <>
                   {/* Download */}
                   <button
