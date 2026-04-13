@@ -136,7 +136,7 @@ export default function TalentArenaRoomPage() {
 
     Promise.all([
       supabase.from('competition_rooms').select('*').eq('id', roomId).single(),
-      supabase.from('competition_entries_v2').select('*')
+      supabase.from('competition_entries_v2').select('*, created_at')
         .eq('room_id', roomId).in('status', ['live','winner'])
         .order('votes_count', { ascending: false }),
     ]).then(([roomRes, entriesRes]) => {
@@ -163,7 +163,7 @@ export default function TalentArenaRoomPage() {
         const scoreB = (b.ai_score ?? 0) * 0.6 + (b.votes_count) * 0.4;
         return scoreB - scoreA;
       })
-    : [...entries].sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+    : [...entries].sort((a, b) => new Date(b.created_at ?? b.id).getTime() - new Date(a.created_at ?? a.id).getTime());
 
   if (loading) return (
     <div className="min-h-screen bg-[#0A1128] flex items-center justify-center">

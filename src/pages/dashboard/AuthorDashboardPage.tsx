@@ -89,23 +89,35 @@ export default function AuthorDashboardPage() {
     setLoading(true);
     const uid = user.id;
 
-    const [booksRes, audiobooksRes, transRes, earningsRes] = await Promise.all([
+    const [booksRes, audiobooksRes, transRes, earningsRes, booksListRes] = await Promise.all([
       supabase.from('ecom_products').select('*', { count: 'exact', head: true })
         .eq('user_id', uid).eq('product_type', 'Book'),
       supabase.from('audiobooks').select('*', { count: 'exact', head: true }).eq('user_id', uid),
       supabase.from('book_translations').select('*', { count: 'exact', head: true }).eq('user_id', uid),
-      supabase.from('creator_earnings').select('amount').eq('user_id', uid)
+      supabase.from('creator_earnings').select('amount, category').eq('user_id', uid)
         .in('category', ['book_sale', 'audiobook_play', 'translation_sale']),
+      supabase.from('ecom_products').select('id').eq('user_id', uid),
     ]);
 
     const totalEarned = (earningsRes.data ?? []).reduce((s: number, r: { amount: number }) => s + (r.amount ?? 0), 0);
+
+    // Count purchases (downloads) of the author's products from user_library
+    const authorProductIds = (booksListRes.data ?? []).map((p: any) => p.id);
+    let downloads = 0;
+    if (authorProductIds.length > 0) {
+      const { count } = await supabase
+        .from('user_library')
+        .select('*', { count: 'exact', head: true })
+        .in('product_id', authorProductIds);
+      downloads = count ?? 0;
+    }
 
     setStats({
       books:        booksRes.count       ?? 0,
       audiobooks:   audiobooksRes.count  ?? 0,
       translations: transRes.count       ?? 0,
       earnings:     totalEarned,
-      downloads:    0, // would come from purchase count
+      downloads,
     });
 
     const { data: recent } = await supabase

@@ -110,15 +110,16 @@ export default function TalentArenaPage() {
   const userRole  = user?.user_metadata?.role || 'user';
   const isSinger  = ['singer_artist', 'admin'].includes(userRole);
 
-  const [loading,   setLoading]   = useState(true);
-  const [category,  setCategory]  = useState('All');
-  const [sort,      setSort]      = useState('Most Voted');
-  const [entries,   setEntries]   = useState<Entry[]>([]);
-  const [liveRooms, setLiveRooms] = useState<RoomCardData[]>([]);
-  const [upcoming,  setUpcoming]  = useState<UpcomingComp[]>([]);
-  const [winners,   setWinners]   = useState<WeeklyWinner[]>([]);
-  const [notified,  setNotified]  = useState<Set<string>>(new Set());
-  const [heroBg,    setHeroBg]    = useState(0);
+  const [loading,      setLoading]      = useState(true);
+  const [category,     setCategory]     = useState('All');
+  const [sort,         setSort]         = useState('Most Voted');
+  const [entries,      setEntries]      = useState<Entry[]>([]);
+  const [liveRooms,    setLiveRooms]    = useState<RoomCardData[]>([]);
+  const [upcoming,     setUpcoming]     = useState<UpcomingComp[]>([]);
+  const [winners,      setWinners]      = useState<WeeklyWinner[]>([]);
+  const [notified,     setNotified]     = useState<Set<string>>(new Set());
+  const [heroBg,       setHeroBg]       = useState(0);
+  const [arenaStats,   setArenaStats]   = useState({ totalPrizes: 0, highestVotes: 0, activeEntries: 0, totalRooms: 0 });
 
   // Video modal + subtitle state
   const [videoModal,    setVideoModal]    = useState<Entry | null>(null);
@@ -138,7 +139,7 @@ export default function TalentArenaPage() {
   // Load real data
   useEffect(() => {
     const load = async () => {
-      const [roomsRes, entriesRes] = await Promise.all([
+      const [roomsRes, entriesRes, activeCountRes, prizeSumRes, maxVotesRes] = await Promise.all([
         supabase
           .from('competition_rooms')
           .select('id, title, category, description, prize_pool, end_date, status, cover_url')
@@ -151,7 +152,22 @@ export default function TalentArenaPage() {
           .in('status', ['live', 'approved', 'winner'])
           .order('votes_count', { ascending: false })
           .limit(18),
+        // Active entries count
+        supabase.from('competition_entries_v2').select('*', { count: 'exact', head: true }).eq('status', 'live'),
+        // Total prize pool across all rooms
+        supabase.from('competition_rooms').select('prize_pool').neq('status', 'draft'),
+        // Highest vote count
+        supabase.from('competition_entries_v2').select('votes_count').order('votes_count', { ascending: false }).limit(1),
       ]);
+
+      const totalPrizes  = (prizeSumRes.data ?? []).reduce((s: number, r: any) => s + Number(r.prize_pool ?? 0), 0);
+      const highestVotes = (maxVotesRes.data ?? [])[0]?.votes_count ?? 0;
+      setArenaStats({
+        totalPrizes,
+        highestVotes,
+        activeEntries: activeCountRes.count ?? 0,
+        totalRooms:    (roomsRes.data ?? []).length,
+      });
 
       const rooms = roomsRes.data ?? [];
 
@@ -264,9 +280,16 @@ export default function TalentArenaPage() {
     ? liveRooms
     : liveRooms.filter(r => r.category?.toLowerCase() === category.toLowerCase());
 
-  const sortedEntries = [...entries].sort((a, b) =>
-    sort === 'Most Voted' ? b.votes - a.votes : b.id.localeCompare(a.id)
-  );
+  const daysSince = (dateStr: string) =>
+    Math.max(1, (Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (sort === 'Most Voted')    return b.votes - a.votes;
+    if (sort === 'Newest')        return new Date(b.reviewed_at ?? b.id).getTime() - new Date(a.reviewed_at ?? a.id).getTime();
+    if (sort === 'Trending')      return (b.votes / daysSince(b.reviewed_at ?? b.id)) - (a.votes / daysSince(a.reviewed_at ?? a.id));
+    if (sort === "Editor's Picks") return (b.is_winner ? 1 : 0) - (a.is_winner ? 1 : 0) || b.votes - a.votes;
+    return 0;
+  });
 
   const heroBgs = [
     'from-[#9D4EDD]/30 via-[#0A1128] to-[#00D9FF]/20',
@@ -363,7 +386,11 @@ export default function TalentArenaPage() {
 
           {/* Stats */}
           <div className="flex flex-wrap gap-6 mt-10">
-            {[['$8,400', 'Total Prizes Awarded'], ['1,204', 'Highest Vote Count'], ['47', 'Active Entries']].map(([val, lbl]) => (
+            {([
+              [`$${arenaStats.totalPrizes.toLocaleString()}`, 'Total Prizes Awarded'],
+              [arenaStats.highestVotes.toLocaleString(), 'Highest Vote Count'],
+              [arenaStats.activeEntries.toString(), 'Active Entries'],
+            ] as [string, string][]).map(([val, lbl]) => (
               <div key={lbl}>
                 <p className="text-2xl font-black text-white">{val}</p>
                 <p className="text-gray-500 text-xs">{lbl}</p>
@@ -574,7 +601,11 @@ export default function TalentArenaPage() {
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-4 mb-8">
-            {[['$8,400', 'Total Prizes Awarded'], ['1,204', 'Highest Vote Count'], ['12', 'Competitions Held']].map(([val, lbl]) => (
+            {([
+              [`$${arenaStats.totalPrizes.toLocaleString()}`, 'Total Prizes Awarded'],
+              [arenaStats.highestVotes.toLocaleString(), 'Highest Vote Count'],
+              [arenaStats.totalRooms.toString(), 'Competitions Held'],
+            ] as [string, string][]).map(([val, lbl]) => (
               <div key={lbl} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
                 <p className="text-2xl font-black text-[#FFB800]">{val}</p>
                 <p className="text-gray-400 text-xs mt-0.5">{lbl}</p>
