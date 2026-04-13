@@ -162,17 +162,6 @@ export default function AppLayout() {
     return () => obs.disconnect();
   }, []);
 
-  // Animate view count every 4s
-  useEffect(() => {
-    const id = setInterval(() => setViewCount(v => v + Math.floor(Math.random() * 4 + 1)), 4000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Animate tracks distributed counter
-  useEffect(() => {
-    const id = setInterval(() => setTracksDistributed(v => v + 1), 6000);
-    return () => clearInterval(id);
-  }, []);
 
   // Confetti burst on mount for winner card
   useEffect(() => {
@@ -318,6 +307,19 @@ export default function AppLayout() {
         const nameMap = Object.fromEntries((artistNames ?? []).map((a: any) => [a.user_id, a.name]));
         setTopCreators(liveCreators.map((c: any) => ({ ...c, name: nameMap[c.user_id] ?? 'Creator' })));
       }
+
+      // Seed live vote counter with real total
+      const { count: voteCount } = await supabase
+        .from('competition_votes')
+        .select('id', { count: 'exact', head: true });
+      if (voteCount !== null) setLiveVotes(voteCount);
+
+      // Real tracks distributed count
+      const { count: distCount } = await supabase
+        .from('distribution_releases')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['live', 'distributed', 'sent_to_ditto', 'submitted_to_ditto', 'approved', 'approved_for_distribution']);
+      if (distCount !== null) setTracksDistributed(distCount);
 
       setLoading(false);
       } catch {
@@ -608,8 +610,7 @@ export default function AppLayout() {
               <div className="flex-1 p-3 flex flex-col justify-between">
                 <div>
                   <p className="text-white text-base font-black tabular-nums">{liveVotes.toLocaleString()}</p>
-                  <p className="text-white/30 text-[10px] mb-0.5">votes live · $500 prize</p>
-                  <p className="text-[#00F5A0] text-[10px] font-bold">Earnings: $320 earned</p>
+                  <p className="text-white/30 text-[10px] mb-0.5">community votes cast</p>
                 </div>
                 <button
                   onClick={() => setVideoModalOpen(true)}
@@ -627,7 +628,7 @@ export default function AppLayout() {
                 <h3 className="text-xl font-black text-white">30+ Platforms</h3>
                 <p className="text-white/40 text-xs mb-2">Upload once. Reach everywhere.</p>
                 <p className="text-[#00F5A0] text-sm font-bold tabular-nums">{tracksDistributed.toLocaleString()}</p>
-                <p className="text-white/30 text-[10px]">tracks distributed today</p>
+                <p className="text-white/30 text-[10px]">tracks distributed</p>
               </div>
               <div className="overflow-hidden my-2">
                 <div className="flex gap-2 animate-marquee whitespace-nowrap">
