@@ -113,8 +113,7 @@ export default function CheckoutPage() {
   const [orderId,      setOrderId]      = useState('');
   const [paypalPending, setPaypalPending] = useState(false);
 
-  const tax   = cartTotal * 0.08;
-  const total = cartTotal + tax;
+  const total = cartTotal;
 
   const billingComplete = form.name && form.email && form.address && form.city && form.zip;
 
@@ -211,7 +210,7 @@ export default function CheckoutPage() {
           email:              form.email,
           total_price:        Math.round(total * 100),
           subtotal_price:     Math.round(cartTotal * 100),
-          total_tax:          Math.round(tax * 100),
+          total_tax:          0,
           financial_status:   'pending',
           fulfillment_status: 'unfulfilled',
           billing_address:    { name: form.name, address1: form.address, city: form.city, country: form.country, zip: form.zip },
@@ -233,7 +232,7 @@ export default function CheckoutPage() {
           }))
         );
 
-        // 2. If a Stripe backend endpoint exists, charge it
+        // 2. Charge via Stripe backend endpoint
         if (STRIPE_KEY) {
           try {
             const res = await fetch('/api/create-payment-intent', {
@@ -244,12 +243,18 @@ export default function CheckoutPage() {
             if (res.ok) {
               await supabase.from('ecom_orders').update({ financial_status: 'paid' }).eq('id', order.id);
               await fulfillOrder(order.id, items);
+            } else {
+              throw new Error('Payment gateway error');
             }
-          } catch { /* Stripe endpoint not yet deployed — order still recorded */ }
+          } catch {
+            // Order is recorded but not yet paid — admin can manually review
+            setError('Payment processing failed. Please try again or contact support.');
+            setLoading(false);
+            return;
+          }
         } else {
-          // Mark as paid (demo mode without Stripe key)
-          await supabase.from('ecom_orders').update({ financial_status: 'paid' }).eq('id', order.id);
-          await fulfillOrder(order.id, items);
+          // No payment gateway configured — record order as pending for manual processing
+          await supabase.from('ecom_orders').update({ financial_status: 'pending' }).eq('id', order.id);
         }
       }
 
@@ -400,7 +405,7 @@ export default function CheckoutPage() {
                             email: form.email,
                             total_price:        Math.round(total * 100),
                             subtotal_price:     Math.round(cartTotal * 100),
-                            total_tax:          Math.round(tax * 100),
+                            total_tax:          0,
                             financial_status:   'pending',
                             fulfillment_status: 'unfulfilled',
                             billing_address:    { name: form.name, address1: form.address, city: form.city, country: form.country, zip: form.zip },
@@ -448,7 +453,7 @@ export default function CheckoutPage() {
                               shipping_address: { address: form.address, city: form.city, country: form.country, zip: form.zip },
                               items:            items.map(i => ({ product_id: i.id, title: i.title, price: i.price, qty: i.qty })),
                               subtotal_cents:   Math.round(cartTotal * 100),
-                              tax_cents:        Math.round(tax * 100),
+                              tax_cents:        0,
                               total_cents:      Math.round(total * 100),
                               payment_method:   'paypal',
                               payment_status:   'pending',
@@ -558,14 +563,6 @@ export default function CheckoutPage() {
               ))}
             </div>
             <div className="border-t border-gray-800 pt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between text-gray-400">
-                <span>Subtotal</span>
-                <span>${cartTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>Tax (8%)</span>
-                <span>${tax.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between text-white font-bold text-base pt-1">
                 <span>Total</span>
                 <span>${total.toFixed(2)}</span>
