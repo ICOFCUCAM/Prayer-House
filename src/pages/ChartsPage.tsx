@@ -14,6 +14,7 @@ interface ChartTrack {
   prev_rank:    number | null;
   title:        string;
   artist:       string;
+  artist_id:    string;
   cover_url:    string;
   audio_url:    string;
   genre:        string;
@@ -89,7 +90,7 @@ export default function ChartsPage() {
     setLoading(true);
     let q = supabase
       .from('tracks')
-      .select('id, title, artist_name, artwork_url, audio_url, genre, language, stream_count, price')
+      .select('id, title, artist_name, artist_id, artwork_url, audio_url, genre, language, stream_count, price')
       .eq('status', 'active')
       .order('stream_count', { ascending: false })
       .limit(50);
@@ -118,6 +119,7 @@ export default function ChartsPage() {
       prev_rank:    prevMap[r.id] ?? null,
       title:        r.title,
       artist:       r.artist_name || 'Unknown',
+      artist_id:    r.artist_id || '',
       cover_url:    r.artwork_url || '',
       audio_url:    r.audio_url || '',
       genre:        r.genre || '',
@@ -145,16 +147,17 @@ export default function ChartsPage() {
 
   const handlePlay = (t: ChartTrack) => {
     const track: Track = {
-      id:       t.id,
-      title:    t.title,
-      artist:   t.artist,
-      albumArt: t.cover_url,
-      audioUrl: t.audio_url,
+      id:        t.id,
+      title:     t.title,
+      artist:    t.artist,
+      artist_id: t.artist_id || undefined,
+      albumArt:  t.cover_url,
+      audioUrl:  t.audio_url,
     };
     if (currentTrack?.id === t.id) { togglePlay(); return; }
     const queue: Track[] = tracks
       .filter(x => x.id !== t.id && x.audio_url)
-      .map(x => ({ id: x.id, title: x.title, artist: x.artist, albumArt: x.cover_url, audioUrl: x.audio_url }));
+      .map(x => ({ id: x.id, title: x.title, artist: x.artist, artist_id: x.artist_id || undefined, albumArt: x.cover_url, audioUrl: x.audio_url }));
     play(track, queue);
   };
 

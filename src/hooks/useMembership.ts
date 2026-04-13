@@ -6,9 +6,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface MembershipTier {
   id:          string;
+  creator_id:  string;
   name:        string;
-  price:       number;
-  colour:      string;
+  price_usd:   number;
+  color:       string;
   perks:       string[];
   is_active:   boolean;
 }
@@ -54,7 +55,7 @@ export function useMembership(): UseMembershipResult {
       .select(`
         id, tier_id, status, created_at, expires_at,
         membership_tiers:tier_id (
-          id, name, price, colour, perks, is_active, artist_id
+          id, creator_id, name, price_usd, color, perks, is_active
         )
       `)
       .eq('fan_id', user.id)
@@ -84,7 +85,7 @@ export function useMembership(): UseMembershipResult {
   [subscriptions]);
 
   const hasAnyTierOf = useCallback((artistId: string) =>
-    subscriptions.some(s => (s.tier as any)?.artist_id === artistId),
+    subscriptions.some(s => (s.tier as any)?.creator_id === artistId),
   [subscriptions]);
 
   const isSubscribedTo = useCallback((artistId: string, tierId?: string) => {
