@@ -8,12 +8,16 @@ import {
   Heart, Share2, ChevronDown, Music,
 } from 'lucide-react';
 import SleepTimer from '@/components/SleepTimer';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { recordMusicStream } from '@/pipelines/earnings/EarningsWorker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Track {
   id: string;
   title: string;
   artist: string;
+  artist_id?: string;   // artist's auth.users UUID (used for earnings recording)
   album?: string;
   cover?: string;       // legacy field kept for backward compat
   albumArt?: string;
@@ -106,6 +110,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef    = useRef<HTMLAudioElement>(new Audio());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wiredRef    = useRef(false);
+  const { user } = useAuth();
+
+  // Stream session tracking — holds the track currently being recorded
+  const streamSessionRef = useRef<{ trackId: string; artistId?: string } | null>(null);
 
   const [currentTrack,   setCurrentTrack]   = useState<Track | null>(null);
   const [queue,          setQueue]          = useState<Track[]>([]);
@@ -136,6 +144,56 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // ── Stream event recording ─────────────────────────────────────────────────
+  // Flush the active stream session to stream_events + credit artist earnings.
+  // Called on track-change, skip, or natural end.
+  const flushStreamEvent = useCallback(async (skipped: boolean) => {
+    const session = streamSessionRef.current;
+    if (!session) return;
+    streamSessionRef.current = null;
+
+    const a = audioRef.current;
+    const durationPct = a.duration > 0
+      ? Math.round((a.currentTime / a.duration) * 100)
+      : 0;
+
+    // Ignore micro-plays (< 5 s) to avoid noise from accidental taps
+    if (a.currentTime < 5) return;
+
+    // Write stream event (fire-and-forget, never blocks playback)
+    supabase.from('stream_events').insert([{
+      track_id:     session.trackId,
+      user_id:      user?.id ?? null,
+      duration_pct: durationPct,
+      skipped,
+      skip_at_pct:  skipped ? durationPct : null,
+      platform:     'web',
+      played_at:    new Date().toISOString(),
+    }]).then(async ({ error }) => {
+      if (error) return;
+      // Credit artist earnings when listener heard ≥30% of the track
+      if (durationPct >= 30) {
+        let artistId = session.artistId;
+        if (!artistId) {
+          const { data } = await supabase
+            .from('tracks')
+            .select('artist_id')
+            .eq('id', session.trackId)
+            .single();
+          artistId = data?.artist_id ?? undefined;
+        }
+        if (artistId) await recordMusicStream(artistId, session.trackId);
+      }
+    });
+  }, [user]);
+
+  const startStreamSession = useCallback((track: Track) => {
+    streamSessionRef.current = {
+      trackId:  track.id,
+      artistId: track.artist_id,
+    };
+  }, []);
+
   // Wire audio element events once on mount
   useEffect(() => {
     const a = audioRef.current;
@@ -146,6 +204,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onPlay  = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onEnded = () => {
+      // Record completed (non-skipped) stream before moving on
+      flushStreamEvent(false);
       setRepeat(r => {
         if (r === 'one') { a.currentTime = 0; a.play().catch(() => {}); return r; }
         setQueue(q => {
@@ -153,6 +213,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const [next, ...rest] = q;
           setCurrentTrack(next);
           addToRecent(next);
+          startStreamSession(next);
           if (next.audioUrl) { a.src = next.audioUrl; a.play().catch(() => {}); }
           return rest;
         });
@@ -187,14 +248,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback((track: Track, newQueue?: Track[]) => {
+    flushStreamEvent(true);   // flush previous track as skipped (user picked a new one)
     initAudioCtx();
     setCurrentTrack(track);
     if (newQueue) setQueue(newQueue.filter(t => t.id !== track.id));
     addToRecent(track);
+    startStreamSession(track);
     const a = audioRef.current;
     if (track.audioUrl) { a.src = track.audioUrl; a.play().catch(() => {}); }
     else { a.pause(); setIsPlaying(false); }
-  }, [initAudioCtx, addToRecent]);
+  }, [initAudioCtx, addToRecent, flushStreamEvent, startStreamSession]);
 
   const togglePlay = useCallback(() => {
     if (!currentTrack) return;
@@ -204,6 +267,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [currentTrack, initAudioCtx]);
 
   const next = useCallback(() => {
+    flushStreamEvent(true);   // user skipped forward
     setQueue(q => {
       if (!q.length) { audioRef.current.pause(); return q; }
       const idx = shuffle ? Math.floor(Math.random() * q.length) : 0;
@@ -212,12 +276,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       play(picked);
       return copy;
     });
-  }, [shuffle, play]);
+  }, [shuffle, play, flushStreamEvent]);
 
   const prev = useCallback(() => {
     if (audioRef.current.currentTime > 3) { audioRef.current.currentTime = 0; return; }
+    flushStreamEvent(true);   // user skipped backward
     setRecentlyPlayed(r => { if (r.length > 1) play(r[1]); return r; });
-  }, [play]);
+  }, [play, flushStreamEvent]);
 
   const seek = useCallback((pct: number) => {
     const a = audioRef.current;
@@ -280,13 +345,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     removeFromQueue: (id: string)  => setQueue(q => q.filter(t => t.id !== id)),
     playPlaylist: (tracks: Track[], startIndex = 0) => {
       if (!tracks.length) return;
+      flushStreamEvent(true);
       const idx    = Math.min(startIndex, tracks.length - 1);
       const picked = tracks[idx];
       const rest   = tracks.filter((_, i) => i !== idx);
-      // Using play() directly since it's in closure
       setCurrentTrack(picked);
       setQueue(rest);
       addToRecent(picked);
+      startStreamSession(picked);
       const a = audioRef.current;
       if (picked.audioUrl) { a.src = picked.audioUrl; a.play().catch(() => {}); }
       else { a.pause(); }

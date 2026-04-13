@@ -79,14 +79,19 @@ function Overview() {
       supabase.from('ecom_products').select('*', { count: 'exact', head: true }).ilike('product_type', 'audiobook'),
       supabase.from('competition_entries_v2').select('*', { count: 'exact', head: true }),
       supabase.from('distribution_releases').select('*', { count: 'exact', head: true }),
-    ]).then(([users, tracks, books, audio, comps, releases]) => {
+      supabase.from('stream_events').select('*', { count: 'exact', head: true }),
+      supabase.from('creator_earnings').select('amount').eq('paid', false),
+    ]).then(([users, tracks, books, audio, comps, releases, streams, unpaidEarnings]) => {
+      const pendingPayout = (unpaidEarnings.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
       setCounts({
-        users:    users.count    ?? 0,
-        tracks:   tracks.count   ?? 0,
-        books:    books.count    ?? 0,
-        audio:    audio.count    ?? 0,
-        comps:    comps.count    ?? 0,
-        releases: releases.count ?? 0,
+        users:         users.count    ?? 0,
+        tracks:        tracks.count   ?? 0,
+        books:         books.count    ?? 0,
+        audio:         audio.count    ?? 0,
+        comps:         comps.count    ?? 0,
+        releases:      releases.count ?? 0,
+        streams:       streams.count  ?? 0,
+        pendingPayout: Math.round(pendingPayout * 100) / 100,
       });
       setLoading(false);
     });
@@ -97,13 +102,15 @@ function Overview() {
   return (
     <div>
       <h2 className="text-white font-black text-xl mb-6">Platform Overview</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <StatCard label="Total Users"      value={counts.users}    colour={CYAN}   icon={<Users className="w-4 h-4" />} />
-        <StatCard label="Tracks"           value={counts.tracks}   colour={PURPLE} icon={<Music className="w-4 h-4" />} />
-        <StatCard label="Books"            value={counts.books}    colour={GOLD}   icon={<BookOpen className="w-4 h-4" />} />
-        <StatCard label="Audiobooks"       value={counts.audio}    colour={GREEN}  icon={<BookOpen className="w-4 h-4" />} />
-        <StatCard label="Competition Entries" value={counts.comps} colour={ORANGE} icon={<Trophy className="w-4 h-4" />} />
-        <StatCard label="Releases"         value={counts.releases} colour={RED}    icon={<Radio className="w-4 h-4" />} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Total Users"        value={counts.users}                              colour={CYAN}   icon={<Users className="w-4 h-4" />} />
+        <StatCard label="Tracks"             value={counts.tracks}                             colour={PURPLE} icon={<Music className="w-4 h-4" />} />
+        <StatCard label="Total Streams"      value={(counts.streams ?? 0).toLocaleString()}    colour={GREEN}  icon={<Radio className="w-4 h-4" />} />
+        <StatCard label="Pending Payouts"    value={`$${(counts.pendingPayout ?? 0).toFixed(2)}`} colour={GOLD} icon={<DollarSign className="w-4 h-4" />} />
+        <StatCard label="Books"              value={counts.books}                              colour={GOLD}   icon={<BookOpen className="w-4 h-4" />} />
+        <StatCard label="Audiobooks"         value={counts.audio}                              colour={CYAN}   icon={<BookOpen className="w-4 h-4" />} />
+        <StatCard label="Competition Entries" value={counts.comps}                             colour={ORANGE} icon={<Trophy className="w-4 h-4" />} />
+        <StatCard label="Releases"           value={counts.releases}                           colour={RED}    icon={<Package className="w-4 h-4" />} />
       </div>
 
       {/* Quick links */}

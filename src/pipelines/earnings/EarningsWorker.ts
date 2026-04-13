@@ -27,16 +27,18 @@ export async function recordEarning(
   userId: string,
   category: EarningCategory,
   amount: number,
-  period?: string
+  period?: string,
+  description?: string,
 ): Promise<void> {
   const currentPeriod = period ?? new Date().toISOString().slice(0, 7); // YYYY-MM
-  await supabase.from('creator_earnings').upsert([{
-    user_id:  userId,
+  await supabase.from('creator_earnings').insert([{
+    user_id:     userId,
     category,
     amount,
-    period:   currentPeriod,
-    paid:     false,
-  }], { onConflict: 'user_id,category,period' });
+    period:      currentPeriod,
+    description: description ?? null,
+    paid:        false,
+  }]);
 }
 
 export async function recordMusicStream(userId: string, trackId: string): Promise<void> {

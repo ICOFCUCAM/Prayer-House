@@ -4,6 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase';
 import { CreditCard, Lock, ShieldCheck, Smartphone } from 'lucide-react';
 import MobileMoneyModal from '@/components/MobileMoneyModal';
+import { recordBookSale } from '@/pipelines/earnings/EarningsWorker';
 
 type PayMethod = 'card' | 'mobile_money' | 'paypal';
 
@@ -153,6 +154,41 @@ export default function CheckoutPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Post-payment fulfillment ───────────────────────────────────────────────
+  // Grant the buyer access to each purchased product and credit seller earnings.
+  const fulfillOrder = async (orderId: string, orderItems: typeof items) => {
+    const { data: { user: buyer } } = await supabase.auth.getUser();
+
+    await Promise.all(orderItems.map(async item => {
+      // 1. Grant library access
+      if (buyer) {
+        await supabase.from('user_library').insert([{
+          user_id:    buyer.id,
+          product_id: item.id,
+          order_id:   orderId,
+          access_type: 'purchase',
+        }]).then(() => {}); // ignore if row already exists
+      }
+
+      // 2. Credit seller earnings — look up the product's seller/artist
+      const { data: product } = await supabase
+        .from('ecom_products')
+        .select('vendor_id, product_type, price')
+        .eq('id', item.id)
+        .single();
+
+      if (product?.vendor_id) {
+        const salePrice = item.price * (item.quantity ?? 1);
+        await recordBookSale(product.vendor_id, salePrice);
+      }
+    }));
+
+    // Mark order fulfilled
+    await supabase.from('ecom_orders')
+      .update({ fulfillment_status: 'fulfilled' })
+      .eq('id', orderId);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
@@ -207,11 +243,13 @@ export default function CheckoutPage() {
             });
             if (res.ok) {
               await supabase.from('ecom_orders').update({ financial_status: 'paid' }).eq('id', order.id);
+              await fulfillOrder(order.id, items);
             }
           } catch { /* Stripe endpoint not yet deployed — order still recorded */ }
         } else {
           // Mark as paid (demo mode without Stripe key)
           await supabase.from('ecom_orders').update({ financial_status: 'paid' }).eq('id', order.id);
+          await fulfillOrder(order.id, items);
         }
       }
 
