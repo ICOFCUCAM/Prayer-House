@@ -395,7 +395,7 @@ export default function ModerationQueuePage() {
           </div>
           <div className="ml-auto">
             <Link
-              to="/admin"
+              to="/admin/dashboard"
               className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
             >
               ← Admin Dashboard

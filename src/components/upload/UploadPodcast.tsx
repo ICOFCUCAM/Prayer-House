@@ -117,6 +117,7 @@ export default function UploadPodcast({ onSuccess }: Props) {
       // Track record for the episode
       await supabase.from('tracks').insert([{
         release_id:   releaseId,
+        artist_id:    user?.id ?? null,
         creator_id:   user?.id ?? null,
         track_number: parseInt(episodeNumber, 10) || 1,
         title:        episodeTitle,

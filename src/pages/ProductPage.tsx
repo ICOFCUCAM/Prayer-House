@@ -180,7 +180,7 @@ export default function ProductPage() {
       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-12">
 
         <Link
-          to="/collections/marketplace"
+          to="/music-store"
           className="text-sm text-gray-400 hover:text-white mb-6 inline-flex items-center gap-1 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

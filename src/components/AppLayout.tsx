@@ -517,7 +517,7 @@ export default function AppLayout() {
                 <p className="text-white/40 text-sm">What's hot on WANKONG this week</p>
               </div>
             </div>
-            <Link to="/collections/trending" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
+            <Link to="/collections/featured" className="text-[#00D9FF] hover:text-[#00D9FF]/80 text-sm font-medium flex items-center gap-1">
               View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

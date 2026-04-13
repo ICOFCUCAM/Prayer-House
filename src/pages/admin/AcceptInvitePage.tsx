@@ -232,7 +232,7 @@ export default function AcceptInvitePage() {
           <CheckCircle className="w-12 h-12 mx-auto mb-4" style={{ color: GREEN }} />
           <h1 className="text-white font-black text-xl mb-2">Already Accepted</h1>
           <p className="text-white/50 text-sm">This invite has already been used.</p>
-          <Link to="/admin" className="inline-block mt-6 px-5 py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})` }}>
+          <Link to="/admin/dashboard" className="inline-block mt-6 px-5 py-2.5 rounded-xl font-semibold text-sm text-white" style={{ background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})` }}>
             Go to Admin Dashboard
           </Link>
         </div>

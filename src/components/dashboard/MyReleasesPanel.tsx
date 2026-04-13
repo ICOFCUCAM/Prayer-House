@@ -239,7 +239,7 @@ function ReleaseCard({ release }: { release: MyRelease }) {
           {/* CTA for draft releases */}
           {release.status === 'draft' && (
             <Link
-              to="/upload/music"
+              to="/dashboard/artist/upload-music"
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#9D4EDD]/10 border border-[#9D4EDD]/30 text-[#9D4EDD] text-xs font-semibold rounded-xl hover:bg-[#9D4EDD]/20 transition-colors"
             >
               <Music className="w-3.5 h-3.5" />
