@@ -59,14 +59,20 @@ export default function WalletView() {
   const loadData = async (uid: string) => {
     setLoading(true);
 
-    // Fetch transactions — try creator_earnings, fall back to earnings_log
-    const [txRes, balRes] = await Promise.all([
+    // Fetch earnings + withdrawal history in parallel
+    const [txRes, withdrawRes, balRes] = await Promise.all([
       supabase
         .from('creator_earnings')
-        .select('id, type, description, amount_cents, status, created_at')
+        .select('id, category, description, amount, created_at')
         .eq('user_id', uid)
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(50),
+      supabase
+        .from('creator_withdrawals')
+        .select('id, amount, description, method, status, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(50),
       supabase
         .from('creator_balances')
         .select('*')
@@ -74,16 +80,30 @@ export default function WalletView() {
         .maybeSingle(),
     ]);
 
-    // Map transactions
-    const txList: Transaction[] = (txRes.data ?? []).map((r: any) => ({
+    // Map earnings (amounts stored as numeric dollars → convert to cents for display)
+    const earnings: Transaction[] = (txRes.data ?? []).map((r: any) => ({
       id:          r.id,
-      type:        r.type ?? 'royalty',
+      type:        r.category ?? 'royalty',
       description: r.description ?? 'Earnings',
-      amount:      r.amount_cents ?? r.amount ?? 0,
-      status:      r.status ?? 'completed',
+      amount:      Math.round((r.amount ?? 0) * 100),
+      status:      'completed',
       created_at:  r.created_at,
     }));
-    setTransactions(txList);
+
+    // Map withdrawals (amount stored as numeric dollars, show as negative)
+    const withdrawals: Transaction[] = (withdrawRes.data ?? []).map((r: any) => ({
+      id:          r.id,
+      type:        'payout',
+      description: r.description ?? `Withdrawal via ${r.method ?? 'Unknown'}`,
+      amount:      -Math.round((r.amount ?? 0) * 100),
+      status:      r.status ?? 'pending',
+      created_at:  r.created_at,
+    }));
+
+    // Merge and sort by date descending
+    const txList: Transaction[] = [...earnings, ...withdrawals]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 100);
 
     // Build balances from fetched row or derive from transactions
     if (balRes.data) {

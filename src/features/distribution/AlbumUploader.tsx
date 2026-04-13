@@ -231,7 +231,7 @@ export function AlbumUploader({ artistId, onSuccess }: AlbumUploaderProps) {
     // Insert individual tracks linked to the release
     const trackInserts = uploadedTracks.map((t) => ({
       release_id: release.id,
-      artist_id: artistId,
+      creator_id: artistId,
       title: t.title.trim(),
       track_number: t.trackNumber,
       audio_url: t.audioUrl,
