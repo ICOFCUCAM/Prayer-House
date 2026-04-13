@@ -321,6 +321,16 @@ export default function AppLayout() {
         .in('status', ['live', 'distributed', 'sent_to_ditto', 'submitted_to_ditto', 'approved', 'approved_for_distribution']);
       if (distCount !== null) setTracksDistributed(distCount);
 
+      // Top product stream count for featured card
+      const { data: topProduct } = await supabase
+        .from('ecom_products')
+        .select('stream_count')
+        .eq('status', 'active')
+        .order('stream_count', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (topProduct?.stream_count != null) setViewCount(topProduct.stream_count);
+
       setLoading(false);
       } catch {
         setLoading(false);

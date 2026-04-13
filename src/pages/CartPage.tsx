@@ -17,9 +17,6 @@ export default function CartPage() {
     );
   }
 
-  const tax = cartTotal * 0.08;
-  const total = cartTotal + tax;
-
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -55,8 +52,7 @@ export default function CartPage() {
             <h3 className="text-white font-semibold mb-4">Order Summary</h3>
             <div className="space-y-2 text-sm mb-4">
               <div className="flex justify-between text-gray-400"><span>Subtotal</span><span>${cartTotal.toFixed(2)}</span></div>
-              <div className="flex justify-between text-gray-400"><span>Tax (8%)</span><span>${tax.toFixed(2)}</span></div>
-              <div className="border-t border-gray-800 pt-2 flex justify-between text-white font-bold"><span>Total</span><span>${total.toFixed(2)}</span></div>
+              <div className="border-t border-gray-800 pt-2 flex justify-between text-white font-bold"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div>
             </div>
             <button onClick={() => navigate('/checkout')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors">
               Proceed to Checkout

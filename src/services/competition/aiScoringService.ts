@@ -14,10 +14,11 @@ export interface ScoreResult {
 // Production integration: call a serverless function that processes
 // the video through a pitch/timing analysis model (e.g. Spleeter + CREPE).
 export async function scoreCompetitionEntry(entryId: string): Promise<ScoreResult> {
-  // Simulate AI scoring with deterministic seed from entryId
-  const seed = entryId.charCodeAt(0) + entryId.charCodeAt(1);
+  // Deterministic pseudo-score derived solely from entryId (no random — same
+  // entry always gets the same score until real AI is wired up).
+  const hash = entryId.split('').reduce((acc, ch, i) => acc + ch.charCodeAt(0) * (i + 1), 0);
   const rand = (min: number, max: number, offset: number) =>
-    parseFloat((min + ((seed + offset) % (max - min)) + Math.random() * 8).toFixed(2));
+    parseFloat((min + ((hash + offset) % (max - min))).toFixed(2));
 
   const scores: ScoreResult = {
     pitch_score:        rand(60, 92, 0),
@@ -75,10 +76,17 @@ export async function selectCompetitionWinner(roomId: string): Promise<string | 
     .update({ is_winner: true, status: 'winner', updated_at: new Date().toISOString() })
     .eq('id', winnerId);
 
-  // Insert prize record
+  // Look up the room's prize pool to record accurate amount
+  const { data: room } = await supabase
+    .from('competition_rooms')
+    .select('prize_pool')
+    .eq('id', roomId)
+    .maybeSingle();
+  const prizeAmount = room?.prize_pool ? parseFloat(room.prize_pool) || 0 : 0;
+
   await supabase.from('competition_prizes').insert([{
     entry_id:       winnerId,
-    prize_amount:   500,
+    prize_amount:   prizeAmount,
     currency:       'USD',
     payment_status: 'pending',
   }]);

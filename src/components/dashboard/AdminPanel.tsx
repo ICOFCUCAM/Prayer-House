@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PLATFORM_STATS, formatNumber, formatCurrency } from '@/lib/constants';
+import { formatNumber, formatCurrency } from '@/lib/constants';
 
 interface Profile {
   id: string;
@@ -44,6 +44,16 @@ export default function AdminPanel() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [loading,     setLoading]     = useState(false);
 
+  const [stats, setStats] = useState({
+    totalCreators: 0,
+    totalContent: 0,
+    totalRevenue: 0,
+    activeCompetitions: 0,
+    totalPayouts: 0,
+    monthlyActiveUsers: 0,
+    countriesServed: 0,
+  });
+
   const toggleUser = (id: string) => {
     setSelectedUsers(prev => {
       const next = new Set(prev);
@@ -62,6 +72,40 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
+    if (activeTab === 'overview') {
+      (async () => {
+        const [creatorsRes, contentRes, revenueRes, competitionsRes, payoutsRes, usersRes] = await Promise.allSettled([
+          supabase.from('profiles').select('id', { count: 'exact', head: true }),
+          supabase.from('ecom_products').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+          supabase.from('ecom_orders').select('total_price').eq('status', 'completed'),
+          supabase.from('competition_entries_v2').select('id', { count: 'exact', head: true }).in('status', ['live', 'winner']),
+          supabase.from('creator_earnings').select('amount_cents').eq('type', 'payout').eq('status', 'completed'),
+          supabase.from('profiles').select('country').not('country', 'is', null),
+        ]);
+
+        const revenueData = (revenueRes.status === 'fulfilled' && revenueRes.value.data)
+          ? revenueRes.value.data.reduce((s: number, r: any) => s + (r.total_price ?? 0), 0) / 100
+          : 0;
+
+        const payoutsData = (payoutsRes.status === 'fulfilled' && payoutsRes.value.data)
+          ? payoutsRes.value.data.reduce((s: number, r: any) => s + (r.amount_cents ?? 0), 0) / 100
+          : 0;
+
+        const countriesData = (usersRes.status === 'fulfilled' && usersRes.value.data)
+          ? new Set(usersRes.value.data.map((r: any) => r.country)).size
+          : 0;
+
+        setStats({
+          totalCreators:      (creatorsRes.status === 'fulfilled' && creatorsRes.value.count != null) ? creatorsRes.value.count : 0,
+          totalContent:       (contentRes.status === 'fulfilled' && contentRes.value.count != null) ? contentRes.value.count : 0,
+          totalRevenue:       revenueData,
+          activeCompetitions: (competitionsRes.status === 'fulfilled' && competitionsRes.value.count != null) ? competitionsRes.value.count : 0,
+          totalPayouts:       payoutsData,
+          monthlyActiveUsers: (creatorsRes.status === 'fulfilled' && creatorsRes.value.count != null) ? creatorsRes.value.count : 0,
+          countriesServed:    countriesData,
+        });
+      })();
+    }
     if (activeTab === 'users' && users.length === 0) {
       setLoading(true);
       supabase
@@ -126,19 +170,17 @@ export default function AdminPanel() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Total Creators', value: formatNumber(PLATFORM_STATS.totalCreators), change: '+234', color: 'indigo' },
-              { label: 'Total Revenue', value: formatCurrency(PLATFORM_STATS.totalRevenue), change: '+12.5%', color: 'emerald' },
-              { label: 'Active Competitions', value: PLATFORM_STATS.activeCompetitions.toString(), change: '+2', color: 'purple' },
-              { label: 'Monthly Users', value: formatNumber(PLATFORM_STATS.monthlyActiveUsers), change: '+8.3%', color: 'blue' },
-              { label: 'Total Content', value: formatNumber(PLATFORM_STATS.totalContent), change: '+1.2K', color: 'pink' },
-              { label: 'Total Payouts', value: formatCurrency(PLATFORM_STATS.totalPayouts), change: '+$45K', color: 'amber' },
-              { label: 'Subscriptions', value: formatNumber(PLATFORM_STATS.activeSubscriptions), change: '+890', color: 'cyan' },
-              { label: 'Countries', value: PLATFORM_STATS.countriesServed.toString(), change: '+3', color: 'rose' },
+              { label: 'Total Creators',      value: formatNumber(stats.totalCreators),   color: 'indigo'  },
+              { label: 'Total Revenue',        value: formatCurrency(stats.totalRevenue),  color: 'emerald' },
+              { label: 'Active Competitions',  value: stats.activeCompetitions.toString(), color: 'purple'  },
+              { label: 'Total Users',          value: formatNumber(stats.monthlyActiveUsers), color: 'blue' },
+              { label: 'Active Content',       value: formatNumber(stats.totalContent),    color: 'pink'    },
+              { label: 'Total Payouts',        value: formatCurrency(stats.totalPayouts),  color: 'amber'   },
+              { label: 'Countries',            value: stats.countriesServed.toString(),    color: 'rose'    },
             ].map(stat => (
               <div key={stat.label} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                 <p className="text-xs text-gray-400 mb-1">{stat.label}</p>
                 <p className="text-xl font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-emerald-400 mt-1">{stat.change} this month</p>
               </div>
             ))}
           </div>
