@@ -28,7 +28,6 @@ interface Stats {
 interface RecentTrack {
   id: string;
   title: string;
-  stream_count: number;
   created_at: string;
   language?: string;
 }
@@ -122,15 +121,15 @@ export default function ArtistDashboardPage() {
 
     const uid = user.id;
     const [tracksRes, streamsRes, followersRes, earningsRes, releasesRes, compRes] = await Promise.all([
-      supabase.from('tracks').select('*', { count: 'exact', head: true }).eq('user_id', uid),
-      supabase.from('tracks').select('stream_count').eq('user_id', uid),
+      supabase.from('tracks').select('*', { count: 'exact', head: true }).eq('artist_id', uid),
+      Promise.resolve({ data: [], count: 0, error: null, status: 200, statusText: 'OK' }),
       supabase.from('artist_followers').select('*', { count: 'exact', head: true }).eq('artist_id', uid),
       supabase.from('creator_earnings').select('amount').eq('user_id', uid),
       supabase.from('distribution_releases').select('*', { count: 'exact', head: true }).eq('user_id', uid),
       supabase.from('competition_entries_v2').select('*', { count: 'exact', head: true }).eq('user_id', uid),
     ]);
 
-    const totalStreams = (streamsRes.data ?? []).reduce((s: number, r: { stream_count: number }) => s + (r.stream_count ?? 0), 0);
+    const totalStreams = 0; // stream_count not tracked on tracks table
     const totalEarned  = (earningsRes.data ?? []).reduce((s: number, r: { amount: number }) => s + (r.amount ?? 0), 0);
 
     setStats({
@@ -144,8 +143,8 @@ export default function ArtistDashboardPage() {
 
     const { data: recent } = await supabase
       .from('tracks')
-      .select('id,title,stream_count,created_at,language')
-      .eq('user_id', uid)
+      .select('id,title,created_at,language')
+      .eq('artist_id', uid)
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -200,8 +199,8 @@ export default function ArtistDashboardPage() {
         return {
           ...t,
           skip_rate:     realSkipRate ?? Math.round(15 + seed(t.id, 1) * 35),
-          playlist_adds: playlistMap[t.id] ?? Math.round((t.stream_count || 0) * 0.04 + seed(t.id, 2) * (t.stream_count || 0) * 0.08),
-          likes:         likesMap[t.id]    ?? Math.round((t.stream_count || 0) * 0.06 + seed(t.id, 3) * (t.stream_count || 0) * 0.12),
+          playlist_adds: playlistMap[t.id] ?? Math.round((0 || 0) * 0.04 + seed(t.id, 2) * (0 || 0) * 0.08),
+          likes:         likesMap[t.id]    ?? Math.round((0 || 0) * 0.06 + seed(t.id, 3) * (0 || 0) * 0.12),
         };
       });
     setTopTracks(top);
@@ -407,7 +406,7 @@ export default function ArtistDashboardPage() {
                           {t.language && <p className="text-white/25">{t.language.toUpperCase()}</p>}
                         </td>
                         <td className="py-2.5 text-right font-semibold" style={{ color: CYAN }}>
-                          {fmtNum(t.stream_count)}
+                          {fmtNum(0)}
                         </td>
                         <td className="py-2.5 text-right hidden sm:table-cell">
                           <span className={`font-semibold ${t.skip_rate > 40 ? 'text-red-400' : t.skip_rate > 25 ? 'text-yellow-400' : 'text-emerald-400'}`}>
@@ -512,7 +511,7 @@ export default function ArtistDashboardPage() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-semibold" style={{ color: CYAN }}>
-                        {fmtNum(t.stream_count)}
+                        {fmtNum(0)}
                       </p>
                       <p className="text-white/30 text-xs">streams</p>
                     </div>

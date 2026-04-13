@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { usePlayer } from '@/components/GlobalPlayer';
-import { useCart } from '@/contexts/CartContext';
 import { usePlaylistContext } from '@/contexts/PlaylistContext';
 
 // ── Language Configuration ─────────────────────────────────────────────────────
@@ -51,22 +50,18 @@ const GENRE_GRADIENTS: Record<string, string> = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Release {
-  id:             string;
-  title:          string;
-  cover_art:      string | null;
-  genre:          string | null;
-  language:       string | null;
-  play_count:     number;
-  download_count: number;
-  price:          number;
-  audio_url:      string | null;
-  created_at:     string;
-  release_type:   'album' | 'EP' | 'single' | null;
-  release_date:   string | null;
-  artists?:       { name: string; slug: string } | null;
+  id:           string;
+  title:        string;
+  artwork_url:  string | null;
+  genre:        string | null;
+  language:     string | null;
+  audio_url:    string | null;
+  created_at:   string;
+  release_type: 'album' | 'EP' | 'single' | null;
 }
 
 type SortOption  = 'newest' | 'trending' | 'most_played' | 'most_downloaded' | 'alphabetical' | 'free_first' | 'paid_first';
+
 type ContentTab  = 'all' | 'album' | 'EP' | 'single';
 type PriceFilter = 'all' | 'free' | 'paid';
 
@@ -108,22 +103,14 @@ function ReleaseCard({
   isPlaying: boolean;
   onPlay:    () => void;
 }) {
-  const { addToCart }         = useCart();
   const { openAddToPlaylist } = usePlaylistContext();
 
-  const isFree   = (release.price ?? 0) === 0;
   const gradient = GENRE_GRADIENTS[release.genre ?? ''] ?? 'from-[#9D4EDD]/30 to-[#00D9FF]/10';
-  const artist   = release.artists?.name ?? 'Unknown Artist';
-  const year     = new Date(release.release_date ?? release.created_at).getFullYear();
+  const year     = new Date(release.created_at).getFullYear();
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (release.audio_url) window.open(release.audio_url, '_blank');
-  };
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    addToCart({ id: release.id, title: release.title, price: (release.price ?? 0) / 100, image: release.cover_art ?? '' });
   };
 
   const handleAddToPlaylist = (e: React.MouseEvent) => {
@@ -132,8 +119,7 @@ function ReleaseCard({
       track_id:     release.id,
       content_type: 'music',
       title:        release.title,
-      artist,
-      cover_url:    release.cover_art ?? undefined,
+      cover_url:    release.artwork_url ?? undefined,
       audio_url:    release.audio_url ?? undefined,
     });
   };
@@ -143,9 +129,9 @@ function ReleaseCard({
 
       {/* Cover art */}
       <div className="aspect-square relative overflow-hidden bg-white/5">
-        {release.cover_art ? (
+        {release.artwork_url ? (
           <img
-            src={release.cover_art}
+            src={release.artwork_url}
             alt={release.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
@@ -165,13 +151,9 @@ function ReleaseCard({
           </div>
         )}
 
-        {/* Price badge */}
+        {/* Free badge */}
         <div className="absolute top-2 right-2">
-          {isFree ? (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#00F5A0] text-[#0A1128]">FREE</span>
-          ) : (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FFB800] text-[#0A1128]">${((release.price ?? 0) / 100).toFixed(2)}</span>
-          )}
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#00F5A0] text-[#0A1128]">FREE</span>
         </div>
 
         {/* Play overlay */}
@@ -200,27 +182,7 @@ function ReleaseCard({
       {/* Card info */}
       <div className="p-3">
         <p className="text-white text-sm font-semibold truncate leading-tight">{release.title}</p>
-        <p className="text-gray-400 text-xs truncate mt-0.5">{artist}</p>
         <p className="text-gray-600 text-[10px] mt-0.5">{year}{release.genre ? ` · ${release.genre}` : ''}</p>
-
-        {/* Stats */}
-        <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
-          <span className="flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {fmt(release.play_count ?? 0)}
-          </span>
-          {(release.download_count ?? 0) > 0 && (
-            <span className="flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              {fmt(release.download_count ?? 0)}
-            </span>
-          )}
-        </div>
 
         {/* Action buttons */}
         <div className="flex items-center gap-1.5 mt-3">
@@ -240,27 +202,15 @@ function ReleaseCard({
             {isPlaying ? 'Pause' : 'Play'}
           </button>
 
-          {isFree ? (
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium bg-[#00F5A0]/10 hover:bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/20 transition-colors"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download
-            </button>
-          ) : (
-            <button
-              onClick={handleAddToCart}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 transition-colors"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Cart
-            </button>
-          )}
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium bg-[#00F5A0]/10 hover:bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/20 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </button>
 
           <button
             onClick={handleAddToPlaylist}
@@ -291,9 +241,7 @@ function TrendingCard({
   onPlay:    () => void;
 }) {
   const { openAddToPlaylist } = usePlaylistContext();
-  const isFree    = (release.price ?? 0) === 0;
   const gradient  = GENRE_GRADIENTS[release.genre ?? ''] ?? 'from-[#9D4EDD]/30 to-[#00D9FF]/10';
-  const artist    = release.artists?.name ?? 'Unknown';
 
   return (
     <div className="flex gap-4 items-center bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 transition-all">
@@ -305,8 +253,8 @@ function TrendingCard({
 
       {/* Cover thumbnail */}
       <div className={`w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-        {release.cover_art ? (
-          <img src={release.cover_art} alt={release.title} className="w-full h-full object-cover" />
+        {release.artwork_url ? (
+          <img src={release.artwork_url} alt={release.title} className="w-full h-full object-cover" />
         ) : (
           <span className="text-white/20 text-2xl font-black">{release.title?.[0] ?? '♪'}</span>
         )}
@@ -315,26 +263,14 @@ function TrendingCard({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm font-semibold truncate">{release.title}</p>
-        <p className="text-gray-400 text-xs truncate mt-0.5">{artist}</p>
-        <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-500">
-          <span>🔥 {fmt(release.play_count ?? 0)} plays</span>
-          {(release.download_count ?? 0) > 0 && (
-            <span>⬇ {fmt(release.download_count ?? 0)} downloads</span>
-          )}
-        </div>
+        <p className="text-gray-600 text-[10px] mt-0.5">{release.genre ?? ''}</p>
       </div>
 
-      {/* Right: badge + controls */}
+      {/* Right: controls */}
       <div className="flex items-center gap-2 shrink-0">
-        {isFree ? (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/30">
-            FREE
-          </span>
-        ) : (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30">
-            ${((release.price ?? 0) / 100).toFixed(2)}
-          </span>
-        )}
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00F5A0]/20 text-[#00F5A0] border border-[#00F5A0]/30">
+          FREE
+        </span>
 
         {/* Play/pause */}
         <button
@@ -362,8 +298,7 @@ function TrendingCard({
             track_id:     release.id,
             content_type: 'music',
             title:        release.title,
-            artist,
-            cover_url:    release.cover_art ?? undefined,
+            cover_url:    release.artwork_url ?? undefined,
             audio_url:    release.audio_url ?? undefined,
           })}
           title="Add to playlist"
@@ -414,32 +349,21 @@ export default function LanguageMusicPage() {
     let q = supabase
       .from('tracks')
       .select(
-        'id, title, cover_art, genre, language, play_count, download_count, price, audio_url, created_at, release_type, release_date, artists(name, slug)',
+        'id, title, artwork_url, genre, language, audio_url, created_at, release_type',
         { count: 'exact' },
       )
       .ilike('language', langKey);
 
     if (activeTab !== 'all')    q = q.eq('release_type', activeTab);
     if (genreFilter !== 'All')  q = q.eq('genre', genreFilter);
-    if (priceFilter === 'free') q = q.eq('price', 0);
-    if (priceFilter === 'paid') q = q.gt('price', 0);
     if (yearFilter)             q = q.gte('created_at', `${yearFilter}-01-01`)
                                     .lte('created_at', `${yearFilter}-12-31`);
 
     switch (sort) {
-      case 'newest':
-        q = q.order('created_at',     { ascending: false }); break;
-      case 'trending':
-      case 'most_played':
-        q = q.order('play_count',     { ascending: false }); break;
-      case 'most_downloaded':
-        q = q.order('download_count', { ascending: false }); break;
       case 'alphabetical':
-        q = q.order('title',          { ascending: true  }); break;
-      case 'free_first':
-        q = q.order('price',          { ascending: true  }); break;
-      case 'paid_first':
-        q = q.order('price',          { ascending: false }); break;
+        q = q.order('title', { ascending: true }); break;
+      default:
+        q = q.order('created_at', { ascending: false }); break;
     }
 
     return q.range(offset, offset + PAGE_SIZE - 1);
@@ -465,7 +389,7 @@ export default function LanguageMusicPage() {
       // Derive available years
       const years = [
         ...new Set(
-          rows.map(r => new Date(r.release_date ?? r.created_at).getFullYear()),
+          rows.map(r => new Date(r.created_at).getFullYear()),
         ),
       ].sort((a, b) => b - a);
       setAvailableYears(years);
@@ -481,9 +405,9 @@ export default function LanguageMusicPage() {
   useEffect(() => {
     supabase
       .from('tracks')
-      .select('id, title, cover_art, genre, language, play_count, download_count, price, audio_url, created_at, release_type, release_date, artists(name, slug)')
+      .select('id, title, artwork_url, genre, language, audio_url, created_at, release_type')
       .ilike('language', langKey)
-      .order('play_count', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(3)
       .then(({ data, error }) => {
         if (!error && data) {
@@ -520,8 +444,8 @@ export default function LanguageMusicPage() {
       .map(r => ({
         id:       r.id,
         title:    r.title,
-        artist:   r.artists?.name ?? 'Unknown',
-        albumArt: r.cover_art ?? undefined,
+        artist:   'Unknown',
+        albumArt: r.artwork_url ?? undefined,
         audioUrl: r.audio_url ?? undefined,
         type:     'audio' as const,
       }));
@@ -530,8 +454,8 @@ export default function LanguageMusicPage() {
       {
         id:       release.id,
         title:    release.title,
-        artist:   release.artists?.name ?? 'Unknown',
-        albumArt: release.cover_art ?? undefined,
+        artist:   'Unknown',
+        albumArt: release.artwork_url ?? undefined,
         audioUrl: release.audio_url ?? undefined,
         type:     'audio',
       },
@@ -543,14 +467,14 @@ export default function LanguageMusicPage() {
 
   const displayReleases = artistFilter.trim()
     ? releases.filter(r =>
-        (r.artists?.name ?? '').toLowerCase().includes(artistFilter.toLowerCase()),
+        r.title.toLowerCase().includes(artistFilter.toLowerCase()),
       )
     : releases;
 
   // ── Computed stats ────────────────────────────────────────────────────────
 
-  const distinctArtists  = new Set(releases.map(r => r.artists?.name).filter(Boolean)).size;
-  const freeCount        = releases.filter(r => (r.price ?? 0) === 0).length;
+  const distinctArtists  = 0; // artist join not available on tracks
+  const freeCount        = releases.length; // all tracks are free
 
   // ── Render ────────────────────────────────────────────────────────────────
 

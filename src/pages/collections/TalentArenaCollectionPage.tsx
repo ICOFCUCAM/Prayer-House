@@ -13,13 +13,11 @@ interface CompetitionRoom {
   id: string;
   title: string;
   category: string | null;
-  prize_info: string | null;
-  prize_amount: number | null;
-  entry_count: number | null;
+  prize_pool: string | null;
   status: string;
-  deadline: string | null;
-  close_at: string | null;
-  banner_url: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  cover_url: string | null;
   description: string | null;
   created_at: string;
 }
@@ -29,10 +27,10 @@ interface RecentWinner {
   room_id: string;
   title: string;
   performer_name: string | null;
-  votes: number;
+  votes_count: number;
   thumbnail_url: string | null;
   room_title: string;
-  prize_info: string;
+  prize_pool: string;
   embed_url?: string | null;
 }
 
@@ -78,22 +76,22 @@ function Countdown({ deadline }: { deadline: string | null }) {
 
 function RoomCard({ room }: { room: CompetitionRoom }) {
   const navigate = useNavigate();
-  const deadline = room.deadline ?? room.close_at;
+  const deadline = room.end_date;
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-[#9D4EDD]/40 hover:scale-[1.02] transition-all duration-300 group shadow-lg shadow-black/40">
       <div className="relative h-36 overflow-hidden">
-        {room.banner_url ? (
-          <img src={room.banner_url} alt={room.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        {room.cover_url ? (
+          <img src={room.cover_url} alt={room.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="relative w-full h-full">
             <DefaultPerformanceThumbnail gradient="from-[#9D4EDD]/40 to-[#00D9FF]/20" label={room.title} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A1128] via-transparent to-transparent" />
-        {(room.prize_info || room.prize_amount) && (
+        {room.prize_pool && (
           <div className="absolute top-3 right-3 bg-[#FFB800] text-[#0A1128] text-xs font-bold px-2.5 py-1 rounded-xl">
-            {room.prize_info ?? `$${room.prize_amount}`}
+            {room.prize_pool}
           </div>
         )}
         <div className="absolute top-3 left-3">
@@ -122,7 +120,7 @@ function RoomCard({ room }: { room: CompetitionRoom }) {
           </div>
           <div className="text-right">
             <p className="text-gray-500 text-[10px] mb-0.5">Entries</p>
-            <p className="text-white font-bold text-sm">{room.entry_count ?? 0}</p>
+            <p className="text-white font-bold text-sm">—</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -225,21 +223,21 @@ export default function TalentArenaCollectionPage() {
       const [roomsRes, winnersRes, stripRes] = await Promise.all([
         supabase
           .from('competition_rooms')
-          .select('id, title, category, prize_info, prize_amount, entry_count, status, deadline, close_at, banner_url, description, created_at')
+          .select('id, title, category, prize_pool, status, start_date, end_date, cover_url, description, created_at')
           .eq('status', 'open')
           .order('created_at', { ascending: false })
           .limit(12),
         supabase
           .from('competition_entries_v2')
-          .select('id, room_id, title, performer_name, votes, thumbnail_url, embed_url, competition_rooms(title, prize_info)')
+          .select('id, room_id, title, performer_name, votes_count, thumbnail_url, embed_url, competition_rooms(title, prize_pool)')
           .eq('status', 'winner')
-          .order('votes', { ascending: false })
+          .order('votes_count', { ascending: false })
           .limit(6),
         supabase
           .from('competition_entries_v2')
-          .select('id, room_id, title, performer_name, votes, thumbnail_url, embed_url, competition_rooms(title, prize_info)')
+          .select('id, room_id, title, performer_name, votes_count, thumbnail_url, embed_url, competition_rooms(title, prize_pool)')
           .in('status', ['winner', 'live', 'finalist'])
-          .order('votes', { ascending: false })
+          .order('votes_count', { ascending: false })
           .limit(10),
       ]);
 
@@ -250,11 +248,11 @@ export default function TalentArenaCollectionPage() {
         room_id: w.room_id,
         title: w.title,
         performer_name: w.performer_name,
-        votes: w.votes,
+        votes_count: w.votes_count,
         thumbnail_url: w.thumbnail_url,
         embed_url: w.embed_url,
         room_title: w.competition_rooms?.title ?? 'Competition',
-        prize_info: w.competition_rooms?.prize_info ?? '',
+        prize_pool: w.competition_rooms?.prize_pool ?? '',
       });
 
       setRecentWinners((winnersRes.data ?? []).map(mapEntry));
@@ -265,7 +263,7 @@ export default function TalentArenaCollectionPage() {
     fetchData();
   }, []);
 
-  const totalPrizePool = rooms.reduce((s, r) => s + (r.prize_amount ?? 0), 0);
+  const totalPrizePool = rooms.filter(r => r.prize_pool).length;
 
   // Convert DB winners to PerformanceCardData
   const toCard = (w: RecentWinner, badge?: string, badgeBg?: string): PerformanceCardData => ({
@@ -273,7 +271,7 @@ export default function TalentArenaCollectionPage() {
     title:        w.title,
     creatorName:  w.performer_name,
     thumbnailUrl: w.thumbnail_url,
-    votes:        w.votes,
+    votes:        w.votes_count,
     embedUrl:     w.embed_url ?? undefined,
     to:           `/talent-arena/room/${w.room_id}`,
     badge,
@@ -307,7 +305,7 @@ export default function TalentArenaCollectionPage() {
           <div className="flex gap-6 mb-8">
             {[
               { label: 'Active Rooms',    value: loading ? '—' : String(rooms.length) },
-              { label: 'Total Prize Pool', value: loading ? '—' : (totalPrizePool > 0 ? `$${totalPrizePool.toLocaleString()}` : 'Prizes Available') },
+              { label: 'Total Prize Pool', value: loading ? '—' : (totalPrizePool > 0 ? 'Prizes Available' : '—') },
               { label: 'Recent Winners',  value: loading ? '—' : String(recentWinners.length) },
             ].map(s => (
               <div key={s.label}>
@@ -338,8 +336,8 @@ export default function TalentArenaCollectionPage() {
                         <PerformanceCard
                           {...toCard(
                             w,
-                            i === 0 ? '🏆 Winner' : w.votes > 500 ? '🔥 Trending' : '● Live',
-                            i === 0 ? 'rgba(255,184,0,0.85)' : w.votes > 500 ? 'rgba(255,107,0,0.85)' : 'rgba(0,245,160,0.25)',
+                            i === 0 ? '🏆 Winner' : w.votes_count > 500 ? '🔥 Trending' : '● Live',
+                            i === 0 ? 'rgba(255,184,0,0.85)' : w.votes_count > 500 ? 'rgba(255,107,0,0.85)' : 'rgba(0,245,160,0.25)',
                           )}
                         />
                       </div>
@@ -394,7 +392,7 @@ export default function TalentArenaCollectionPage() {
                   <PerformanceCard
                     key={w.id}
                     {...toCard(w, '🏆 WINNER', 'rgba(255,184,0,0.9)')}
-                    weekBadge={w.prize_info || undefined}
+                    weekBadge={w.prize_pool || undefined}
                   />
                 ))}
               </div>

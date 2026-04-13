@@ -93,7 +93,7 @@ export default function ArtistPublicPage() {
         const [tracksRes, releasesRes, entriesRes] = await Promise.all([
           supabase
             .from('tracks')
-            .select('id, title, cover_art, genre, play_count, audio_url, created_at')
+            .select('id, title, artwork_url, genre, audio_url, created_at')
             .eq('artist_id', userId)
             .order('created_at', { ascending: false })
             .limit(30),
@@ -105,10 +105,10 @@ export default function ArtistPublicPage() {
             .limit(20),
           supabase
             .from('competition_entries_v2')
-            .select('id, title, thumbnail_url, votes, room_id, status, created_at')
+            .select('id, title, thumbnail_url, votes_count, room_id, status, created_at')
             .eq('user_id', userId)
             .in('status', ['live', 'approved', 'winner'])
-            .order('votes', { ascending: false })
+            .order('votes_count', { ascending: false })
             .limit(12),
         ]);
 
@@ -281,7 +281,7 @@ export default function ArtistPublicPage() {
               </div>
               <div>
                 <p className="font-bold text-[#FFB800] text-lg">
-                  {fmt(competitionEntries.reduce((sum, e) => sum + (e.votes ?? 0), 0))}
+                  {fmt(competitionEntries.reduce((sum, e) => sum + (e.votes_count ?? 0), 0))}
                 </p>
                 <p className="text-gray-500 text-xs">Competition Votes</p>
               </div>
@@ -322,9 +322,9 @@ export default function ArtistPublicPage() {
                 {releases.map(r => (
                   <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
                     <div className="aspect-square overflow-hidden bg-white/5">
-                      {r.cover_art ? (
+                      {r.artwork_url ? (
                         <img
-                          src={r.cover_art}
+                          src={r.artwork_url}
                           alt={r.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
@@ -352,8 +352,8 @@ export default function ArtistPublicPage() {
                 {tracks.map(t => (
                   <div key={t.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
                     <div className="aspect-square overflow-hidden bg-white/5">
-                      {t.cover_art ? (
-                        <img src={t.cover_art} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      {t.artwork_url ? (
+                        <img src={t.artwork_url} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-[#FFB800]/20 to-[#FF6B00]/10 flex items-center justify-center">
                           <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -370,7 +370,7 @@ export default function ArtistPublicPage() {
                             {t.genre}
                           </span>
                         )}
-                        <span className="text-[10px] text-gray-500">{fmt(t.play_count ?? 0)} plays</span>
+                        <span className="text-[10px] text-gray-500">{t.language?.toUpperCase() ?? ''}</span>
                       </div>
                     </div>
                   </div>
@@ -418,7 +418,7 @@ export default function ArtistPublicPage() {
                         <svg className="w-3 h-3 text-[#FF6B00]" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
-                        <span className="text-[10px] text-white font-bold">{fmt(entry.votes ?? 0)}</span>
+                        <span className="text-[10px] text-white font-bold">{fmt(entry.votes_count ?? 0)}</span>
                       </div>
                     </div>
                     <div className="p-3">

@@ -6,18 +6,15 @@ import { Sparkles } from 'lucide-react';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Product {
-  id:           string;
-  handle:       string;
-  title:        string;
-  vendor?:      string;
-  artist?:      string;
-  author?:      string;
-  product_type: string;
-  images?:      string[];
-  cover_art?:   string;
-  price?:       number;
-  language?:    string;
-  genre?:       string;
+  id:                string;
+  handle:            string;
+  title:             string;
+  vendor?:           string;
+  product_type:      string;
+  cover_image_url?:  string;
+  price?:            number;
+  language?:         string;
+  genre?:            string;
 }
 
 // ── Scoring ────────────────────────────────────────────────────────────────────
@@ -28,8 +25,8 @@ function score(candidate: Product, seed: Product): number {
   if (candidate.genre    && seed.genre    && candidate.genre    === seed.genre)    s += 4;
   if (candidate.language && seed.language && candidate.language === seed.language) s += 3;
   if (candidate.product_type?.toLowerCase() === seed.product_type?.toLowerCase())  s += 2;
-  const seedCreator      = (seed.vendor || seed.artist || seed.author || '').toLowerCase();
-  const candidateCreator = (candidate.vendor || candidate.artist || candidate.author || '').toLowerCase();
+  const seedCreator      = (seed.vendor || '').toLowerCase();
+  const candidateCreator = (candidate.vendor || '').toLowerCase();
   if (seedCreator && candidateCreator && candidateCreator === seedCreator) s += 5;
   return s;
 }
@@ -59,7 +56,7 @@ export default function RelatedProducts({ product, maxItems = 6, className = '' 
 
     supabase
       .from('ecom_products')
-      .select('id,handle,title,vendor,artist,author,product_type,images,cover_art,price,language,genre')
+      .select('id,handle,title,vendor,product_type,cover_image_url,price,language,genre')
       .or(conditions.join(','))
       .eq('status', 'active')
       .neq('id', product.id)
@@ -97,8 +94,8 @@ export default function RelatedProducts({ product, maxItems = 6, className = '' 
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {related.map(p => {
-            const image   = p.images?.[0] || p.cover_art;
-            const creator = p.vendor || p.artist || p.author;
+            const image   = p.cover_image_url;
+            const creator = p.vendor;
             const isFree  = !p.price || p.price === 0;
 
             return (

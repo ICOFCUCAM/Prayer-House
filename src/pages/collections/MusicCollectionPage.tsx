@@ -11,13 +11,11 @@ import { Download, Play } from 'lucide-react';
 interface Track {
   id: string;
   title: string;
-  cover_art: string | null;
+  artwork_url: string | null;
   genre: string | null;
   language: string | null;
-  play_count: number;
   audio_url: string | null;
   created_at: string;
-  artists?: { name: string; slug: string } | null;
 }
 
 const GENRES = ['All', 'Gospel', 'Afrobeats', 'Hip-Hop', 'Classical', 'Jazz', 'R&B', 'Praise', 'Worship'];
@@ -34,12 +32,6 @@ const GENRE_GRADIENTS: Record<string, string> = {
   Worship: 'from-[#00D9FF]/20 to-indigo-900/20',
 };
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return String(n);
-}
-
 // ── Track Card ────────────────────────────────────────────────────────────────
 
 function TrackCard({ track, onPlay }: { track: Track; onPlay: (t: Track) => void }) {
@@ -49,9 +41,9 @@ function TrackCard({ track, onPlay }: { track: Track; onPlay: (t: Track) => void
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
       <div className="aspect-square relative overflow-hidden bg-white/5">
-        {track.cover_art ? (
+        {track.artwork_url ? (
           <img
-            src={track.cover_art}
+            src={track.artwork_url}
             alt={track.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
@@ -87,10 +79,7 @@ function TrackCard({ track, onPlay }: { track: Track; onPlay: (t: Track) => void
       </div>
       <div className="p-3">
         <p className="font-semibold text-white text-sm truncate">{track.title}</p>
-        <p className="text-gray-400 text-xs mt-0.5 truncate">
-          {track.artists?.name ?? 'Unknown Artist'}
-        </p>
-        <p className="text-gray-600 text-[10px] mt-1">{fmt(track.play_count ?? 0)} plays</p>
+        <p className="text-gray-600 text-[10px] mt-1">{track.language?.toUpperCase() ?? ''}</p>
       </div>
     </div>
   );
@@ -122,8 +111,8 @@ export default function MusicCollectionPage() {
 
     let query = supabase
       .from('tracks')
-      .select('id, title, cover_art, genre, language, play_count, audio_url, created_at, artists(name, slug)')
-      .order('play_count', { ascending: false })
+      .select('id, title, artwork_url, genre, language, audio_url, created_at')
+      .order('created_at', { ascending: false })
       .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
     if (selectedLanguage !== 'all') query = query.eq('language', selectedLanguage);

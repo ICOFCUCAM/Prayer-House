@@ -7,7 +7,7 @@ interface Winner {
   id: string;
   title: string;
   video_url?: string;
-  cover_art?: string;
+  thumbnail_url?: string;
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -21,7 +21,7 @@ export default function FeaturedPerformance() {
   useEffect(() => {
     supabase
       .from('competition_entries_v2')
-      .select('id, title, video_url, cover_art')
+      .select('id, title, video_url, thumbnail_url')
       .eq('status', 'winner')
       .order('updated_at', { ascending: false })
       .limit(1)
@@ -75,7 +75,7 @@ export default function FeaturedPerformance() {
                   className="absolute inset-0 w-full h-full object-cover"
                   src={winner.video_url}
                   controls
-                  poster={winner.cover_art}
+                  poster={winner.thumbnail_url}
                 />
               )}
             </div>
