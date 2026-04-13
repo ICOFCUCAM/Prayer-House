@@ -98,10 +98,24 @@ export default function ChartsPage() {
     if (lang  !== 'all') q = q.eq('language', lang);
 
     const { data } = await q;
+    const today     = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+    // Fetch yesterday's positions for rank-change arrows
+    const { data: prevHistory } = await supabase
+      .from('chart_history')
+      .select('track_id, rank')
+      .eq('genre', genre)
+      .eq('language', lang)
+      .eq('chart_date', yesterday);
+
+    const prevMap: Record<string, number> = {};
+    (prevHistory ?? []).forEach((h: any) => { prevMap[h.track_id] = h.rank; });
+
     const rows = (data ?? []).map((r: any, i: number) => ({
       id:           r.id,
       rank:         i + 1,
-      prev_rank:    null,       // would come from a chart_history table in production
+      prev_rank:    prevMap[r.id] ?? null,
       title:        r.title,
       artist:       r.artist_name || 'Unknown',
       cover_url:    r.artwork_url || '',
@@ -113,6 +127,18 @@ export default function ChartsPage() {
     }));
     setTracks(rows);
     setLoading(false);
+
+    // Upsert today's rankings so tomorrow we have yesterday's data
+    if (rows.length > 0) {
+      const upsertRows = rows.map(r => ({
+        track_id:   r.id,
+        genre,
+        language:   lang,
+        rank:       r.rank,
+        chart_date: today,
+      }));
+      supabase.from('chart_history').upsert(upsertRows, { onConflict: 'track_id,genre,language,chart_date' }).then(() => {});
+    }
   }, [genre, lang]);
 
   useEffect(() => { fetchCharts(); }, [fetchCharts]);

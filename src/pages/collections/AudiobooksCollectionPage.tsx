@@ -94,9 +94,12 @@ export default function AudiobooksCollectionPage() {
   const [page, setPage] = useState(0);
 
   const [selectedGenre, setSelectedGenre] = useState('All');
+  const [selectedLanguage, setSelectedLanguage] = useState('All');
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+
+  const LANGUAGE_OPTIONS = ['All', 'English', 'Yoruba', 'Igbo', 'Hausa', 'Pidgin', 'French', 'Swahili', 'Portuguese'];
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -112,7 +115,8 @@ export default function AudiobooksCollectionPage() {
       .order('created_at', { ascending: false })
       .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
-    if (selectedGenre !== 'All') query = query.eq('genre', selectedGenre);
+    if (selectedGenre !== 'All')    query = query.eq('genre', selectedGenre);
+    if (selectedLanguage !== 'All') query = query.ilike('language', `%${selectedLanguage}%`);
     if (priceFilter === 'free') query = query.eq('price', 0);
     if (priceFilter === 'paid') query = query.gt('price', 0);
     if (search.trim()) query = query.ilike('title', `%${search.trim()}%`);
@@ -128,7 +132,7 @@ export default function AudiobooksCollectionPage() {
     setLoadingMore(false);
   };
 
-  useEffect(() => { fetchBooks(true); }, [selectedGenre, priceFilter, search]);
+  useEffect(() => { fetchBooks(true); }, [selectedGenre, selectedLanguage, priceFilter, search]);
 
   const handleSearchInput = (val: string) => {
     setSearchInput(val);
@@ -193,7 +197,7 @@ export default function AudiobooksCollectionPage() {
         </div>
 
         {/* Genre chips */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
           {GENRES.map(g => (
             <button
               key={g}
@@ -205,6 +209,23 @@ export default function AudiobooksCollectionPage() {
               }`}
             >
               {g}
+            </button>
+          ))}
+        </div>
+
+        {/* Language chips */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+          {LANGUAGE_OPTIONS.map(l => (
+            <button
+              key={l}
+              onClick={() => setSelectedLanguage(l)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                selectedLanguage === l
+                  ? 'bg-[#00D9FF]/20 text-[#00D9FF] border border-[#00D9FF]/40'
+                  : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5'
+              }`}
+            >
+              {l}
             </button>
           ))}
         </div>

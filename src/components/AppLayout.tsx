@@ -726,14 +726,7 @@ export default function AppLayout() {
             <Link to="/collections/music" className="text-[#00D9FF] text-sm hover:underline">See All</Link>
           </div>
           <div className="flex gap-5 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {(featuredArtists.length > 0 ? featuredArtists : [
-              { name: 'Celestine Ukwu', genre: 'Highlife', streams_count: 2400000, country_code: 'NG', slug: 'celestine-ukwu' },
-              { name: 'Sinach', genre: 'Gospel', streams_count: 18000000, country_code: 'NG', slug: 'sinach' },
-              { name: 'Joe Mettle', genre: 'Gospel', streams_count: 5100000, country_code: 'GH', slug: 'joe-mettle' },
-              { name: 'Femi Kuti', genre: 'Afrobeat', streams_count: 9300000, country_code: 'NG', slug: 'femi-kuti' },
-              { name: 'Soweto Gospel', genre: 'Gospel', streams_count: 3700000, country_code: 'ZA', slug: 'soweto-gospel' },
-              { name: 'Nathaniel Bassey', genre: 'Worship', streams_count: 12000000, country_code: 'NG', slug: 'nathaniel-bassey' },
-            ]).map((artist: any, i: number) => {
+            {featuredArtists.map((artist: any, i: number) => {
               const GRADIENTS = ['from-violet-600 to-cyan-500','from-violet-700 to-indigo-500','from-emerald-500 to-cyan-500','from-cyan-600 to-violet-600','from-indigo-500 to-violet-600','from-violet-500 to-cyan-600'];
               let flag = '🌍';
               try {
@@ -839,11 +832,7 @@ export default function AppLayout() {
             <Link to="/dashboard/earnings" className="text-[#00D9FF] text-sm hover:underline">Leaderboard</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(topCreators.length > 0 ? topCreators : [
-              { rank: 1, name: 'Sinach', level: 'Diamond', xp: 18500 },
-              { rank: 2, name: 'Nathaniel Bassey', level: 'Platinum', xp: 9200 },
-              { rank: 3, name: 'Joe Mettle', level: 'Gold', xp: 4800 },
-            ]).map((creator: any, i: number) => {
+            {topCreators.map((creator: any, i: number) => {
               const LEVEL_COLORS: Record<string, string> = { Bronze: '#CD7F32', Silver: '#C0C0C0', Gold: '#FFB800', Platinum: '#E5E4E2', Diamond: '#00D9FF', 'Global Ambassador': '#9D4EDD' };
               const BADGES = ['👑', '💎', '⭐'];
               const color = LEVEL_COLORS[creator.level] ?? '#FFB800';
