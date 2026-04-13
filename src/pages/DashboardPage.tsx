@@ -31,6 +31,8 @@ export default function DashboardPage() {
   const { isAuthenticated, currentPage, setCurrentPage, user, notifications, sidebarOpen, toggleSidebar } = useApp();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
+  const isAdmin = user?.role === 'admin';
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -48,7 +50,7 @@ export default function DashboardPage() {
       case 'distribution': return <DistributionView />;
       case 'notifications': return <NotificationsView />;
       case 'settings': return <SettingsView />;
-      case 'admin': return <AdminPanel />;
+      case 'admin': return isAdmin ? <AdminPanel /> : <CreatorDashboardView />;
       default: return <CreatorDashboardView />;
     }
   };
@@ -87,7 +89,7 @@ export default function DashboardPage() {
 
           {/* Nav */}
           <nav className="flex-1 p-3 overflow-y-auto space-y-0.5">
-            {NAV_ITEMS.map(item => (
+            {NAV_ITEMS.filter(item => item.page !== 'admin' || isAdmin).map(item => (
               <button
                 key={item.page}
                 onClick={() => { setCurrentPage(item.page); if (sidebarOpen) toggleSidebar(); }}
