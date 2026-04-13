@@ -114,7 +114,19 @@ const inputCls =
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function AdminReleaseQueuePage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A1128]">
+        <div className="text-center">
+          <p className="text-4xl mb-4">🔒</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
+          <p className="text-white/50">Admin access required.</p>
+        </div>
+      </div>
+    );
+  }
 
   const [releases,  setReleases]  = useState<QueueRelease[]>([]);
   const [loading,   setLoading]   = useState(true);
