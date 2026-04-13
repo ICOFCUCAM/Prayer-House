@@ -125,9 +125,25 @@ export default function UploadAudiobookPage() {
         .select('id')
         .single();
       if (prodErr) throw prodErr;
+
+      // 3. Create audiobooks record (required for chapter FK: audiobook_chapters.audiobook_id → audiobooks.id)
+      const { data: audiobookRow, error: abErr } = await supabase
+        .from('audiobooks')
+        .insert([{
+          author_id:   user.id,
+          title:       form.title,
+          description: form.description || null,
+          cover_url:   coverUrl || null,
+          language:    form.language,
+          genre:       form.genre || null,
+          status:      'live',
+        }])
+        .select('id')
+        .single();
+      if (abErr) throw abErr;
       setProgress(25);
 
-      // 3. Upload each chapter
+      // 4. Upload each chapter
       for (let i = 0; i < withAudio.length; i++) {
         const ch = withAudio[i];
         if (!ch.audioFile) continue;
@@ -138,13 +154,11 @@ export default function UploadAudiobookPage() {
         const { data: { publicUrl: audioUrl } } = supabase.storage.from('audio').getPublicUrl(path);
 
         await supabase.from('audiobook_chapters').insert([{
-          product_id:     product.id,
-          user_id:        user.id,
-          chapter_number: i + 1,
-          title:          ch.title || `Chapter ${i + 1}`,
-          audio_url:      audioUrl,
-          duration:       ch.duration || null,
-          created_at:     new Date().toISOString(),
+          audiobook_id: audiobookRow.id,
+          chapter_num:  i + 1,
+          title:        ch.title || `Chapter ${i + 1}`,
+          audio_url:    audioUrl,
+          duration_s:   ch.duration || null,
         }]);
 
         setProgress(25 + Math.round(((i + 1) / withAudio.length) * 70));

@@ -15,7 +15,7 @@ do $$ begin
         exists (
           select 1 from ecom_products
           where ecom_products.id = book_translations.book_id
-            and ecom_products.creator_id = auth.uid()
+            and ecom_products.vendor_id = auth.uid()
         )
       )
     $p$;
