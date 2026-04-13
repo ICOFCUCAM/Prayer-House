@@ -11,16 +11,6 @@ const YT_PLAYLIST   = import.meta.env.VITE_WANKONG_PLAYLIST_ID as string | undef
 const GRID_VISIBLE  = 6;
 const ROTATION_MS   = 8_000;
 
-// ── Fallback static videos (shown when YouTube API unavailable) ───────────────
-
-const FALLBACK_VIDEOS: VideoCard[] = [
-  { id: 'fb1', videoId: 'YOUR_VIDEO_ID_1', title: 'Featured Performance — Week 1', thumbnail: 'gradient:from-[#9D4EDD] to-[#00D9FF]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_1' },
-  { id: 'fb2', videoId: 'YOUR_VIDEO_ID_2', title: 'Featured Performance — Week 2', thumbnail: 'gradient:from-[#FF6B00] to-[#FFB800]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_2' },
-  { id: 'fb3', videoId: 'YOUR_VIDEO_ID_3', title: 'Featured Performance — Week 3', thumbnail: 'gradient:from-[#00F5A0] to-[#00D9FF]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_3' },
-  { id: 'fb4', videoId: 'YOUR_VIDEO_ID_4', title: 'Featured Performance — Week 4', thumbnail: 'gradient:from-[#FFB800] to-[#FF6B00]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_4' },
-  { id: 'fb5', videoId: 'YOUR_VIDEO_ID_5', title: 'Featured Performance — Week 5', thumbnail: 'gradient:from-[#9D4EDD] to-[#FF6B00]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_5' },
-  { id: 'fb6', videoId: 'YOUR_VIDEO_ID_6', title: 'Featured Performance — Week 6', thumbnail: 'gradient:from-[#00D9FF] to-[#9D4EDD]', platform: 'youtube', embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID_6' },
-];
 
 // ── Multi-platform source store ────────────────────────────────────────────────
 
@@ -189,15 +179,11 @@ export default function FeaturedPerformancesGrid() {
     // Priority 1: WANKONG Talent Arena winners
     try { next.wankong = await fetchTalentArenaWinners(); } catch { /* silent */ }
 
-    // Priority 2: YouTube playlist
+    // Priority 2: YouTube playlist (skipped if API key not configured)
     if (YT_API_KEY && YT_PLAYLIST) {
       try {
         next.youtube = await fetchYouTubePlaylistVideos(YT_PLAYLIST, YT_API_KEY, 8);
-      } catch {
-        next.youtube = FALLBACK_VIDEOS;
-      }
-    } else {
-      next.youtube = FALLBACK_VIDEOS;
+      } catch { /* silent — no YouTube videos available */ }
     }
 
     // Placeholders
